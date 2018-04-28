@@ -10,13 +10,10 @@ from itertools import product
 from queue import PriorityQueue
 from multiprocessing import Process, Queue
 
-from bitcoin_trader.secrets import POSTGRES_USERNAME, POSTGRES_PASSWORD
-from bitcoin_trader.constants import *
-from db_models import GDAXTrade
-from bitcoin_trader.train.utils import *
-
-DB_HOST = '172.18.0.2:5432'
-
+from gdax_train.secrets import POSTGRES_USERNAME, POSTGRES_PASSWORD
+from gdax_train.constants import *
+from gdax_train.orm import GDAXTrade
+from gdax_train.utils import *
 
 class Order:
 

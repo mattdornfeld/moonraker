@@ -2,9 +2,9 @@ from keras.layers import Input, Dense, LSTM, GRU, Bidirectional, Concatenate, Ba
 from keras.models import Model
 from keras import backend as K
 
-from bitcoin_trader.train.layers import Attention
-from bitcoin_trader.train.wrappers import TimeDistributed
-from bitcoin_trader.constants import *
+from gdax_train.layers import Attention
+from gdax_train.wrappers import TimeDistributed
+from gdax_train.constants import *
 
 gdax_events_input = Input( 
 	batch_shape = GDAX_BATCH_SHAPE, 

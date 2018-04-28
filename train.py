@@ -5,11 +5,11 @@ from rl.memory import SequentialMemory
 from rl.random import OrnsteinUhlenbeckProcess
 from rl.core import Processor
 
-from bitcoin_trader.constants import *
-from bitcoin_trader.train.model import build_actor, build_critic
-from bitcoin_trader.train.environment import MockExchange, Wallet
-from bitcoin_trader.train.layers import Attention
-from bitcoin_trader.train.wrappers import TimeDistributed
+from gdax_train.constants import *
+from gdax_train.models.hierarchical_gru import build_actor, build_critic
+from gdax_train.environment import MockExchange, Wallet
+from gdax_train.layers import Attention
+from gdax_train.wrappers import TimeDistributed
 
 class MultiInputProcessor(Processor):
     def __init__(self):
@@ -138,4 +138,4 @@ if __name__ == '__main__':
         'TimeDistributed' : TimeDistributed}
         )
 
-    agent.fit(env = env, nb_steps = 10, log_interval = 10)
+    agent.fit(env=env, nb_steps=10, log_interval=10)

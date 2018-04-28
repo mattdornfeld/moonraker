@@ -2,7 +2,7 @@ import random
 from multiprocessing import Queue
 from multiprocessing.managers import SyncManager
 from queue import PriorityQueue
-from bitcoin_trader.constants import *
+from gdax_train.constants import *
 
 def generate_padding_vector(num_events_per_time_step, num_time_steps = None):
 

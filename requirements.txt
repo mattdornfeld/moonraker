@@ -1,0 +1,6 @@
+tensorflow==1.8.0
+keras==2.1.6
+sqlalchemy==1.2.7
+psycopg2==2.7.4
+docker-compose==1.21.0
+
