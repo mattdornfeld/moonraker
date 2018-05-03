@@ -185,7 +185,7 @@ class ExchangeStateWorker(Process):
 
                 padding = generate_padding_vector( 
                     num_events_per_time_step = most_events - num_events,
-                    num_time_steps = 1)
+                    sequence_length = 1)
 
                 events = np.append( events, padding, axis = 1 )
 

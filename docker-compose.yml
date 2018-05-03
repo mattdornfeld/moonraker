@@ -7,3 +7,9 @@ services:
       dockerfile: ./docker/Dockerfile
     env_file:
      - secrets.env
+    networks:
+      - gdax_stream_moonraker
+
+networks:
+  gdax_stream_moonraker:
+    external: true

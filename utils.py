@@ -1,12 +1,13 @@
-import random
 from multiprocessing import Queue
 from multiprocessing.managers import SyncManager
 from queue import PriorityQueue
+import random
+
 from gdax_train.constants import *
 
-def generate_padding_vector(num_events_per_time_step, num_time_steps = None):
+def generate_padding_vector(num_events_per_time_step, sequence_length = None):
 
-	if num_time_steps is None:
+	if sequence_length is None:
 		padding = np.zeros((num_events_per_time_step, 
 			NUM_EXCHANGE_FEATURES + NUM_METADATA_FEATURES)).astype('object')
 
@@ -14,7 +15,7 @@ def generate_padding_vector(num_events_per_time_step, num_time_steps = None):
 		padding[:,1] = NULL_DATETIME
 
 	else:
-		padding = np.zeros((num_time_steps, num_events_per_time_step, 
+		padding = np.zeros((sequence_length, num_events_per_time_step, 
 			NUM_EXCHANGE_FEATURES + NUM_METADATA_FEATURES)).astype('object')
 
 		padding[:,:,0] = NULL_ID
@@ -96,7 +97,6 @@ def stack_sequence_of_states(sequence_of_states):
         stacked_states = np.array(sequence_of_states)
 
         return stacked_states
-
 
 class DatetimeRange:
 
