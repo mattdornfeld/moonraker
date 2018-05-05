@@ -212,6 +212,7 @@ class Agent(object):
                         'nb_episode_steps': episode_step,
                         'nb_steps': self.step,
                     }
+
                     callbacks.on_episode_end(episode, episode_logs)
 
                     episode += 1

@@ -15,6 +15,7 @@ def generate_one_hot_dict(categories):
 #postgres configs
 DB_NAME = 'bitcoin'
 DB_HOST = 'postgres:5432'
+DB_HOST = '172.22.0.2:5432'
 
 #agent configs
 DDPG_BUFFER_SIZE = 100000

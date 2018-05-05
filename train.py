@@ -1,15 +1,16 @@
 from collections import namedtuple
 from datetime import datetime, timedelta
 from keras.optimizers import Adam, SGD
-from rl.agents import DDPGAgent
-from rl.memory import SequentialMemory
-from rl.random import OrnsteinUhlenbeckProcess
-from rl.core import Processor
+from gdax_train.lib.rl.agents import DDPGAgent
+from gdax_train.lib.rl.memory import SequentialMemory
+from gdax_train.lib.rl.random import OrnsteinUhlenbeckProcess
 
+from gdax_train.callbacks import History
 from gdax_train.constants import *
-from gdax_train.models.hierarchical_gru import build_actor, build_critic
 from gdax_train.environment import MockExchange, Wallet
 from gdax_train.layers import Attention
+from gdax_train.models.hierarchical_gru import build_actor, build_critic
+from gdax_train.utils import MultiInputProcessor
 from gdax_train.wrappers import TimeDistributed
 
 HyperParams = namedtuple('HyperParams', [
@@ -38,49 +39,6 @@ HyperParams = namedtuple('HyperParams', [
         'ddpg_gamma',
         'ddpg_target_model_update'])
 
-class MultiInputProcessor(Processor):
-    def __init__(self):
-        pass
-
-    def _calc_largest_number_of_events(self, state_batch):
-        num_branches = len(state_batch[0][0])
-        most_events = [0 for _ in range(num_branches)]
-        for state in state_batch:
-            for i, branch in enumerate(state[0]):
-                num_events = branch.shape[1]
-                if num_events > most_events[i]:
-                    most_events[i] = num_events
-
-        return most_events
-
-    def _pad_state(self, branch_state, most_event):
-        num_event = branch_state.shape[1]
-        
-        if num_event < most_event:
-            padding = np.zeros(
-                (branch_state.shape[0], 
-                 most_event - num_event, 
-                 branch_state.shape[2]) )
-
-            branch_state = np.append(branch_state, padding, axis=1)
-
-        return branch_state
-
-
-    def process_state_batch(self, state_batch):
-        most_events = self._calc_largest_number_of_events(state_batch)
-
-        branched_state_batches = [[] for _ in range(len(most_events))]
-        for state in state_batch:
-            for i, branch_state in enumerate(state[0]):
-                branch_state = self._pad_state(branch_state, most_events[i])
-                branch_state = np.expand_dims(branch_state, axis=0)
-                branched_state_batches[i].append(branch_state)
-
-        branched_state_batches = list(map(np.vstack, branched_state_batches))
-
-        return branched_state_batches
-
 def create_agent(actor, critic, batch_size, buffer_size, window_length, theta, mu, 
     sigma, nb_steps_warmup_critic, nb_steps_warmup_actor, gamma, 
     target_model_update, custom_model_objects):
@@ -96,19 +54,19 @@ def create_agent(actor, critic, batch_size, buffer_size, window_length, theta, m
     critic_action_input = critic.inputs[0]
     
     agent = DDPGAgent(
-        nb_actions = NUM_ACTIONS, 
-        batch_size = batch_size,
-        actor = actor, 
-        critic = critic, 
-        critic_action_input = critic_action_input, 
-        processor = processor,
-        memory = memory, 
-        nb_steps_warmup_critic = nb_steps_warmup_critic,
-        nb_steps_warmup_actor = nb_steps_warmup_actor,
-        random_process = random_process, 
-        gamma = gamma, 
-        target_model_update = target_model_update,
-        custom_model_objects = custom_model_objects)
+        actor=actor, 
+        batch_size=batch_size,
+        critic=critic, 
+        critic_action_input=critic_action_input, 
+        custom_model_objects=custom_model_objects,
+        gamma=gamma, 
+        memory=memory, 
+        nb_actions=NUM_ACTIONS, 
+        nb_steps_warmup_actor=nb_steps_warmup_actor,
+        nb_steps_warmup_critic=nb_steps_warmup_critic,
+        processor=processor,
+        random_process=random_process, 
+        target_model_update=target_model_update)
 
     agent.compile('sgd')
 
@@ -166,9 +124,16 @@ def build_and_train(hyper_params, start_dt, end_dt, time_delta):
         'TimeDistributed' : TimeDistributed}
         )
 
-    agent.fit(env=env, nb_steps=10, log_interval=10)
+    callbacks = [History()]
 
-    return agent
+    agent.fit(
+        callbacks=callbacks, 
+        env=env, 
+        log_interval=10,
+        nb_max_episode_steps=10, 
+        nb_steps=10) 
+
+    return agent, callbacks
 
 
 if __name__ == '__main__':
@@ -199,7 +164,7 @@ if __name__ == '__main__':
         ddpg_target_model_update=1e-3,
         )
 
-    agent = build_and_train(
+    agent, callbacks = build_and_train(
         hyper_params=hyper_params, 
         start_dt=datetime.now(), 
         end_dt=datetime.now()+1000*timedelta(seconds=600),
