@@ -4,6 +4,8 @@ from keras.optimizers import Adam, SGD
 from gdax_train.lib.rl.agents import DDPGAgent
 from gdax_train.lib.rl.memory import SequentialMemory
 from gdax_train.lib.rl.random import OrnsteinUhlenbeckProcess
+from sacred import Experiment
+from sacred.observers import MongoObserver
 
 from gdax_train.callbacks import History
 from gdax_train.constants import *
@@ -12,6 +14,9 @@ from gdax_train.layers import Attention
 from gdax_train.models.hierarchical_gru import build_actor, build_critic
 from gdax_train.utils import MultiInputProcessor
 from gdax_train.wrappers import TimeDistributed
+
+# ex = Experiment()
+# ex.observers.append(MongoObserver.create(url=MONGO_DB_URL))
 
 HyperParams = namedtuple('HyperParams', [
         'actor_hidden_dim_gdax_branch',
@@ -135,6 +140,39 @@ def build_and_train(hyper_params, start_dt, end_dt, time_delta):
 
     return agent, callbacks
 
+def evaluate_agent(agent, start_dt, end_dt, time_delta):
+    
+    wallet = Wallet(initital_product_amount=INITIAL_PRODUCT_AMOUNT, initial_usd=INITIAL_USD)
+    
+    env = MockExchange( 
+        wallet=wallet,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        time_delta=time_delta,
+        sequence_length=NUM_TIME_STEPS,
+        num_workers=NUM_WORKERS,
+        buffer_size=ENV_BUFFER_SIZE)
+
+    callbacks = [History()]
+
+    nb_max_episode_steps = int((end_dt - start_dt) / time_delta)
+
+    agent.test(
+        callbacks=callbacks, 
+        env=env, 
+        nb_max_episode_steps=nb_max_episode_steps)
+
+    return callbacks
+
+def main(hyper_params, train_start_dt, train_end_dt, test_start_dt, 
+    test_end_dt, time_delta):
+    
+    agent, train_callbacks = build_and_train(hyper_params, train_start_dt, 
+        train_end_dt, time_delta)
+
+    test_callbacks = evaluate_agent(agent, test_start_dt, test_end_dt, time_delta)
+
+
 
 if __name__ == '__main__':
     hyper_params = HyperParams(
@@ -164,8 +202,16 @@ if __name__ == '__main__':
         ddpg_target_model_update=1e-3,
         )
 
-    agent, callbacks = build_and_train(
+    agent, train_callbacks = build_and_train(
         hyper_params=hyper_params, 
         start_dt=datetime.now(), 
         end_dt=datetime.now()+1000*timedelta(seconds=600),
         time_delta=timedelta(seconds=600))
+
+    test_callbacks = evaluate_agent(
+        agent=agent, 
+        start_dt=datetime.now(), 
+        end_dt=datetime.now()+1000*timedelta(seconds=600),
+        time_delta=timedelta(seconds=600))
+
+    from IPython import embed; embed()

@@ -10,6 +10,14 @@ services:
     networks:
       - gdax_stream_moonraker
 
+  mongo:
+    image: mongo
+    restart: unless-stopped 
+    env_file:
+      - secrets.env
+    networks:
+      - gdax_stream_moonraker
+
 networks:
   gdax_stream_moonraker:
     external: true
