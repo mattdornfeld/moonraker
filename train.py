@@ -77,7 +77,7 @@ def create_agent(actor, critic, batch_size, buffer_size, window_length, theta, m
 
     return agent
 
-def build_and_train(hyper_params, start_dt, end_dt, time_delta):
+def build_and_train(hyper_params, num_episodes, start_dt, end_dt, time_delta):
 
     actor = build_actor(
         hidden_dim_gdax_branch=hyper_params.actor_hidden_dim_gdax_branch,
@@ -131,12 +131,14 @@ def build_and_train(hyper_params, start_dt, end_dt, time_delta):
 
     callbacks = [History()]
 
+    nb_max_episode_steps = int((end_dt - start_dt) / time_delta) - 1 
+
     agent.fit(
         callbacks=callbacks, 
         env=env, 
-        log_interval=10,
-        nb_max_episode_steps=10, 
-        nb_steps=10) 
+        log_interval=nb_max_episode_steps,
+        nb_max_episode_steps=nb_max_episode_steps, 
+        nb_steps=num_episodes * nb_max_episode_steps) 
 
     return agent, callbacks
 
@@ -155,20 +157,21 @@ def evaluate_agent(agent, start_dt, end_dt, time_delta):
 
     callbacks = [History()]
 
-    nb_max_episode_steps = int((end_dt - start_dt) / time_delta)
+    nb_max_episode_steps = int((end_dt - start_dt) / time_delta) - 1
 
     agent.test(
         callbacks=callbacks, 
         env=env, 
-        nb_max_episode_steps=nb_max_episode_steps)
+        nb_max_episode_steps=nb_max_episode_steps,
+        visualize=False)
 
     return callbacks
 
 def main(hyper_params, train_start_dt, train_end_dt, test_start_dt, 
     test_end_dt, time_delta):
     
-    agent, train_callbacks = build_and_train(hyper_params, train_start_dt, 
-        train_end_dt, time_delta)
+    agent, train_callbacks = build_and_train(hyper_params, num_episodes, 
+        train_start_dt, train_end_dt, time_delta)
 
     test_callbacks = evaluate_agent(agent, test_start_dt, test_end_dt, time_delta)
 
@@ -181,20 +184,20 @@ if __name__ == '__main__':
         actor_hidden_dim_merge_branch=100,
         actor_attention_dim_level_1=100,
         actor_attention_dim_merge_branch=100,
-        actor_num_cells_gdax_branch=3,
-        actor_num_cells_wallet_branch=3 ,
-        actor_num_cells_merge_branch=3,        
+        actor_num_cells_gdax_branch=1,
+        actor_num_cells_wallet_branch=1 ,
+        actor_num_cells_merge_branch=1,        
         critic_hidden_dim_gdax_branch = 100,
         critic_hidden_dim_wallet_branch = 100,
         critic_hidden_dim_merge_branch = 100,
         critic_hidden_dim_dense_merge_branch = 100,
         critic_attention_dim_level_1 = 100,
         critic_attention_dim_merge_branch = 100,
-        critic_num_cells_gdax_branch = 3,
-        critic_num_cells_wallet_branch = 3,
-        critic_num_cells_merge_branch = 3,
-        critic_num_cells_dense_merge_branch = 3,
-        ddpg_batch_size=5,
+        critic_num_cells_gdax_branch = 1,
+        critic_num_cells_wallet_branch = 1,
+        critic_num_cells_merge_branch = 1,
+        critic_num_cells_dense_merge_branch = 1,
+        ddpg_batch_size=1,
         ddpg_theta=0.15,
         ddpg_mu=0,
         ddpg_sigma=0.3,
@@ -202,16 +205,21 @@ if __name__ == '__main__':
         ddpg_target_model_update=1e-3,
         )
 
+    time_delta = timedelta(seconds=10)
+    num_steps_per_episode = 6
+    start_dt = datetime.now()
+
     agent, train_callbacks = build_and_train(
-        hyper_params=hyper_params, 
-        start_dt=datetime.now(), 
-        end_dt=datetime.now()+1000*timedelta(seconds=600),
-        time_delta=timedelta(seconds=600))
+        hyper_params=hyper_params,
+        num_episodes=1, 
+        start_dt=start_dt, 
+        end_dt=start_dt+num_steps_per_episode*time_delta,
+        time_delta=time_delta)
 
     test_callbacks = evaluate_agent(
         agent=agent, 
-        start_dt=datetime.now(), 
-        end_dt=datetime.now()+1000*timedelta(seconds=600),
-        time_delta=timedelta(seconds=600))
+        start_dt=start_dt, 
+        end_dt=start_dt+num_steps_per_episode*time_delta,
+        time_delta=time_delta)
 
     from IPython import embed; embed()

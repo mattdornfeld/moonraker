@@ -1,5 +1,6 @@
-import numpy as np
 from datetime import datetime
+import numpy as np
+import os
 
 def generate_one_hot_dict(categories):
 
@@ -13,9 +14,9 @@ def generate_one_hot_dict(categories):
 	return one_hot_dict
 
 #postgres configs
-DB_NAME = 'bitcoin'
+DB_NAME = 'moonraker'
 DB_HOST = 'postgres:5432'
-#DB_HOST = '172.22.0.2:5432'
+DB_HOST = '172.22.0.2:5432'
 
 #mongodb configs
 MONGO_INITDB_ROOT_PASSWORD = os.environ['MONGO_INITDB_ROOT_PASSWORD']
@@ -25,8 +26,8 @@ MONGO_DB_URL = '{}:{}@mongo:27017'.format(MONGO_INITDB_ROOT_USERNAME, MONGO_INIT
 #agent configs
 DDPG_BUFFER_SIZE = 100000
 DDPG_WINDOW_LENGTH = 1
-NUM_STEPS_WARMUP_ACTOR = 5
-NUM_STEPS_WARMUP_CRITIC = 5
+NUM_STEPS_WARMUP_ACTOR = 1
+NUM_STEPS_WARMUP_CRITIC = 1
 
 #environment configs
 ENV_BUFFER_SIZE = 100
