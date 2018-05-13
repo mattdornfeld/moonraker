@@ -7,7 +7,7 @@ from gdax_train.lib.rl.random import OrnsteinUhlenbeckProcess
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-from gdax_train.callbacks import History
+from gdax_train.callbacks import TestLogger, TrainLogger
 from gdax_train.constants import *
 from gdax_train.environment import MockExchange, Wallet
 from gdax_train.layers import Attention
@@ -15,8 +15,9 @@ from gdax_train.models.hierarchical_gru import build_actor, build_critic
 from gdax_train.utils import MultiInputProcessor
 from gdax_train.wrappers import TimeDistributed
 
-# ex = Experiment()
-# ex.observers.append(MongoObserver.create(url=MONGO_DB_URL))
+ex = Experiment()
+#ex.observers.append(MongoObserver.create(url=MONGO_DB_URL))
+ex.observers.append(MongoObserver.create())
 
 HyperParams = namedtuple('HyperParams', [
         'actor_hidden_dim_gdax_branch',
@@ -77,7 +78,8 @@ def create_agent(actor, critic, batch_size, buffer_size, window_length, theta, m
 
     return agent
 
-def build_and_train(hyper_params, num_episodes, start_dt, end_dt, time_delta):
+def build_and_train(hyper_params, num_episodes, test_start_dt, test_end_dt, 
+    train_start_dt, train_end_dt, time_delta):
 
     actor = build_actor(
         hidden_dim_gdax_branch=hyper_params.actor_hidden_dim_gdax_branch,
@@ -104,8 +106,8 @@ def build_and_train(hyper_params, num_episodes, start_dt, end_dt, time_delta):
 
     env = MockExchange( 
         wallet=Wallet(initital_product_amount=INITIAL_PRODUCT_AMOUNT, initial_usd=INITIAL_USD),
-        start_dt=start_dt,
-        end_dt=end_dt,
+        start_dt=train_start_dt,
+        end_dt=train_end_dt,
         time_delta=time_delta,
         sequence_length=NUM_TIME_STEPS,
         num_workers=NUM_WORKERS,
@@ -129,9 +131,17 @@ def build_and_train(hyper_params, num_episodes, start_dt, end_dt, time_delta):
         'TimeDistributed' : TimeDistributed}
         )
 
-    callbacks = [History()]
+    test_logger = TestLogger(
+        sacred_experiment=ex, 
+        test_start_dt=test_start_dt, 
+        test_end_dt=train_end_dt, 
+        time_delta=time_delta)
 
-    nb_max_episode_steps = int((end_dt - start_dt) / time_delta) - 1 
+    train_logger = TrainLogger(sacred_experiment=ex)
+
+    callbacks = [test_logger, train_logger]
+
+    nb_max_episode_steps = int((train_end_dt - train_start_dt) / time_delta) - 1 
 
     agent.fit(
         callbacks=callbacks, 
@@ -142,42 +152,8 @@ def build_and_train(hyper_params, num_episodes, start_dt, end_dt, time_delta):
 
     return agent, callbacks
 
-def evaluate_agent(agent, start_dt, end_dt, time_delta):
-    
-    wallet = Wallet(initital_product_amount=INITIAL_PRODUCT_AMOUNT, initial_usd=INITIAL_USD)
-    
-    env = MockExchange( 
-        wallet=wallet,
-        start_dt=start_dt,
-        end_dt=end_dt,
-        time_delta=time_delta,
-        sequence_length=NUM_TIME_STEPS,
-        num_workers=NUM_WORKERS,
-        buffer_size=ENV_BUFFER_SIZE)
-
-    callbacks = [History()]
-
-    nb_max_episode_steps = int((end_dt - start_dt) / time_delta) - 1
-
-    agent.test(
-        callbacks=callbacks, 
-        env=env, 
-        nb_max_episode_steps=nb_max_episode_steps,
-        visualize=False)
-
-    return callbacks
-
-def main(hyper_params, train_start_dt, train_end_dt, test_start_dt, 
-    test_end_dt, time_delta):
-    
-    agent, train_callbacks = build_and_train(hyper_params, num_episodes, 
-        train_start_dt, train_end_dt, time_delta)
-
-    test_callbacks = evaluate_agent(agent, test_start_dt, test_end_dt, time_delta)
-
-
-
-if __name__ == '__main__':
+@ex.config
+def config():
     hyper_params = HyperParams(
         actor_hidden_dim_gdax_branch=100,
         actor_hidden_dim_wallet_branch=100,
@@ -206,20 +182,33 @@ if __name__ == '__main__':
         )
 
     time_delta = timedelta(seconds=10)
+    num_episodes = 1
     num_steps_per_episode = 6
     start_dt = datetime.now()
 
+    num_episodes = 1 
+    test_start_dt = start_dt
+    test_end_dt = start_dt+num_steps_per_episode*time_delta
+    train_start_dt = start_dt 
+    train_end_dt = start_dt+num_steps_per_episode*time_delta
+    time_delta = time_delta
+
+
+@ex.automain
+def main(hyper_params, num_episodes, train_start_dt, train_end_dt, 
+    test_start_dt, test_end_dt, time_delta):
+    
     agent, train_callbacks = build_and_train(
         hyper_params=hyper_params,
         num_episodes=1, 
-        start_dt=start_dt, 
-        end_dt=start_dt+num_steps_per_episode*time_delta,
-        time_delta=time_delta)
-
-    test_callbacks = evaluate_agent(
-        agent=agent, 
-        start_dt=start_dt, 
-        end_dt=start_dt+num_steps_per_episode*time_delta,
+        test_start_dt=test_start_dt,
+        test_end_dt=test_end_dt,
+        train_start_dt=train_start_dt, 
+        train_end_dt=train_end_dt,
         time_delta=time_delta)
 
     from IPython import embed; embed()
+
+
+if __name__ == '__main__':
+    ex.run()

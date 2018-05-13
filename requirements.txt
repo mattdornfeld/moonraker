@@ -2,6 +2,7 @@ bayesian-optimization==0.6.0
 docker-compose==1.21.0
 keras==2.1.6
 psycopg2==2.7.4
+pymongo==3.6.1
 sacred==0.7.2
 sqlalchemy==1.2.7
 tensorflow==1.8.0
