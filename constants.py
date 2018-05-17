@@ -16,7 +16,7 @@ def generate_one_hot_dict(categories):
 #postgres configs
 DB_NAME = 'moonraker'
 DB_HOST = 'postgres:5432'
-DB_HOST = '172.22.0.2:5432'
+DB_HOST = '172.22.0.3:5432'
 
 #mongodb configs
 MONGO_INITDB_ROOT_PASSWORD = os.environ['MONGO_INITDB_ROOT_PASSWORD']

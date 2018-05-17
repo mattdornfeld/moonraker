@@ -329,12 +329,13 @@ class Agent(object):
                         break
                 if nb_max_episode_steps and episode_step >= nb_max_episode_steps - 1:
                     done = True
-                self.backward(reward, terminal=done)
+                metrics = self.backward(reward, terminal=done)
                 episode_reward += reward
 
                 step_logs = {
                     'action': action,
                     'observation': observation,
+                    'metrics' : metrics,
                     'reward': reward,
                     'episode': episode,
                     'info': accumulated_info,

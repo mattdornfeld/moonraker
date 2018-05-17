@@ -19,26 +19,39 @@ def evaluate_agent(agent, start_dt, end_dt, time_delta):
 
     nb_max_episode_steps = int((end_dt - start_dt) / time_delta) - 1
 
-    agent.test(
+    history = agent.test(
         callbacks=callbacks, 
         env=env, 
         nb_max_episode_steps=nb_max_episode_steps,
         visualize=False)
 
-    return callbacks
+    return history
 
 class History(Callback):
     def on_train_begin(self, logs={}):
+        self.episode_metrics = []
+        self.episode_rewards = []
         self.metrics = []
         self.metrics_names = self.model.metrics_names
-        self.rewards = []
 
     def on_step_end(self, step, logs={}):
+        #from IPython import embed; embed()
         self.metrics.append(logs.get('metrics'))
-        self.rewards.append(logs.get('reward'))
 
     def on_episode_end(self, episode, logs={}):
-        self.episode_reward = sum(self.rewards)   
+        self.episode_metrics.append(self.metrics[-1])
+        self.episode_rewards.append(logs.get('episode_reward'))   
+
+class TestHistory(Callback):
+    def on_train_begin(self, logs={}):
+        self.episode_metrics = []
+        self.episode_rewards = []
+        self.metrics = []
+        self.metrics_names = self.model.metrics_names
+
+    def on_episode_end(self, episode, logs={}):
+        self.episode_metrics.append(self.metrics[-1])
+        self.episode_rewards.append(logs.get('episode_reward'))   
 
 class TestLogger(Callback):
     def __init__(self, sacred_experiment, test_start_dt, test_end_dt, time_delta):
@@ -50,9 +63,7 @@ class TestLogger(Callback):
         super().__init__()
 
     def on_train_begin(self, logs={}):
-        self.metrics = []
-        self.metrics_names = self.model.metrics_names
-        self.rewards = []
+        self.episode_rewards = []
 
     def on_episode_end(self, episode, logs={}):
         #At the end of each episode evaluate the performance of the agent
@@ -60,17 +71,11 @@ class TestLogger(Callback):
             agent=self.model,
             start_dt=self.test_start_dt,
             end_dt=self.test_end_dt,
-            time_delta=self.time_delta)[0]
+            time_delta=self.time_delta)
 
-        self.metrics.append(test_history.metrics[-1])
-        self.rewards.append(test_history.episode_reward)
+        self.episode_rewards.append(test_history.history['episode_reward'][-1])
 
-        from IPython import embed; embed()
-        self.sacred_experiment.log_scalar('test_reward', self.rewards[-1])
-        for i, metric_name in enumerate(self.metrics_names):
-            _metric_name = 'train_' + metric_name
-            metric = self.metrics[-1][i]
-            self.sacred_experiment.log_scalar(_metric_name, metric)
+        self.sacred_experiment.log_scalar('test_reward', self.episode_rewards[-1])
 
 class TrainLogger(Callback):
     def __init__(self, sacred_experiment):
@@ -78,17 +83,20 @@ class TrainLogger(Callback):
         super().__init__()
 
     def on_train_begin(self, logs={}):
+        self.episode_metrics = []
+        self.episode_rewards = []
         self.metrics = []
         self.metrics_names = self.model.metrics_names
-        self.rewards = []
 
     def on_step_end(self, step, logs={}):
         self.metrics.append(logs.get('metrics'))
-        self.rewards.append(logs.get('reward'))
 
     def on_episode_end(self, episode, logs={}):
-        self.sacred_experiment.log_scalar('train_reward', sum(self.rewards))
-        for i, metric_name in enumerate(test_history.metrics_names):
-            _metric_name = 'test_' + metric_name
-            metric = test_history.metrics[-1][i]
-            self.sacred_experiment.log_scalar(_metric_name, metric)
+        self.episode_metrics.append(self.metrics[-1])
+        self.episode_rewards.append(logs.get('episode_reward'))
+        
+        self.sacred_experiment.log_scalar('train_reward', self.episode_rewards[-1])
+        for i, metric_name in enumerate(self.metrics_names):
+            _metric_name = 'train_' + metric_name
+            metric = self.episode_metrics[-1][i]
+            self.sacred_experiment.log_scalar(_metric_name, float(metric))

@@ -81,6 +81,8 @@ def create_agent(actor, critic, batch_size, buffer_size, window_length, theta, m
 def build_and_train(hyper_params, num_episodes, test_start_dt, test_end_dt, 
     train_start_dt, train_end_dt, time_delta):
 
+    hyper_params = HyperParams(**hyper_params)
+
     actor = build_actor(
         hidden_dim_gdax_branch=hyper_params.actor_hidden_dim_gdax_branch,
         hidden_dim_wallet_branch=hyper_params.actor_hidden_dim_wallet_branch,
@@ -154,7 +156,7 @@ def build_and_train(hyper_params, num_episodes, test_start_dt, test_end_dt,
 
 @ex.config
 def config():
-    hyper_params = HyperParams(
+    hyper_params = dict(
         actor_hidden_dim_gdax_branch=100,
         actor_hidden_dim_wallet_branch=100,
         actor_hidden_dim_merge_branch=100,
@@ -198,7 +200,7 @@ def config():
 def main(hyper_params, num_episodes, train_start_dt, train_end_dt, 
     test_start_dt, test_end_dt, time_delta):
     
-    agent, train_callbacks = build_and_train(
+    agent, callbacks = build_and_train(
         hyper_params=hyper_params,
         num_episodes=1, 
         test_start_dt=test_start_dt,
