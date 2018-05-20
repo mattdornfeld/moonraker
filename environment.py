@@ -10,7 +10,6 @@ from itertools import product
 from queue import PriorityQueue
 from multiprocessing import Process, Queue
 
-from gdax_train.secrets import POSTGRES_USERNAME, POSTGRES_PASSWORD
 from gdax_train.constants import *
 from gdax_train.orm import GDAXTrade
 from gdax_train.utils import *

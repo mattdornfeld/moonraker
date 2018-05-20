@@ -1,7 +1,6 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import (create_engine, Column, Integer, BigInteger, String, 
 	DateTime, Float)
-from gdax_train.secrets import POSTGRES_USERNAME, POSTGRES_PASSWORD
 from gdax_train.constants import *
 
 Base = declarative_base()

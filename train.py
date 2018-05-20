@@ -16,8 +16,8 @@ from gdax_train.utils import MultiInputProcessor
 from gdax_train.wrappers import TimeDistributed
 
 ex = Experiment()
-#ex.observers.append(MongoObserver.create(url=MONGO_DB_URL))
-ex.observers.append(MongoObserver.create())
+ex.observers.append(MongoObserver.create(url=MONGO_DB_URL))
+# ex.observers.append(MongoObserver.create())
 
 HyperParams = namedtuple('HyperParams', [
         'actor_hidden_dim_gdax_branch',
@@ -151,7 +151,7 @@ def build_and_train(hyper_params, num_episodes, test_start_dt, test_end_dt,
         log_interval=nb_max_episode_steps,
         nb_max_episode_steps=nb_max_episode_steps, 
         nb_steps=num_episodes * nb_max_episode_steps,
-        verbose=0) 
+        verbose=1) 
 
     return agent, callbacks
 
