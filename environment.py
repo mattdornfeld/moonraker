@@ -293,13 +293,17 @@ class MockExchange(Env):
         self.wallet = wallet
 
         #configs
+        self.buffer_size = buffer_size
+        self.start_dt = start_dt
+        self.end_dt = end_dt
         self.time_delta = time_delta
         self.sequence_length = sequence_length
         
         #Data queues
-        self.dt_queue = generate_datetime_queue(start_dt, end_dt, time_delta)
-        self.exchange_state_queue = create_multiprocess_priority_queue(
-            maxsize=buffer_size)
+        # self.dt_queue = generate_datetime_queue(start_dt, end_dt, time_delta)
+        # self.exchange_state_queue = create_multiprocess_priority_queue(
+        #     maxsize=buffer_size)
+        self._reset_queues()
 
         #Multiprocessing workers
         self.workers = []
@@ -442,17 +446,25 @@ class MockExchange(Env):
 
 
     def _is_episode_over(self):
+        #Game ends if we run out of money.
+        return self.wallet.product_amount <= 0 and self.wallet.usd <= 0 
 
-        #The game ends if we get to the end of the training period or
-        #if we run out of money.
-
-        if (self.dt_queue.qsize() == 0 
-                    and self.exchange_state_queue.qsize() == 0):
-            return True
-        elif self.wallet.product_amount <= 0 and self.wallet.usd <= 0:
-            return True
+    def _reset_queues(self):
+        if hasattr(self, 'dt_queue'):
+            empty_queue(self.dt_queue)
+        
+        if hasattr(self, 'exchange_state_queue'):
+            empty_queue(self.exchange_state_queue)
         else:
-            return False
+            self.exchange_state_queue = create_multiprocess_priority_queue(
+                maxsize=self.buffer_size)
+
+        if hasattr(self, 'dt_queue'):
+            self.dt_queue = populate_datetime_queue(
+                self.start_dt, self.end_dt, self.time_delta, self.dt_queue)
+        else:
+            self.dt_queue = populate_datetime_queue(
+                self.start_dt, self.end_dt, self.time_delta)
 
     def step(self, action):
 
@@ -464,10 +476,6 @@ class MockExchange(Env):
 
         wallet_state = self._get_wallet_state(start_dt)
 
-        #exchange_state = np.expand_dims(exchange_state, axis=0)
-
-        #wallet_state = np.expand_dims(wallet_state, axis=0)
-
         state = [exchange_state[:,:,2:], wallet_state[:,:,2:]]
 
         is_done = self._is_episode_over()
@@ -478,10 +486,10 @@ class MockExchange(Env):
 
     def reset(self):
 
+        self._reset_queues()
+
         start_dt, exchange_state = self.exchange_state_queue.get()
         wallet_state = self._get_wallet_state(start_dt)
-        #exchange_state = np.expand_dims(exchange_state, axis=0)
-        #wallet_state = np.expand_dims(wallet_state, axis=0)
         state = [exchange_state[:,:,2:], wallet_state[:,:,2:]]
 
         return state

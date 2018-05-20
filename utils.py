@@ -6,6 +6,12 @@ from rl.core import Processor
 
 from gdax_train.constants import *
 
+def empty_queue(queue):
+    while queue.qsize() > 0:
+        queue.get(block=False)
+
+    return queue
+
 def generate_padding_vector(num_events_per_time_step, sequence_length = None):
 
 	if sequence_length is None:
@@ -36,9 +42,10 @@ def create_multiprocess_priority_queue(maxsize):
 	return sync_manager.PriorityQueue(maxsize=maxsize)
 
 
-def generate_datetime_queue(start_dt, end_dt, time_delta):
+def populate_datetime_queue(start_dt, end_dt, time_delta, dt_queue=None):
 
-    dt_queue = Queue()
+    if dt_queue is None:
+        dt_queue = Queue()
 
     dt = start_dt
 

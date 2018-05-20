@@ -1,7 +1,6 @@
 from keras.layers import Layer
 import tensorflow as tf
 
-
 class Attention(Layer):
 
     def __init__(self, attention_dim):

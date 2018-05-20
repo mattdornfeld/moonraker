@@ -15,43 +15,14 @@ def evaluate_agent(agent, start_dt, end_dt, time_delta):
         num_workers=NUM_WORKERS,
         buffer_size=ENV_BUFFER_SIZE)
 
-    callbacks = [History()]
-
     nb_max_episode_steps = int((end_dt - start_dt) / time_delta) - 1
 
     history = agent.test(
-        callbacks=callbacks, 
         env=env, 
         nb_max_episode_steps=nb_max_episode_steps,
         visualize=False)
 
     return history
-
-class History(Callback):
-    def on_train_begin(self, logs={}):
-        self.episode_metrics = []
-        self.episode_rewards = []
-        self.metrics = []
-        self.metrics_names = self.model.metrics_names
-
-    def on_step_end(self, step, logs={}):
-        #from IPython import embed; embed()
-        self.metrics.append(logs.get('metrics'))
-
-    def on_episode_end(self, episode, logs={}):
-        self.episode_metrics.append(self.metrics[-1])
-        self.episode_rewards.append(logs.get('episode_reward'))   
-
-class TestHistory(Callback):
-    def on_train_begin(self, logs={}):
-        self.episode_metrics = []
-        self.episode_rewards = []
-        self.metrics = []
-        self.metrics_names = self.model.metrics_names
-
-    def on_episode_end(self, episode, logs={}):
-        self.episode_metrics.append(self.metrics[-1])
-        self.episode_rewards.append(logs.get('episode_reward'))   
 
 class TestLogger(Callback):
     def __init__(self, sacred_experiment, test_start_dt, test_end_dt, time_delta):

@@ -141,16 +141,17 @@ def build_and_train(hyper_params, num_episodes, test_start_dt, test_end_dt,
 
     train_logger = TrainLogger(sacred_experiment=ex)
 
-    callbacks = [test_logger, train_logger]
+    callbacks = [test_logger]#, train_logger]
 
-    nb_max_episode_steps = int((train_end_dt - train_start_dt) / time_delta) - 1 
+    nb_max_episode_steps = int((train_end_dt - train_start_dt) / time_delta) - 1
 
     agent.fit(
         callbacks=callbacks, 
         env=env, 
         log_interval=nb_max_episode_steps,
         nb_max_episode_steps=nb_max_episode_steps, 
-        nb_steps=num_episodes * nb_max_episode_steps) 
+        nb_steps=num_episodes * nb_max_episode_steps,
+        verbose=0) 
 
     return agent, callbacks
 
@@ -202,15 +203,9 @@ def main(hyper_params, num_episodes, train_start_dt, train_end_dt,
     
     agent, callbacks = build_and_train(
         hyper_params=hyper_params,
-        num_episodes=1, 
+        num_episodes=num_episodes, 
         test_start_dt=test_start_dt,
         test_end_dt=test_end_dt,
         train_start_dt=train_start_dt, 
         train_end_dt=train_end_dt,
         time_delta=time_delta)
-
-    from IPython import embed; embed()
-
-
-if __name__ == '__main__':
-    ex.run()
