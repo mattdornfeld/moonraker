@@ -78,7 +78,7 @@ def create_agent(actor, critic, batch_size, buffer_size, window_length, theta, m
 
     return agent
 
-def build_and_train(hyper_params, num_episodes, test_start_dt, test_end_dt, 
+def build_and_train(hyper_params, num_episodes, tensorboard_dir, test_start_dt, test_end_dt, 
     train_start_dt, train_end_dt, time_delta):
 
     hyper_params = HyperParams(**hyper_params)
@@ -134,14 +134,15 @@ def build_and_train(hyper_params, num_episodes, test_start_dt, test_end_dt,
         )
 
     test_logger = TestLogger(
-        sacred_experiment=ex, 
+        sacred_experiment=ex,
+        tensorboard_dir=tensorboard_dir, 
         test_start_dt=test_start_dt, 
         test_end_dt=train_end_dt, 
         time_delta=time_delta)
 
-    train_logger = TrainLogger(sacred_experiment=ex)
+    train_logger = TrainLogger(sacred_experiment=ex, tensorboard_dir=tensorboard_dir)
 
-    callbacks = [test_logger]#, train_logger]
+    callbacks = [test_logger, train_logger]
 
     nb_max_episode_steps = int((train_end_dt - train_start_dt) / time_delta) - 1
 
@@ -184,26 +185,30 @@ def config():
         ddpg_target_model_update=1e-3,
         )
 
-    time_delta = timedelta(seconds=10)
     num_episodes = 1
     num_steps_per_episode = 6
-    start_dt = datetime.now()
-
-    num_episodes = 1 
+    
+    start_dt = datetime.now() 
+    time_delta = timedelta(seconds=10)
     test_start_dt = start_dt
     test_end_dt = start_dt+num_steps_per_episode*time_delta
     train_start_dt = start_dt 
     train_end_dt = start_dt+num_steps_per_episode*time_delta
     time_delta = time_delta
 
-
 @ex.automain
-def main(hyper_params, num_episodes, train_start_dt, train_end_dt, 
+def main(_run, hyper_params, num_episodes, train_start_dt, train_end_dt, 
     test_start_dt, test_end_dt, time_delta):
+    
+    ex_name = _run.experiment_info['name']
+    ex_id = _run._id
+    tensorboard_dir = os.path.join(TENSORBOARD_ROOT_DIR, '{}_{}'.format(ex_name, ex_id))
+    os.mkdir(tensorboard_dir)
     
     agent, callbacks = build_and_train(
         hyper_params=hyper_params,
         num_episodes=num_episodes, 
+        tensorboard_dir=tensorboard_dir,
         test_start_dt=test_start_dt,
         test_end_dt=test_end_dt,
         train_start_dt=train_start_dt, 

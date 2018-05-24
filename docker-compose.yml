@@ -5,6 +5,8 @@ services:
     build: 
       context: .
       dockerfile: ./docker/Dockerfile
+    volumes:
+      - /var/log/sacred_tensorboard:/var/log/sacred_tensorboard
     env_file:
      - secrets.env
     networks:

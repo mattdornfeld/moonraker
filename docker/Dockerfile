@@ -4,7 +4,9 @@ RUN apt-get update
 
 RUN apt-get install python3-pip -y
 
-RUN mkdir python3_lib
+RUN mkdir python3_lib 
+
+RUN mkdir /var/log/sacred_tensorboard
 
 ENV PYTHONPATH=/python3_lib:$PYTHONPATH
 
