@@ -13,3 +13,6 @@ deploy_gdax_train:
   - echo MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME >> secrets.env
   - echo MONGO_INITDB_ROOT_PASSWORD=$MONGO_INITDB_ROOT_PASSWORD >> secrets.env
   - docker-compose up --build
+
+  only:
+  - master
