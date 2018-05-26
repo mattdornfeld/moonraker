@@ -5,6 +5,7 @@ services:
     build: 
       context: .
       dockerfile: ./docker/Dockerfile
+    image: 'registry.gitlab.com/moonraker/gdax_train/optional-image-name:latest'
     volumes:
       - /var/log/sacred_tensorboard:/var/log/sacred_tensorboard
       - /var/moonraker_models:/var/moonraker_models
