@@ -16,7 +16,10 @@ def add_tensorboard_dir_to_sacred(sacred_experiment, tensorboard_dir):
 
 def empty_queue(queue):
     while queue.qsize() > 0:
-        queue.get(block=False)
+        try:
+            queue.get(block=False)
+        except:
+            continue
 
     return queue
 

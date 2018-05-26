@@ -185,7 +185,7 @@ def config():
         ddpg_target_model_update=1e-3,
         )
 
-    num_episodes = 1
+    num_episodes = 5
     num_steps_per_episode = 6
     
     start_dt = datetime.now() 

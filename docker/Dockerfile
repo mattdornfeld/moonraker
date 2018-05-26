@@ -1,8 +1,8 @@
 FROM ubuntu:16.04
 
-RUN apt-get update
+RUN apt-get update 
 
-RUN apt-get install python3-pip -y
+RUN apt-get install git python3-pip -y
 
 RUN mkdir python3_lib 
 

@@ -297,11 +297,9 @@ class MockExchange(Env):
         self.end_dt = end_dt
         self.time_delta = time_delta
         self.sequence_length = sequence_length
+        self.step_num = 0
+        self.nb_max_episode_steps = int((start_dt - end_dt) / time_delta) - 1
         
-        #Data queues
-        # self.dt_queue = generate_datetime_queue(start_dt, end_dt, time_delta)
-        # self.exchange_state_queue = create_multiprocess_priority_queue(
-        #     maxsize=buffer_size)
         self._reset_queues()
 
         #Multiprocessing workers
@@ -446,7 +444,12 @@ class MockExchange(Env):
 
     def _is_episode_over(self):
         #Game ends if we run out of money.
-        return self.wallet.product_amount <= 0 and self.wallet.usd <= 0 
+        # if self.step_num >= self.nb_max_episode_steps:
+        #     return True
+        if self.wallet.product_amount <= 0 and self.wallet.usd <= 0:
+            return True
+        else:
+            return False
 
     def _reset_queues(self):
         if hasattr(self, 'dt_queue'):
@@ -466,6 +469,8 @@ class MockExchange(Env):
                 self.start_dt, self.end_dt, self.time_delta)
 
     def step(self, action):
+
+        self.step_num += 1
 
         start_dt, exchange_state = self.exchange_state_queue.get()
 
