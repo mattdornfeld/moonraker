@@ -1,5 +1,4 @@
 from keras import backend as K
-from sacred.stflow import LogFileWriter
 import tensorflow as tf
 
 from gdax_train.constants import *
@@ -41,8 +40,7 @@ class TestLogger(Callback):
     def on_train_begin(self, logs={}):
         self.episode_rewards = []
         self.sess = K.get_session()
-        with LogFileWriter(self.sacred_experiment):
-            self.file_writer = tf.summary.FileWriter(logdir=self.tensorboard_dir)
+        self.file_writer = tf.summary.FileWriter(logdir=self.tensorboard_dir)
 
     def on_episode_end(self, episode, logs={}):
         #At the end of each episode evaluate the performance of the agent
@@ -53,9 +51,10 @@ class TestLogger(Callback):
             time_delta=self.time_delta)
 
         self.episode_rewards.append(test_history.history['episode_reward'][-1])
-
+        
         self.sacred_experiment.log_scalar('test_reward', self.episode_rewards[-1])
 
+        #log to tensorboard dir
         test_reward = tf.summary.scalar('test_reward', self.episode_rewards[-1])
         summary_op = tf.summary.merge(inputs=[test_reward])
         summary = self.sess.run([summary_op])

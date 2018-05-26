@@ -1,10 +1,18 @@
+from keras import backend as K
 from multiprocessing import Queue
 from multiprocessing.managers import SyncManager
 from queue import PriorityQueue
 import random
-from rl.core import Processor
+from sacred.stflow import LogFileWriter
+import tensorflow as tf
 
 from gdax_train.constants import *
+from gdax_train.lib.rl.core import Processor
+
+def add_tensorboard_dir_to_sacred(sacred_experiment, tensorboard_dir):
+        sess = K.get_session()
+        with LogFileWriter(sacred_experiment):
+            tf.summary.FileWriter(logdir=tensorboard_dir)
 
 def empty_queue(queue):
     while queue.qsize() > 0:
@@ -74,6 +82,21 @@ def generate_state_vector(event_price, event_size,
 
     return event_state_vector
 
+def make_tensorboard_dir(_run):
+    ex_name = _run.experiment_info['name']
+    ex_id = _run._id
+    tensorboard_dir = os.path.join(TENSORBOARD_ROOT_DIR, '{}_{}'.format(ex_name, ex_id))
+    os.mkdir(tensorboard_dir)
+
+    return tensorboard_dir
+
+def make_model_dir(_run):
+    ex_name = _run.experiment_info['name']
+    ex_id = _run._id
+    model_dir = os.path.join(SAVED_MODELS_ROOT_DIR, '{}_{}'.format(ex_name, ex_id))
+    os.mkdir(model_dir)
+
+    return model_dir
 
 def stack_sequence_of_states(sequence_of_states):
 

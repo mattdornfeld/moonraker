@@ -337,7 +337,7 @@ class MockExchange(Env):
             
             return
 
-        elif size > 0:
+        if size > 0:
 
             self.wallet.buy(
                 size = size,

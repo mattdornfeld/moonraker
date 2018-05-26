@@ -8,6 +8,8 @@ RUN mkdir python3_lib
 
 RUN mkdir /var/log/sacred_tensorboard
 
+RUN mkdir /var/moonraker_models
+
 ENV PYTHONPATH=/python3_lib:$PYTHONPATH
 
 RUN pip3 install --upgrade pip

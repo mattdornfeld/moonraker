@@ -12,7 +12,7 @@ from gdax_train.constants import *
 from gdax_train.environment import MockExchange, Wallet
 from gdax_train.layers import Attention
 from gdax_train.models.hierarchical_gru import build_actor, build_critic
-from gdax_train.utils import MultiInputProcessor
+from gdax_train.utils import *
 from gdax_train.wrappers import TimeDistributed
 
 ex = Experiment()
@@ -199,11 +199,9 @@ def config():
 @ex.automain
 def main(_run, hyper_params, num_episodes, train_start_dt, train_end_dt, 
     test_start_dt, test_end_dt, time_delta):
-    
-    ex_name = _run.experiment_info['name']
-    ex_id = _run._id
-    tensorboard_dir = os.path.join(TENSORBOARD_ROOT_DIR, '{}_{}'.format(ex_name, ex_id))
-    os.mkdir(tensorboard_dir)
+
+    tensorboard_dir = make_tensorboard_dir(_run)
+    add_tensorboard_dir_to_sacred(ex, tensorboard_dir)
     
     agent, callbacks = build_and_train(
         hyper_params=hyper_params,
@@ -214,3 +212,22 @@ def main(_run, hyper_params, num_episodes, train_start_dt, train_end_dt,
         train_start_dt=train_start_dt, 
         train_end_dt=train_end_dt,
         time_delta=time_delta)
+
+    #Save weights using the agent method. Also save
+    #the full actor and critic models in case they're
+    #needed later.
+    model_dir = make_model_dir(_run)
+    agent.save_weights(filepath=os.path.join(model_dir, 'weights.hdf5'))
+    agent.actor.save(filepath=os.path.join(model_dir, 'model_actor.hdf5'))
+    agent.critic.save(filepath=os.path.join(model_dir, 'model_critic.hdf5'))
+
+    _run.add_artifact( os.path.join(model_dir, 'weights_actor.hdf5') )
+    _run.add_artifact( os.path.join(model_dir, 'weights_critic.hdf5') )
+    _run.add_artifact( os.path.join(model_dir, 'model_actor.hdf5') )
+    _run.add_artifact( os.path.join(model_dir, 'model_critic.hdf5') )
+
+    test_logger = callbacks[0]
+
+    test_reward = test_logger.episode_rewards[-1]
+
+    return test_reward

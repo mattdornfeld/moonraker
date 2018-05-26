@@ -25,8 +25,9 @@ MONGO_INITDB_ROOT_PASSWORD = os.environ['MONGO_INITDB_ROOT_PASSWORD']
 MONGO_INITDB_ROOT_USERNAME = os.environ['MONGO_INITDB_ROOT_USERNAME']
 MONGO_DB_URL = 'mongodb://{}:{}@mongo:27017'.format(MONGO_INITDB_ROOT_USERNAME, MONGO_INITDB_ROOT_PASSWORD)
 
-#tensorboard configs
+#logging configs
 TENSORBOARD_ROOT_DIR = '/var/log/sacred_tensorboard'
+SAVED_MODELS_ROOT_DIR = '/var/moonraker_models'
 
 #agent configs
 DDPG_BUFFER_SIZE = 100000
