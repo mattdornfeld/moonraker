@@ -7,5 +7,9 @@ deploy_gdax_train:
   tags:
     - guiltyspark
   
-  script: 
+  script:
+  - echo POSTGRES_PASSWORD=$POSTGRES_PASSWORD >> secrets.env
+  - echo POSTGRES_USERNAME=$POSTGRES_USERNAME >> secrets.env
+  - echo MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME >> secrets.env
+  - echo MONGO_INITDB_ROOT_PASSWORD=$MONGO_INITDB_ROOT_PASSWORD >> secrets.env
   - docker-compose up --build
