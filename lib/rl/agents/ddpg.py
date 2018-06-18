@@ -321,8 +321,6 @@ class DDPGAgent(Agent):
                 action_values = self.actor_train_fn(inputs)[0]
                 assert action_values.shape == (self.batch_size, self.nb_actions)
 
-            from IPython import embed; embed()
-
         if self.target_model_update >= 1 and step % self.target_model_update == 0:
             self.update_target_models_hard()
 
