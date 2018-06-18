@@ -136,12 +136,20 @@ class DDPGAgent(Agent):
 
         combined_output = self.critic(combined_inputs)
 
+        #test
+        self.combined_output = combined_output
+        self.critic_inputs = critic_inputs
+
         updates = actor_optimizer.get_updates(
             params=self.actor.trainable_weights, loss=-K.mean(combined_output))
-        if self.target_model_update < 1.:
-            # Include soft target model updates.
-            updates += get_soft_target_model_updates(self.target_actor, self.actor, self.target_model_update)
-        updates += self.actor.updates  # include other updates of the actor, e.g. for BN
+        # if self.target_model_update < 1.:
+        #     # Include soft target model updates.
+        #     updates += get_soft_target_model_updates(self.target_actor, self.actor, self.target_model_update)
+        # updates += self.actor.updates  # include other updates of the actor, e.g. for BN
+
+        self.actor_train_fn_updates = updates
+        self.actor_train_fn_inputs = critic_inputs + [K.learning_phase()]
+        self.actor_train_fn_outputs = [self.actor(critic_inputs)]
 
         # Finally, combine it all into a callable function.
         if K.backend() == 'tensorflow':
@@ -312,6 +320,8 @@ class DDPGAgent(Agent):
 
                 action_values = self.actor_train_fn(inputs)[0]
                 assert action_values.shape == (self.batch_size, self.nb_actions)
+
+            from IPython import embed; embed()
 
         if self.target_model_update >= 1 and step % self.target_model_update == 0:
             self.update_target_models_hard()

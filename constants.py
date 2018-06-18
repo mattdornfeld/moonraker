@@ -15,15 +15,16 @@ def generate_one_hot_dict(categories):
 
 #postgres configs
 DB_NAME = 'moonraker'
-DB_HOST = 'postgres:5432'
-# DB_HOST = '172.23.0.2:5432'
+# DB_HOST = 'postgres:5432'
+DB_HOST = '172.23.0.3:5432'
 POSTGRES_USERNAME = os.environ['POSTGRES_USERNAME']
 POSTGRES_PASSWORD = os.environ['POSTGRES_PASSWORD']
 
 #mongodb configs
 MONGO_INITDB_ROOT_PASSWORD = os.environ['MONGO_INITDB_ROOT_PASSWORD']
 MONGO_INITDB_ROOT_USERNAME = os.environ['MONGO_INITDB_ROOT_USERNAME']
-MONGO_DB_URL = 'mongodb://{}:{}@mongo:27017'.format(MONGO_INITDB_ROOT_USERNAME, MONGO_INITDB_ROOT_PASSWORD)
+# MONGO_DB_URL = 'mongodb://{}:{}@mongo:27017'.format(MONGO_INITDB_ROOT_USERNAME, MONGO_INITDB_ROOT_PASSWORD)
+MONGO_DB_URL = 'mongodb://{}:{}@172.23.0.2:27017'.format(MONGO_INITDB_ROOT_USERNAME, MONGO_INITDB_ROOT_PASSWORD)
 
 #logging configs
 TENSORBOARD_ROOT_DIR = '/var/log/sacred_tensorboard'
