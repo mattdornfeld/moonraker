@@ -35,11 +35,11 @@ class Attention(Layer):
 
         u = tf.tanh( self._matmul(self.W_w, h) + self.b_w )
 
-        numerator = tf.exp( tf.reduce_sum(self.u_w * u, axis = -1) )
+        numerator = tf.reduce_sum(self.u_w * u, axis = -1)
 
-        denominator = tf.exp( tf.reduce_sum(numerator, axis = -1) ) 
+        denominator = tf.reduce_sum(tf.exp(numerator), axis = -1) 
 
-        α = numerator / tf.expand_dims(denominator, axis = -1)
+        α = tf.exp(numerator) / tf.expand_dims(denominator, axis = -1)
 
         s = tf.reduce_sum( tf.expand_dims(α, axis=-1) * h, axis = -2 )
 

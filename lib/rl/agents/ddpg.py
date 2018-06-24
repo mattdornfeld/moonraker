@@ -136,12 +136,20 @@ class DDPGAgent(Agent):
 
         combined_output = self.critic(combined_inputs)
 
+        #test
+        self.combined_output = combined_output
+        self.critic_inputs = critic_inputs
+
         updates = actor_optimizer.get_updates(
             params=self.actor.trainable_weights, loss=-K.mean(combined_output))
         if self.target_model_update < 1.:
             # Include soft target model updates.
             updates += get_soft_target_model_updates(self.target_actor, self.actor, self.target_model_update)
         updates += self.actor.updates  # include other updates of the actor, e.g. for BN
+
+        self.actor_train_fn_updates = updates
+        self.actor_train_fn_inputs = critic_inputs + [K.learning_phase()]
+        self.actor_train_fn_outputs = [self.actor(critic_inputs)]
 
         # Finally, combine it all into a callable function.
         if K.backend() == 'tensorflow':

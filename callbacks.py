@@ -4,6 +4,7 @@ import tensorflow as tf
 from gdax_train.constants import *
 from gdax_train.lib.rl.callbacks import Callback
 from gdax_train.environment import Wallet, MockExchange
+from gdax_train.utils import create_tensorboard_summary
 
 def evaluate_agent(agent, start_dt, end_dt, time_delta):
     
@@ -55,11 +56,12 @@ class TestLogger(Callback):
         self.sacred_experiment.log_scalar('test_reward', self.episode_rewards[-1])
 
         #log to tensorboard dir
-        test_reward = tf.summary.scalar('test_reward', self.episode_rewards[-1])
-        summary_op = tf.summary.merge(inputs=[test_reward])
-        summary = self.sess.run([summary_op])
-        self.file_writer.add_summary(summary=summary[0], global_step=episode)
+        summary = create_tensorboard_summary(name='test_reward', value=self.episode_rewards[-1])
+        self.file_writer.add_summary(summary, episode)
+        self.file_writer.flush()
 
+    def on_train_end(self, logs={}):
+        self.file_writer.close()
 
 class TrainLogger(Callback):
     def __init__(self, sacred_experiment, tensorboard_dir):
@@ -81,19 +83,19 @@ class TrainLogger(Callback):
     def on_episode_end(self, episode, logs={}):
         self.episode_metrics.append(self.metrics[-1])
         self.episode_rewards.append(logs.get('episode_reward'))
-        
-        _summaries = []
+
         for i, metric_name in enumerate(self.metrics_names):
             _metric_name = 'train_' + metric_name
             metric = self.episode_metrics[-1][i]
             self.sacred_experiment.log_scalar(_metric_name, float(metric))
-            metric_summary = tf.summary.scalar(metric_name, metric)
-            _summaries.append(metric_summary)
+            summary = create_tensorboard_summary(name=metric_name, value=metric)
+            self.file_writer.add_summary(summary, episode)
 
         self.sacred_experiment.log_scalar('train_reward', self.episode_rewards[-1])
-        train_reward_summary = tf.summary.scalar('train_reward', self.episode_rewards[-1])
-        _summaries.append(train_reward_summary)
+        
+        summary = create_tensorboard_summary(name='train_reward', value=self.episode_rewards[-1])
+        self.file_writer.add_summary(summary, episode)
+        self.file_writer.flush()
 
-        summary_op = tf.summary.merge(_summaries)
-        summary = self.sess.run([summary_op])
-        self.file_writer.add_summary(summary=summary[0], global_step=episode)
+    def on_train_end(self, logs={}):
+        self.file_writer.close()

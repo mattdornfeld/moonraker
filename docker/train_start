@@ -1,4 +1,0 @@
-#!/bin/bash
-
-cd /python3_lib/gdax_train
-python3 train.py

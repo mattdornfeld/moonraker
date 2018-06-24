@@ -4,20 +4,20 @@ from keras.optimizers import Adam, SGD
 from gdax_train.lib.rl.agents import DDPGAgent
 from gdax_train.lib.rl.memory import SequentialMemory
 from gdax_train.lib.rl.random import OrnsteinUhlenbeckProcess
+from phased_lstm_keras.PhasedLSTM import PhasedLSTM
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-from gdax_train.callbacks import TestLogger, TrainLogger
+from gdax_train.callbacks import TestLogger, TrainLogger, evaluate_agent
 from gdax_train.constants import *
 from gdax_train.environment import MockExchange, Wallet
 from gdax_train.layers import Attention
-from gdax_train.models.hierarchical_gru import build_actor, build_critic
+from gdax_train.model import build_actor, build_critic
 from gdax_train.utils import *
 from gdax_train.wrappers import TimeDistributed
 
 ex = Experiment()
 ex.observers.append(MongoObserver.create(url=MONGO_DB_URL))
-# ex.observers.append(MongoObserver.create())
 
 HyperParams = namedtuple('HyperParams', [
         'actor_hidden_dim_gdax_branch',
@@ -74,7 +74,7 @@ def create_agent(actor, critic, batch_size, buffer_size, window_length, theta, m
         random_process=random_process, 
         target_model_update=target_model_update)
 
-    agent.compile('sgd')
+    agent.compile(SGD(lr=0.001, clipnorm=0.1))
 
     return agent
 
@@ -130,19 +130,13 @@ def build_and_train(hyper_params, num_episodes, tensorboard_dir, test_start_dt, 
         target_model_update=hyper_params.ddpg_target_model_update,
         custom_model_objects = {
         'Attention' : Attention, 
-        'TimeDistributed' : TimeDistributed}
+        'TimeDistributed' : TimeDistributed,
+        'PhasedLSTM' : PhasedLSTM}
         )
-
-    test_logger = TestLogger(
-        sacred_experiment=ex,
-        tensorboard_dir=tensorboard_dir, 
-        test_start_dt=test_start_dt, 
-        test_end_dt=train_end_dt, 
-        time_delta=time_delta)
 
     train_logger = TrainLogger(sacred_experiment=ex, tensorboard_dir=tensorboard_dir)
 
-    callbacks = [test_logger, train_logger]
+    callbacks = [train_logger]
 
     nb_max_episode_steps = int((train_end_dt - train_start_dt) / time_delta) - 1
 
@@ -186,9 +180,11 @@ def config():
         )
 
     num_episodes = 5
-    num_steps_per_episode = 6
+    num_steps_per_episode = 5
     
-    start_dt = datetime.now() 
+    offset = timedelta(seconds=30)
+    # start_dt = datetime.now() 
+    start_dt = datetime(2018, 6, 1, 23, 50, 38, 378678)
     time_delta = timedelta(seconds=10)
     test_start_dt = start_dt
     test_end_dt = start_dt+num_steps_per_episode*time_delta
@@ -226,8 +222,56 @@ def main(_run, hyper_params, num_episodes, train_start_dt, train_end_dt,
     _run.add_artifact( os.path.join(model_dir, 'model_actor.hdf5') )
     _run.add_artifact( os.path.join(model_dir, 'model_critic.hdf5') )
 
-    test_logger = callbacks[0]
+    test_history = evaluate_agent(
+        agent=agent,
+        start_dt=test_start_dt,
+        end_dt=test_end_dt,
+        time_delta=time_delta)
 
-    test_reward = test_logger.episode_rewards[-1]
+    test_reward = test_history.history['episode_reward'][-1]
 
     return test_reward
+
+# if __name__=='__main__':
+#     hyper_params = dict(
+#         actor_hidden_dim_gdax_branch=100,
+#         actor_hidden_dim_wallet_branch=100,
+#         actor_hidden_dim_merge_branch=100,
+#         actor_attention_dim_level_1=100,
+#         actor_attention_dim_merge_branch=100,
+#         actor_num_cells_gdax_branch=1,
+#         actor_num_cells_wallet_branch=1 ,
+#         actor_num_cells_merge_branch=1,        
+#         critic_hidden_dim_gdax_branch = 100,
+#         critic_hidden_dim_wallet_branch = 100,
+#         critic_hidden_dim_merge_branch = 100,
+#         critic_hidden_dim_dense_merge_branch = 100,
+#         critic_attention_dim_level_1 = 100,
+#         critic_attention_dim_merge_branch = 100,
+#         critic_num_cells_gdax_branch = 1,
+#         critic_num_cells_wallet_branch = 1,
+#         critic_num_cells_merge_branch = 1,
+#         critic_num_cells_dense_merge_branch = 1,
+#         ddpg_batch_size=1,
+#         ddpg_theta=0.15,
+#         ddpg_mu=0,
+#         ddpg_sigma=0.3,
+#         ddpg_gamma=0.99,
+#         ddpg_target_model_update=1e-3,
+#         )
+
+#     num_episodes = 1
+#     num_steps_per_episode = 6
+    
+#     offset = timedelta(seconds=30)
+#     # start_dt = datetime.now() 
+#     start_dt = datetime(2018, 6, 1, 23, 50, 38, 378678)
+#     time_delta = timedelta(seconds=10)
+#     test_start_dt = start_dt
+#     test_end_dt = start_dt+num_steps_per_episode*time_delta
+#     train_start_dt = start_dt 
+#     train_end_dt = start_dt+num_steps_per_episode*time_delta
+#     time_delta = time_delta
+
+#     main(hyper_params, num_episodes, train_start_dt, train_end_dt, 
+#         test_start_dt, test_end_dt, time_delta)

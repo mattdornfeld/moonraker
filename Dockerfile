@@ -20,8 +20,4 @@ RUN cp -r /python3_lib/gdax_train/lib/rl /python3_lib/
 
 RUN pip3 install -r /python3_lib/gdax_train/requirements.txt
 
-RUN cp /python3_lib/gdax_train/docker/train_start /bin/train_start
-
-RUN chmod u+x /bin/train_start
-
-ENTRYPOINT train_start
+WORKDIR /python3_lib/gdax_train

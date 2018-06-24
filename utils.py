@@ -14,6 +14,14 @@ def add_tensorboard_dir_to_sacred(sacred_experiment, tensorboard_dir):
         with LogFileWriter(sacred_experiment):
             tf.summary.FileWriter(logdir=tensorboard_dir)
 
+def create_tensorboard_summary(name, value):
+    summary = tf.Summary()
+    summary_value = summary.value.add()
+    summary_value.simple_value = value
+    summary_value.tag = name
+
+    return summary
+
 def empty_queue(queue):
     while queue.qsize() > 0:
         try:
