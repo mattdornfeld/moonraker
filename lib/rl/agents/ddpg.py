@@ -142,10 +142,10 @@ class DDPGAgent(Agent):
 
         updates = actor_optimizer.get_updates(
             params=self.actor.trainable_weights, loss=-K.mean(combined_output))
-        # if self.target_model_update < 1.:
-        #     # Include soft target model updates.
-        #     updates += get_soft_target_model_updates(self.target_actor, self.actor, self.target_model_update)
-        # updates += self.actor.updates  # include other updates of the actor, e.g. for BN
+        if self.target_model_update < 1.:
+            # Include soft target model updates.
+            updates += get_soft_target_model_updates(self.target_actor, self.actor, self.target_model_update)
+        updates += self.actor.updates  # include other updates of the actor, e.g. for BN
 
         self.actor_train_fn_updates = updates
         self.actor_train_fn_inputs = critic_inputs + [K.learning_phase()]

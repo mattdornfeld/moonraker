@@ -79,7 +79,6 @@ class TrainLogger(Callback):
 
     def on_step_end(self, step, logs={}):
         self.metrics.append(logs.get('metrics'))
-        print(self.metrics)
 
     def on_episode_end(self, episode, logs={}):
         self.episode_metrics.append(self.metrics[-1])

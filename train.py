@@ -8,7 +8,7 @@ from phased_lstm_keras.PhasedLSTM import PhasedLSTM
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-from gdax_train.callbacks import TestLogger, TrainLogger
+from gdax_train.callbacks import TestLogger, TrainLogger, evaluate_agent
 from gdax_train.constants import *
 from gdax_train.environment import MockExchange, Wallet
 from gdax_train.layers import Attention
@@ -134,16 +134,9 @@ def build_and_train(hyper_params, num_episodes, tensorboard_dir, test_start_dt, 
         'PhasedLSTM' : PhasedLSTM}
         )
 
-    test_logger = TestLogger(
-        sacred_experiment=ex,
-        tensorboard_dir=tensorboard_dir, 
-        test_start_dt=test_start_dt, 
-        test_end_dt=train_end_dt, 
-        time_delta=time_delta)
-
     train_logger = TrainLogger(sacred_experiment=ex, tensorboard_dir=tensorboard_dir)
 
-    callbacks = [test_logger, train_logger]
+    callbacks = [train_logger]
 
     nb_max_episode_steps = int((train_end_dt - train_start_dt) / time_delta) - 1
 
@@ -186,7 +179,7 @@ def config():
         ddpg_target_model_update=1e-3,
         )
 
-    num_episodes = 3
+    num_episodes = 5
     num_steps_per_episode = 5
     
     offset = timedelta(seconds=30)
@@ -229,9 +222,13 @@ def main(_run, hyper_params, num_episodes, train_start_dt, train_end_dt,
     _run.add_artifact( os.path.join(model_dir, 'model_actor.hdf5') )
     _run.add_artifact( os.path.join(model_dir, 'model_critic.hdf5') )
 
-    test_logger = callbacks[0]
+    test_history = evaluate_agent(
+        agent=agent,
+        start_dt=test_start_dt,
+        end_dt=test_end_dt,
+        time_delta=time_delta)
 
-    test_reward = test_logger.episode_rewards[-1]
+    test_reward = test_history.history['episode_reward'][-1]
 
     return test_reward
 
