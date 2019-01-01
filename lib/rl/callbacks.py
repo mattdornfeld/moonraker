@@ -167,12 +167,9 @@ class TrainEpisodeLogger(Callback):
             'action_mean': np.mean(self.actions[episode]),
             'action_min': np.min(self.actions[episode]),
             'action_max': np.max(self.actions[episode]),
-            # 'obs_mean': np.mean(self.observations[episode]),
-            # 'obs_min': np.min(self.observations[episode]),
-            # 'obs_max': np.max(self.observations[episode]),
-            'obs_mean': 0.0,
-            'obs_min': 0.0,
-            'obs_max': 0.0,
+            'obs_mean': np.mean(self.observations[episode]),
+            'obs_min': np.min(self.observations[episode]),
+            'obs_max': np.max(self.observations[episode]),
             'metrics': metrics_text,
         }
         print(template.format(**variables))

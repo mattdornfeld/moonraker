@@ -1,13 +1,12 @@
 bayesian-optimization==0.6.0
-cbpro==1.1.4
 docker-compose==1.21.0
 GitPython==2.1.10
 keras==2.1.6
 phased_lstm_keras==1.0.2
 psycopg2==2.7.4
 pymongo==3.6.1
-python-dateutil==2.7.3
 sacred==0.7.2
-sortedcontainers
 sqlalchemy==1.2.7
 tensorflow==1.8.0
+ipython
+
