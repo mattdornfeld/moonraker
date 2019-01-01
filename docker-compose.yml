@@ -4,7 +4,7 @@ services:
   train:
     build: 
       context: .
-    image: 'registry.gitlab.com/moonraker/gdax_train/gdax_train:latest'
+    image: 'registry.gitlab.com/moonraker/coinbase_train/coinbase_train:latest'
     volumes:
       - /var/log/sacred_tensorboard:/var/log/sacred_tensorboard
       - /var/moonraker_models:/var/moonraker_models
