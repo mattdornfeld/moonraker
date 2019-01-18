@@ -5,10 +5,11 @@ from queue import deque
 
 import numpy as np
 
+from fakebase.mock_auth_client import MockAuthenticatedClient
+from fakebase.utils import IllegalTransactionException
+from lib.rl.core import Env
+
 from coinbase_train import constants as c
-from coinbase_train.fakebase.mock_auth_client import MockAuthenticatedClient
-from coinbase_train.fakebase.utils import IllegalTransactionException
-from rl.core import Env
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,10 +63,6 @@ class MockEnvironment(Env):
         self.verbose = verbose
         
         self.reset()
-
-    def __del__(self):
-        """Summary
-        """
 
     def _calculate_reward(self):
         """Calculates the amount of USD gained this time step.
@@ -215,6 +212,14 @@ class MockEnvironment(Env):
             
             self._buffer.append(state)
 
+    def close(self):
+        """Summary
+        """
+
+    def configure(self, *args, **kwargs):
+        """Summary
+        """
+
     @property
     def episode_finished(self):
         """Summary
@@ -223,6 +228,10 @@ class MockEnvironment(Env):
             bool: True if training episode is finished.
         """
         return self.auth_client.exchange.finished or self._made_illegal_transaction
+
+    def render(self, mode='human', close=False):
+        """Summary
+        """
 
     def reset(self):
         """Summary
@@ -244,6 +253,10 @@ class MockEnvironment(Env):
 
         return state
 
+    def seed(self, seed=None):
+        """Summary
+        """
+
     def step(self, action):
         """Summary
         
@@ -260,10 +273,8 @@ class MockEnvironment(Env):
             raise EnvironmentFinishedException
 
         try:
-            message = self._make_transactions(action)
-        except IllegalTransactionException as exception:
-            message = str(exception)
-            
+            self._make_transactions(action)
+        except IllegalTransactionException as exception:            
             if self.verbose:
                 LOGGER.exception(exception)
             
