@@ -10,27 +10,9 @@ from fakebase.utils import IllegalTransactionException
 from lib.rl.core import Env
 
 from coinbase_train import constants as c
+from coinbase_train.utils import EnvironmentFinishedException
 
 LOGGER = logging.getLogger(__name__)
-
-class EnvironmentFinishedException(Exception):
-    """Summary
-    """
-    
-    def __init__(self, msg=None):
-        """Summary
-        
-        Args:
-            msg (str, optional): Description
-        """
-        if msg is None:
-            msg = (
-                'This environment has finished the training episode. '
-                'Call self.reset to start a new one.'
-                )
-
-
-        super().__init__(msg)
 
 class MockEnvironment(Env):
 

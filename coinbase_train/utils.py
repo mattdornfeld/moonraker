@@ -72,6 +72,25 @@ EnvironmentConfigs = namedtuple(typename='EnvironmentConfigs',
                                 field_names=['end_dt', 'initial_usd', 'initial_btc', 
                                              'num_episodes', 'start_dt', 'time_delta'])
 
+class EnvironmentFinishedException(Exception):
+    """Summary
+    """
+    
+    def __init__(self, msg=None):
+        """Summary
+        
+        Args:
+            msg (str, optional): Description
+        """
+        if msg is None:
+            msg = (
+                'This environment has finished the training episode. '
+                'Call self.reset to start a new one.'
+                )
+
+
+        super().__init__(msg)
+
 HyperParameters = namedtuple(typename='HyperParameters',
                              field_names=[
                                  'actor_account_funds_attention_dim', 
