@@ -1,7 +1,7 @@
 stages:
 - deploy
 
-deploy_gdax_train:
+deploy_coinbase_train:
   stage: deploy
 
   tags:

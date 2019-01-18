@@ -4,20 +4,20 @@ RUN apt-get update
 
 RUN apt-get install git python3-pip -y
 
-RUN mkdir python3_lib 
+RUN mkdir app 
 
 RUN mkdir /var/log/sacred_tensorboard
 
 RUN mkdir /var/moonraker_models
 
-ENV PYTHONPATH=/python3_lib:$PYTHONPATH
+ENV PYTHONPATH=/app:$PYTHONPATH
 
 RUN pip3 install --upgrade pip
 
-ADD ./ /python3_lib/gdax_train
+ADD ./ /app/coinbase_train
 
-RUN cp -r /python3_lib/gdax_train/lib/rl /python3_lib/
+RUN cp -r /app/coinbase_train/lib/rl /app/
 
-RUN pip3 install -r /python3_lib/gdax_train/requirements.txt
+RUN pip3 install -r /app/coinbase_train/requirements.txt
 
-WORKDIR /python3_lib/gdax_train
+WORKDIR /app/coinbase_train
