@@ -1,3 +1,6 @@
+variables:
+  DOCKER_REPO: registry.gitlab.com/moonraker/coinbase_train
+
 build_image:
   image: docker:stable
 
@@ -32,4 +35,25 @@ build_image:
   variables:
    DOCKER_DRIVER: overlay2
    DOCKER_HOST: tcp://docker:2375/
-   DOCKER_REPO: registry.gitlab.com/moonraker/coinbase_train
+
+deploy_coinbase_train:
+  image: registry.gitlab.com/moonraker/gcp_infrastructure:latest
+  
+  only:
+    - master
+
+  script:
+    - echo $GOOGLE_CLOUD_ACCOUNT_JSON | base64 --decode --ignore-garbage > ./account.json
+    - gcloud auth activate-service-account --key-file=./account.json
+    - gcloud config set project ${PROJECT_NAME}
+    - gcloud container clusters get-credentials ${PROJECT_NAME} --zone=${GOOGLE_CLOUD_ZONE}
+    - helm upgrade coinbase-train helm/coinbase-train
+      --install 
+      --namespace moonraker 
+      --set postgres.password=$POSTGRES_PASSWORD 
+      --set postgres.username=$POSTGRES_USERNAME 
+      --set registry.password=$MOONRAKER_CI_TOKEN
+      --set registry.username=$MOONRAKER_CI_USER
+      --set jupyter.image=$DOCKER_REPO:$CI_COMMIT_SHA
+
+  stage: deploy
