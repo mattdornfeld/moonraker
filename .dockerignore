@@ -5,3 +5,4 @@ scrap*
 secrets.env
 venv/
 gitlab_credentials.ini
+.ipynb_checkpoints
