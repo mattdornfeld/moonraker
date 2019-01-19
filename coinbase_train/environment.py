@@ -97,6 +97,7 @@ class MockEnvironment(Env):
             self.auth_client.cancel_all(product_id=c.PRODUCT_ID)
 
         #Smallest size increment allowed by coinbase
+        #TODO: Move this into place_limit_order
         size = round(size, c.PRECISION[c.ACCOUNT_PRODUCT])
         price = round(price, c.PRECISION['USD'])
 
