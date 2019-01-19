@@ -23,7 +23,7 @@ deploy_coinbase_train_dry_run:
       --set registry.username=$MOONRAKER_CI_USER
       --set jupyter.image=$DOCKER_REPO:$CI_COMMIT_SHA
 
-  stage: deploy
+  stage: test
 
 build_image:
   image: docker:stable

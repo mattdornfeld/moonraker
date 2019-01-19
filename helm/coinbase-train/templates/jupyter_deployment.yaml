@@ -25,6 +25,9 @@ spec:
       
         image: {{ .Values.jupyter.image }}
 
+        imagePullSecrets:
+        - name: coinbase-train-regcred
+
         command: ["jupyter"]
         args: ["lab", "--ip=0.0.0.0", "--allow-root"]
 
