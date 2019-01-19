@@ -22,7 +22,6 @@ DEPENDENCY_LINKS = [
     '/Moonraker/fakebase@master#egg=fakebase-0.1']
 
 REQUIREMENTS = [
-    'cbpro==1.1.4',
     'GitPython==2.1.10',
     'keras==2.1.6',
     'fakebase',
