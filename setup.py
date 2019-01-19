@@ -34,7 +34,7 @@ REQUIREMENTS = [
 
 setup(
     dependency_links=DEPENDENCY_LINKS,
-    extras_require=dict(jupyter=["jupyter"], gpu=['tensorflow-gpu==1.8.0']),
+    extras_require=dict(jupyter=["jupyterlab"], gpu=['tensorflow-gpu==1.8.0']),
     install_requires=REQUIREMENTS,
     name="coinbase_train",
     packages=find_packages(),
