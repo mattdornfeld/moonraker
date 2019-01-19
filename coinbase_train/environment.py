@@ -5,31 +5,14 @@ from queue import deque
 
 import numpy as np
 
+from fakebase.mock_auth_client import MockAuthenticatedClient
+from fakebase.utils import IllegalTransactionException
+from lib.rl.core import Env
+
 from coinbase_train import constants as c
-from coinbase_train.fakebase.mock_auth_client import MockAuthenticatedClient
-from coinbase_train.fakebase.utils import IllegalTransactionException
-from rl.core import Env
+from coinbase_train.utils import EnvironmentFinishedException
 
 LOGGER = logging.getLogger(__name__)
-
-class EnvironmentFinishedException(Exception):
-    """Summary
-    """
-    
-    def __init__(self, msg=None):
-        """Summary
-        
-        Args:
-            msg (str, optional): Description
-        """
-        if msg is None:
-            msg = (
-                'This environment has finished the training episode. '
-                'Call self.reset to start a new one.'
-                )
-
-
-        super().__init__(msg)
 
 class MockEnvironment(Env):
 
@@ -62,10 +45,6 @@ class MockEnvironment(Env):
         self.verbose = verbose
         
         self.reset()
-
-    def __del__(self):
-        """Summary
-        """
 
     def _calculate_reward(self):
         """Calculates the amount of USD gained this time step.
@@ -118,6 +97,7 @@ class MockEnvironment(Env):
             self.auth_client.cancel_all(product_id=c.PRODUCT_ID)
 
         #Smallest size increment allowed by coinbase
+        #TODO: Move this into place_limit_order
         size = round(size, c.PRECISION[c.ACCOUNT_PRODUCT])
         price = round(price, c.PRECISION['USD'])
 
@@ -215,6 +195,14 @@ class MockEnvironment(Env):
             
             self._buffer.append(state)
 
+    def close(self):
+        """Summary
+        """
+
+    def configure(self, *args, **kwargs):
+        """Summary
+        """
+
     @property
     def episode_finished(self):
         """Summary
@@ -223,6 +211,10 @@ class MockEnvironment(Env):
             bool: True if training episode is finished.
         """
         return self.auth_client.exchange.finished or self._made_illegal_transaction
+
+    def render(self, mode='human', close=False):
+        """Summary
+        """
 
     def reset(self):
         """Summary
@@ -244,6 +236,10 @@ class MockEnvironment(Env):
 
         return state
 
+    def seed(self, seed=None):
+        """Summary
+        """
+
     def step(self, action):
         """Summary
         
@@ -260,10 +256,8 @@ class MockEnvironment(Env):
             raise EnvironmentFinishedException
 
         try:
-            message = self._make_transactions(action)
-        except IllegalTransactionException as exception:
-            message = str(exception)
-            
+            self._make_transactions(action)
+        except IllegalTransactionException as exception:            
             if self.verbose:
                 LOGGER.exception(exception)
             

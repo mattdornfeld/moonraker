@@ -1,23 +1,16 @@
-FROM ubuntu:16.04
+# syntax=docker/dockerfile:1.0.0-experimental
+FROM ubuntu:18.04
 
-RUN apt-get update 
+RUN apt-get update && \
+	apt-get install git python3-pip -y && \
+	pip3 install --upgrade pip && \
+	mkdir app /var/log/sacred_tensorboard  /var/moonraker_models
 
-RUN apt-get install git python3-pip -y
+ADD ./ /app
 
-RUN mkdir app 
+RUN --mount=type=secret,id=gitlab_credentials.ini \ 
+	cd /app && \
+	pip3 install --process-dependency-links -e .[jupyter,gpu] && \
+	apt-get remove python3-pip -y
 
-RUN mkdir /var/log/sacred_tensorboard
-
-RUN mkdir /var/moonraker_models
-
-ENV PYTHONPATH=/app:$PYTHONPATH
-
-RUN pip3 install --upgrade pip
-
-ADD ./ /app/coinbase_train
-
-RUN cp -r /app/coinbase_train/lib/rl /app/
-
-RUN pip3 install -r /app/coinbase_train/requirements.txt
-
-WORKDIR /app/coinbase_train
+WORKDIR /app

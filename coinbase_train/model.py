@@ -12,8 +12,9 @@ from keras.layers import BatchNormalization, Concatenate, Dense, Input, Lambda
 from keras.models import Model
 from keras import backend as K
 
+from fakebase.orm import CoinbaseMatch, CoinbaseOrder
+
 from coinbase_train import constants as c
-from coinbase_train.fakebase.orm import CoinbaseMatch, CoinbaseOrder
 from coinbase_train.layers import (
     Attention, BidirectionalRNN, TDBidirectionalRNN, 
     TDConv1D, TDConv2D, TDDense, TDMaxPooling1D)
