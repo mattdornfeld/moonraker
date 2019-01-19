@@ -11,6 +11,10 @@ from phased_lstm_keras.PhasedLSTM import PhasedLSTM
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
+from lib.rl.agents import DDPGAgent
+from lib.rl.memory import SequentialMemory
+from lib.rl.random import OrnsteinUhlenbeckProcess
+
 from coinbase_train import constants as c
 from coinbase_train import utils
 from coinbase_train.callbacks import TrainLogger
@@ -18,9 +22,6 @@ from coinbase_train.environment import MockEnvironment
 from coinbase_train.layers import Attention
 from coinbase_train.model import build_actor, build_critic
 from coinbase_train.processor import CoibaseEnvironmentProcessor
-from lib.rl.agents import DDPGAgent
-from lib.rl.memory import SequentialMemory
-from lib.rl.random import OrnsteinUhlenbeckProcess
 
 ex = Experiment()
 ex.observers.append(MongoObserver.create(url=c.MONGO_DB_URL))

@@ -1,18 +1,35 @@
-stages:
-- deploy
-
-deploy_coinbase_train:
-  stage: deploy
-
-  tags:
-    - guiltyspark
-  
-  script:
-  - echo POSTGRES_PASSWORD=$POSTGRES_PASSWORD >> secrets.env
-  - echo POSTGRES_USERNAME=$POSTGRES_USERNAME >> secrets.env
-  - echo MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME >> secrets.env
-  - echo MONGO_INITDB_ROOT_PASSWORD=$MONGO_INITDB_ROOT_PASSWORD >> secrets.env
-  - docker-compose up --build
+build_image:
+  image: docker:stable
 
   only:
-  - master
+    - master
+      
+  script:
+    - |
+      cat << EOF > gitlab_credentials.ini 
+      [CREDENTIALS]
+      GITLAB_PASSWORD = $MOONRAKER_CI_TOKEN
+      GITLAB_USERNAME = $MOONRAKER_CI_USERNAME
+      EOF
+
+    - docker login registry.gitlab.com -u $MOONRAKER_CI_USERNAME -p $MOONRAKER_CI_TOKEN
+
+    - DOCKER_BUILDKIT=1 docker build 
+      --secret id=gitlab_credentials.ini,src=gitlab_credentials.ini 
+      -t $DOCKER_REPO:$CI_COMMIT_SHA .
+
+    - docker tag $DOCKER_REPO:$CI_COMMIT_SHA $DOCKER_REPO:latest
+
+    - docker push $DOCKER_REPO:$CI_COMMIT_SHA 
+
+    - docker push $DOCKER_REPO:latest
+
+  services:
+    - docker:dind
+  
+  stage: build
+
+  variables:
+   DOCKER_DRIVER: overlay2
+   DOCKER_HOST: tcp://docker:2375/
+   DOCKER_REPO: registry.gitlab.com/moonraker/coinbase_train
