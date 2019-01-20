@@ -61,6 +61,9 @@ build_image:
    DOCKER_HOST: tcp://docker:2375/
 
 deploy_coinbase_train:
+  environment:
+    name: production
+    
   image: registry.gitlab.com/moonraker/gcp_infrastructure:latest
   
   only:
