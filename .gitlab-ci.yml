@@ -20,7 +20,7 @@ deploy_coinbase_train_dry_run:
       --set postgres.password=$POSTGRES_PASSWORD 
       --set postgres.username=$POSTGRES_USERNAME 
       --set registry.password=$MOONRAKER_CI_TOKEN
-      --set registry.username=$MOONRAKER_CI_USER
+      --set registry.username=$MOONRAKER_CI_USERNAME
       --set jupyter.image=$DOCKER_REPO:$CI_COMMIT_SHA
 
   stage: test
@@ -77,7 +77,7 @@ deploy_coinbase_train:
       --set postgres.password=$POSTGRES_PASSWORD 
       --set postgres.username=$POSTGRES_USERNAME 
       --set registry.password=$MOONRAKER_CI_TOKEN
-      --set registry.username=$MOONRAKER_CI_USER
+      --set registry.username=$MOONRAKER_CI_USERNAME
       --set jupyter.image=$DOCKER_REPO:$CI_COMMIT_SHA
 
   stage: deploy
