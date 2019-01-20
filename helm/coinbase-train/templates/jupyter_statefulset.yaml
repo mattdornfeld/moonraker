@@ -1,6 +1,6 @@
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: jupyter
   labels:
@@ -25,9 +25,6 @@ spec:
       
         image: {{ .Values.jupyter.image }}
 
-        imagePullSecrets:
-        - name: coinbase-train-regcred
-
         command: ["jupyter"]
         args: ["lab", "--ip=0.0.0.0", "--allow-root"]
 
@@ -47,7 +44,11 @@ spec:
         ports:
         - containerPort: 8888
           name: jupyter-port
-      
+
+        volumeMounts:
+        - name: jupyter
+          mountPath: /mnt
+
         resources:
           requests:
             cpu: {{ .Values.jupyter.num_cpus }}
@@ -55,3 +56,12 @@ spec:
           limits:
             cpu: {{ .Values.jupyter.num_cpus }}
             nvidia.com/gpu: {{ .Values.jupyter.num_gpus }}
+
+  volumeClaimTemplates:
+  - metadata:
+      name: jupyter
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.jupyter.storage_request }}
