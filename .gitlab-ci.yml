@@ -21,11 +21,12 @@ deploy_coinbase_train_dry_run:
       --set postgres.username=$POSTGRES_USERNAME 
       --set registry.password=$MOONRAKER_CI_TOKEN
       --set registry.username=$MOONRAKER_CI_USERNAME
-      --set jupyter.image=$DOCKER_REPO:$CI_COMMIT_SHA
+      --set jupyter.image_base=$DOCKER_REPO
+      --set jupyter.image_tag=$CI_COMMIT_SHA
 
   stage: test
 
-build_image:
+build_gpu_image:
   image: docker:stable
 
   only:
@@ -43,13 +44,50 @@ build_image:
 
     - DOCKER_BUILDKIT=1 docker build 
       --secret id=gitlab_credentials.ini,src=gitlab_credentials.ini 
-      -t $DOCKER_REPO:$CI_COMMIT_SHA .
+      -t $DOCKER_REPO/gpu:$CI_COMMIT_SHA 
+      -f dockerfiles/Dockerfile.gpu .
 
-    - docker tag $DOCKER_REPO:$CI_COMMIT_SHA $DOCKER_REPO:latest
+    - docker tag $DOCKER_REPO/gpu:$CI_COMMIT_SHA $DOCKER_REPO/gpu:latest
 
-    - docker push $DOCKER_REPO:$CI_COMMIT_SHA 
+    - docker push $DOCKER_REPO/gpu:$CI_COMMIT_SHA 
 
-    - docker push $DOCKER_REPO:latest
+    - docker push $DOCKER_REPO/gpu:latest
+
+  services:
+    - docker:dind
+  
+  stage: build
+
+  variables:
+   DOCKER_DRIVER: overlay2
+   DOCKER_HOST: tcp://docker:2375/
+
+build_cpu_image:
+  image: docker:stable
+
+  only:
+    - master
+      
+  script:
+    - |
+      cat << EOF > gitlab_credentials.ini 
+      [CREDENTIALS]
+      GITLAB_PASSWORD = $MOONRAKER_CI_TOKEN
+      GITLAB_USERNAME = $MOONRAKER_CI_USERNAME
+      EOF
+
+    - docker login registry.gitlab.com -u $MOONRAKER_CI_USERNAME -p $MOONRAKER_CI_TOKEN
+
+    - DOCKER_BUILDKIT=1 docker build 
+      --secret id=gitlab_credentials.ini,src=gitlab_credentials.ini 
+      -t $DOCKER_REPO/cpu:$CI_COMMIT_SHA 
+      -f dockerfiles/Dockerfile.cpu .
+
+    - docker tag $DOCKER_REPO/cpu:$CI_COMMIT_SHA $DOCKER_REPO/cpu:latest
+
+    - docker push $DOCKER_REPO/cpu:$CI_COMMIT_SHA 
+
+    - docker push $DOCKER_REPO/cpu:latest
 
   services:
     - docker:dind
@@ -81,6 +119,7 @@ deploy_coinbase_train:
       --set postgres.username=$POSTGRES_USERNAME 
       --set registry.password=$MOONRAKER_CI_TOKEN
       --set registry.username=$MOONRAKER_CI_USERNAME
-      --set jupyter.image=$DOCKER_REPO:$CI_COMMIT_SHA
+      --set jupyter.image_base=$DOCKER_REPO
+      --set jupyter.image_tag=$CI_COMMIT_SHA
 
   stage: deploy

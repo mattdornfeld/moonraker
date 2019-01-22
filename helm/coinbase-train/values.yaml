@@ -1,5 +1,5 @@
 jupyter:
-  num_cpus: 1.5
-  num_gpus: 1
+  num_cpus: 0.5
+  num_gpus: 0
   num_replicas: 1
   storage_request: "1Gi"
