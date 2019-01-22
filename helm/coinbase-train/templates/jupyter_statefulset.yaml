@@ -22,9 +22,13 @@ spec:
       containers:
       
       - name: jupyter
-      
-        image: {{ .Values.jupyter.image }}
 
+        {{ if gt .Values.jupyter.num_gpus 0.0}}
+        image: {{ .Values.jupyter.image_base }}/gpu:{{ .Values.jupyter.image_tag }}
+        {{ else }}
+        image: {{ .Values.jupyter.image_base }}/cpu:{{ .Values.jupyter.image_tag }}
+        {{ end }}
+      
         command: ["jupyter"]
         args: ["lab", "--ip=0.0.0.0", "--allow-root"]
 
