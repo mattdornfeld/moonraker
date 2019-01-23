@@ -5,6 +5,10 @@ RUN apt-get update && \
 	apt-get install python3 python3-pip git wget -y && \
 	mkdir app /var/log/sacred_tensorboard  /var/moonraker_models
 
+ENV JUPYTER_PATH=/app/lib
+
+ENV PYTHONPATH=/app/lib
+
 ADD ./ /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
