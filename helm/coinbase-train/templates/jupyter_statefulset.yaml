@@ -6,6 +6,7 @@ metadata:
   labels:
     app: jupyter
 spec:
+  podManagementPolicy: Parallel
   replicas: {{ .Values.jupyter.num_replicas }}
   selector:
     matchLabels:

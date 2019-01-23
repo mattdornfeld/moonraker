@@ -14,6 +14,10 @@ RUN apt-get update && \
 
 ADD ./ /app
 
+ENV JUPYTER_PATH=/app/lib
+
+ENV PYTHONPATH=/app/lib
+
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
 	cd /app && \
 	pip3 install --process-dependency-links -e .[jupyter,gpu]
