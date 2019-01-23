@@ -10,7 +10,6 @@ RUN apt-get update && \
 	wget https://bootstrap.pypa.io/get-pip.py && \
 	python3.6 get-pip.py pip==9.0.2 && \
 	rm get-pip.py && \
-	pip install --upgrade pip && \
 	mkdir app /var/log/sacred_tensorboard  /var/moonraker_models
 
 ENV JUPYTER_PATH=/app/lib
