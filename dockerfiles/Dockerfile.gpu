@@ -8,15 +8,16 @@ RUN apt-get update && \
 	apt-get install python3.6 git wget libgomp1 -y && \
 	ln -s /usr/bin/python3.6 /usr/local/bin/python3 && \
 	wget https://bootstrap.pypa.io/get-pip.py && \
-	python3 get-pip.py && \
+	python3.6 get-pip.py pip==9.0.2 && \
 	rm get-pip.py && \
+	pip install --upgrade pip && \
 	mkdir app /var/log/sacred_tensorboard  /var/moonraker_models
-
-ADD ./ /app
 
 ENV JUPYTER_PATH=/app/lib
 
 ENV PYTHONPATH=/app/lib
+
+ADD ./ /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
 	cd /app && \
