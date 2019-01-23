@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.0.0-experimental
 FROM nvidia/cuda:9.0-cudnn7-runtime-ubuntu16.04
 
+ADD ./ /app
+
 RUN apt-get update && \
 	apt-get install software-properties-common -y && \
 	add-apt-repository ppa:deadsnakes/ppa -y && \
@@ -11,8 +13,6 @@ RUN apt-get update && \
 	python3 get-pip.py && \
 	rm get-pip.py && \
 	mkdir app /var/log/sacred_tensorboard  /var/moonraker_models
-
-ADD ./ /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
 	cd /app && \
