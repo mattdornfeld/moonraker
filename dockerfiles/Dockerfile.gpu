@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.0.0-experimental
 FROM nvidia/cuda:9.0-cudnn7-runtime-ubuntu16.04
 
+ADD ./ /app
+
 RUN apt-get update && \
 	apt-get install software-properties-common -y && \
 	add-apt-repository ppa:deadsnakes/ppa -y && \
@@ -21,5 +23,9 @@ ADD ./ /app
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
 	cd /app && \
 	pip3 install --process-dependency-links -e .[jupyter,gpu]
+
+ENV JUPYTER_PATH=/app/lib
+
+ENV PYTHONPATH=/app/lib
 
 WORKDIR /app
