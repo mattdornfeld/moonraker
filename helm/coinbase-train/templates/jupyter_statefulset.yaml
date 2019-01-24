@@ -33,6 +33,8 @@ spec:
         command: ["jupyter"]
         args: ["lab", "--ip=0.0.0.0", "--allow-root"]
 
+        workingDir: /
+
         env:
           - name: POSTGRES_PASSWORD
             valueFrom:

@@ -1,8 +1,10 @@
 """Summary
 """
-from keras.layers import Bidirectional, Conv1D, Conv2D, Dense, Layer, MaxPooling1D, TimeDistributed
+from keras.layers import Bidirectional, Conv1D, Conv2D, Dense, Layer, MaxPooling1D
 from phased_lstm_keras.PhasedLSTM import PhasedLSTM as RNNCell
 import tensorflow as tf
+
+from coinbase_train.wrappers import TimeDistributed
 
 class Attention(Layer):
 
