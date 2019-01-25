@@ -22,13 +22,13 @@ DEPENDENCY_LINKS = [
     '/Moonraker/fakebase@master#egg=fakebase-0.1']
 
 REQUIREMENTS = [
-    'GitPython',
-    'keras==2.1.6',
+    'GitPython==2.1.10',
+    'keras==2.2.4',
     'fakebase',
-    'funcy',
+    'funcy==1.11',
     'phased_lstm_keras==1.0.2',
-    'pymongo',
-    'python-dateutil',
+    'pymongo==3.6.1',
+    'python-dateutil==1.11',
     'sacred==0.7.2',
     'tensorflow==1.8.0']
 
