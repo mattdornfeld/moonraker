@@ -28,7 +28,7 @@ REQUIREMENTS = [
     'funcy==1.11',
     'phased_lstm_keras==1.0.2',
     'pymongo==3.6.1',
-    'python-dateutil==1.11',
+    'python-dateutil==2.7.3',
     'sacred==0.7.2',
     'tensorflow==1.8.0']
 
