@@ -27,7 +27,7 @@ TENSORBOARD_ROOT_DIR = '/var/log/sacred_tensorboard'
 
 #mongodb configs
 MONGO_DB_HOST = os.environ.get('MONGO_DB_HOST', 'mongo')
-MONGO_DB_PASSWORD = os.environ['MONGO_DB_PASSWORD']
+MONGO_DB_PASSWORD = os.environ.get('MONGO_DB_PASSWORD', '')
 MONGO_DB_PORT = os.environ.get('MONGO_DB_PORT', 27017)
-MONGO_DB_USERNAME = os.environ['MONGO_DB_USERNAME']
+MONGO_DB_USERNAME = os.environ.get('MONGO_DB_USERNAME', '')
 MONGO_DB_URL = f'mongodb://{MONGO_DB_USERNAME}:{MONGO_DB_PASSWORD}@{MONGO_DB_HOST}:{MONGO_DB_PORT}' #pylint: disable=C0301
