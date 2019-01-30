@@ -182,20 +182,20 @@ def config():
         num_time_steps=c.NUM_TIME_STEPS)  
 
     train_environment_configs = dict( 
-        end_dt=parser.parse('2019-01-18 05:19:59.264'),
+        end_dt=parser.parse('2019-01-28 04:13:36.79'),
         initial_btc=0,
         initial_usd=10000,
-        num_episodes=2,
-        start_dt=parser.parse('2019-01-17 05:19:59.264'),
+        num_episodes=1,
+        start_dt=parser.parse('2019-01-28 03:13:36.79'),
         time_delta=timedelta(seconds=10)
         )
 
     test_environment_configs = dict( 
-        end_dt=parser.parse('2019-01-19 05:19:59.264'),
+        end_dt=parser.parse('2019-01-28 05:13:36.79'),
         initial_btc=0,
         initial_usd=10000,
-        num_episodes=2,
-        start_dt=parser.parse('2019-01-18 05:19:59.264'),
+        num_episodes=1,
+        start_dt=parser.parse('2019-01-28 04:13:36.79'),
         time_delta=timedelta(seconds=10)
         )
 
