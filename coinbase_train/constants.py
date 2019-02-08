@@ -2,24 +2,34 @@
 
 Attributes:
     ACCOUNT_PRODUCT (str): Description
-    END_DT (TYPE): Description
+    MONGO_DB_HOST (TYPE): Description
+    MONGO_DB_PASSWORD (TYPE): Description
+    MONGO_DB_PORT (TYPE): Description
+    MONGO_DB_URL (TYPE): Description
+    MONGO_DB_USERNAME (TYPE): Description
+    NUM_ACTIONS (int): Description
     NUM_DATABASE_WORKERS (int): Description
     NUM_TIME_STEPS (int): Description
     PAD_ORDER_BOOK_TO_LENGTH (int): Description
-    PRECISION (TYPE): Description
     PRODUCT_ID (str): Description
+    SAVED_MODELS_ROOT_DIR (str): Description
+    TENSORBOARD_ROOT_DIR (str): Description
+
+Deleted Attributes:
+    END_DT (TYPE): Description
+    PRECISION (TYPE): Description
     START_DT (TYPE): Description
     TIME_DELTA (TYPE): Description
 """
 import os
 
 ACCOUNT_PRODUCT = 'BTC'
+FIAT_CURRENCY = 'USD'
 PRODUCT_ID = 'BTC-USD'
-PAD_ORDER_BOOK_TO_LENGTH = 1000
-PRECISION = dict(BTC=5, USD=2)
+PAD_ORDER_BOOK_TO_LENGTH = 6000
 NUM_ACTIONS = 5
-NUM_DATABASE_WORKERS = 4
-NUM_TIME_STEPS = 3
+NUM_DATABASE_WORKERS = 3
+NUM_TIME_STEPS = 100
 
 #logging configs
 SAVED_MODELS_ROOT_DIR = '/var/moonraker_models'

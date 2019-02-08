@@ -1,8 +1,122 @@
 """Summary
 """
-from keras.layers import Bidirectional, Conv1D, Conv2D, Dense, Layer, MaxPooling1D, TimeDistributed
+from keras.layers import (Add, Bidirectional, Conv1D, Conv2D, Dense, Layer, 
+                          MaxPooling1D, Multiply, TimeDistributed)
 from phased_lstm_keras.PhasedLSTM import PhasedLSTM as RNNCell
 import tensorflow as tf
+
+class AtrousConvolutionBlock:
+    """Summary
+
+    Attributes:
+        dilation_depth (TYPE): Description
+        nb_filters (TYPE): Description
+        nb_stacks (TYPE): Description
+        use_skip_connections (TYPE): Description
+    """
+    def __init__(
+            self, 
+            causal,
+            dilation_depth, 
+            nb_filters, 
+            nb_stacks, 
+            time_distributed, 
+            use_skip_connections):
+        """Summary
+        
+        Args:
+            causal (TYPE): Description
+            dilation_depth (TYPE): Description
+            nb_filters (TYPE): Description
+            nb_stacks (TYPE): Description
+            time_distributed (TYPE): Description
+            use_skip_connections (TYPE): Description
+        """
+        self.dilation_depth = dilation_depth
+        self.nb_filters = nb_filters
+        self.nb_stacks = nb_stacks
+        self.padding = 'causal' if causal else 'same'
+        self.time_distributed = time_distributed
+        self.use_skip_connections = use_skip_connections
+        self.Conv1D = TDConv1D if time_distributed else Conv1D #pylint: disable=C0103
+
+
+    def __call__(self, input_tensor):
+        """Summary
+        
+        Args:
+            input_tensor (tensorflow.Tensor): Description
+        
+        Returns:
+            tensorflow.Tensor: Description
+        """
+        skip_connections = []
+
+        _output = self.Conv1D(
+            dilation_rate=1, 
+            filters=self.nb_filters, 
+            kernel_size=2, 
+            padding=self.padding,
+            use_bias=True)(input_tensor)
+
+        for _ in range(self.nb_stacks):
+            for i in range(0, self.dilation_depth + 1):
+                
+                _output, skip_output = self._create_residual_block(
+                    dilation=2**i, 
+                    input_tensor=_output, 
+                    nb_filters=self.nb_filters)
+                
+                skip_connections.append(skip_output)
+
+        return Add()(skip_connections) if self.use_skip_connections else _output
+
+    def _create_residual_block(self, dilation, input_tensor, nb_filters):
+        """Summary
+        
+        Args:
+            dilation (int): Description
+            input_tensor (tf.Tensor): Description
+            nb_filters (int): Description
+        
+        Returns:
+            Tuple[tf.Tensor, tf.Tensor]: Description
+        """
+        original_input_tensor = input_tensor
+
+        tanh_out = self.Conv1D(
+            activation='tanh',
+            dilation_rate=dilation, 
+            filters=nb_filters, 
+            kernel_size=2, 
+            padding=self.padding,
+            use_bias=True)(input_tensor)
+
+        sigmoid_out = self.Conv1D(
+            activation='sigmoid',
+            dilation_rate=dilation, 
+            filters=nb_filters, 
+            kernel_size=2, 
+            padding=self.padding,
+            use_bias=True)(input_tensor)
+
+        gated_tensor = Multiply()([tanh_out, sigmoid_out])
+
+        _resisudal = self.Conv1D(
+            filters=nb_filters, 
+            kernel_size=1, 
+            padding='same',
+            use_bias=True)(gated_tensor)
+
+        skip = self.Conv1D(
+            filters=nb_filters, 
+            kernel_size=1, 
+            padding='same',
+            use_bias=True)(gated_tensor)
+
+        resisudal = Add()([original_input_tensor, _resisudal])
+
+        return resisudal, skip
 
 class Attention(Layer):
 
