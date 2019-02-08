@@ -8,6 +8,7 @@ from collections import namedtuple
 import os
 from pathlib import Path
 
+import numpy as np
 from sacred.stflow import LogFileWriter
 import tensorflow as tf
 
@@ -68,6 +69,21 @@ def make_model_dir(_run):
 
     return model_dir
 
+def round_to_min_precision(num, min_precision):
+    """Rounds num to min_precision if abs(num) <  10**-min_precision.
+    Returns num otherwise.
+    
+    Args:
+        num (float): Description
+        min_precision (int): Description
+    
+    Returns:
+        float: Description
+    """
+    sign = np.sign(num + 1e-12)
+
+    return sign * 10**-min_precision if abs(num) < 10**-min_precision else num
+
 EnvironmentConfigs = namedtuple(typename='EnvironmentConfigs', 
                                 field_names=['end_dt', 'initial_usd', 'initial_btc', 
                                              'num_episodes', 'start_dt', 'time_delta'])
@@ -95,28 +111,28 @@ HyperParameters = namedtuple(typename='HyperParameters',
                              field_names=[
                                  'actor_account_funds_attention_dim', 
                                  'actor_account_funds_hidden_dim', 
-                                 'actor_account_orders_hidden_dim', 
+                                 'actor_account_orders_num_filters', 
                                  'actor_account_orders_attention_dim', 
                                  'actor_matches_attention_dim', 
-                                 'actor_matches_hidden_dim', 
+                                 'actor_matches_num_filters', 
                                  'actor_merged_branch_attention_dim', 
-                                 'actor_merged_branch_hidden_dim', 
+                                 'actor_merged_branch_num_filters', 
                                  'actor_order_book_num_filters', 
                                  'actor_order_book_kernel_size', 
                                  'actor_orders_attention_dim', 
-                                 'actor_orders_hidden_dim',
+                                 'actor_orders_num_filters',
                                  'batch_size',
                                  'critic_account_funds_attention_dim', 
                                  'critic_account_funds_hidden_dim', 
-                                 'critic_account_orders_hidden_dim', 
+                                 'critic_account_orders_num_filters', 
                                  'critic_account_orders_attention_dim', 
                                  'critic_matches_attention_dim', 
-                                 'critic_matches_hidden_dim', 
+                                 'critic_matches_num_filters', 
                                  'critic_merged_branch_attention_dim', 
-                                 'critic_merged_branch_hidden_dim', 
+                                 'critic_merged_branch_num_filters', 
                                  'critic_order_book_num_filters', 
                                  'critic_order_book_kernel_size', 
                                  'critic_orders_attention_dim', 
-                                 'critic_orders_hidden_dim',
+                                 'critic_orders_num_filters',
                                  'critic_output_branch_hidden_dim',
                                  'num_time_steps'])

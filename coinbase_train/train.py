@@ -86,32 +86,32 @@ def build_and_train(hyper_params, tensorboard_dir, train_environment_configs):
     """
 
     actor = build_actor(
-        account_funds_attention_dim=hyper_params.actor_account_funds_attention_dim,
-        account_funds_hidden_dim=hyper_params.actor_account_funds_hidden_dim,
+        account_funds_attention_dim=hyper_params.actor_account_funds_attention_dim, 
+        account_funds_hidden_dim=hyper_params.actor_account_funds_hidden_dim, 
+        account_orders_num_filters=hyper_params.actor_account_orders_num_filters, 
         account_orders_attention_dim=hyper_params.actor_account_orders_attention_dim,
-        account_orders_hidden_dim=hyper_params.actor_account_orders_hidden_dim,
         matches_attention_dim=hyper_params.actor_matches_attention_dim,
-        matches_hidden_dim=hyper_params.actor_matches_hidden_dim,
+        matches_num_filters=hyper_params.actor_matches_num_filters,
         merged_branch_attention_dim=hyper_params.actor_merged_branch_attention_dim,
-        merged_branch_hidden_dim=hyper_params.actor_merged_branch_hidden_dim,
-        order_book_kernel_size=hyper_params.actor_order_book_kernel_size,
+        merged_branch_num_filters=hyper_params.actor_merged_branch_num_filters,
         order_book_num_filters=hyper_params.actor_order_book_num_filters,
+        order_book_kernel_size=hyper_params.actor_order_book_kernel_size,
         orders_attention_dim=hyper_params.actor_orders_attention_dim,
-        orders_hidden_dim=hyper_params.actor_orders_hidden_dim) 
+        orders_num_filters=hyper_params.actor_orders_num_filters)
 
     critic = build_critic(
-        account_funds_attention_dim=hyper_params.critic_account_funds_attention_dim,
+        account_funds_attention_dim=hyper_params.critic_account_funds_attention_dim, 
         account_funds_hidden_dim=hyper_params.critic_account_funds_hidden_dim,
+        account_orders_num_filters=hyper_params.critic_account_orders_num_filters, 
         account_orders_attention_dim=hyper_params.critic_account_orders_attention_dim,
-        account_orders_hidden_dim=hyper_params.critic_account_orders_hidden_dim,
         matches_attention_dim=hyper_params.critic_matches_attention_dim,
-        matches_hidden_dim=hyper_params.critic_matches_hidden_dim,
+        matches_num_filters=hyper_params.critic_matches_num_filters,
         merged_branch_attention_dim=hyper_params.critic_merged_branch_attention_dim,
-        merged_branch_hidden_dim=hyper_params.critic_merged_branch_hidden_dim,
-        order_book_kernel_size=hyper_params.critic_order_book_kernel_size,
+        merged_branch_num_filters=hyper_params.critic_merged_branch_num_filters,
         order_book_num_filters=hyper_params.critic_order_book_num_filters,
+        order_book_kernel_size=hyper_params.critic_order_book_kernel_size,
         orders_attention_dim=hyper_params.critic_orders_attention_dim,
-        orders_hidden_dim=hyper_params.critic_orders_hidden_dim,
+        orders_num_filters=hyper_params.critic_orders_num_filters,
         output_branch_hidden_dim=hyper_params.critic_output_branch_hidden_dim)
 
     train_environment = MockEnvironment(
@@ -121,7 +121,8 @@ def build_and_train(hyper_params, tensorboard_dir, train_environment_configs):
         num_workers=c.NUM_DATABASE_WORKERS,
         num_time_steps=hyper_params.num_time_steps,
         start_dt=train_environment_configs.start_dt,
-        time_delta=train_environment_configs.time_delta)
+        time_delta=train_environment_configs.time_delta,
+        verbose=True)
 
     agent = create_agent(
         actor=actor,
@@ -138,7 +139,7 @@ def build_and_train(hyper_params, tensorboard_dir, train_environment_configs):
     history = agent.fit(
         callbacks=callbacks,
         env=train_environment, 
-        log_interval=nb_max_episode_steps,
+        log_interval=1,
         nb_max_episode_steps=nb_max_episode_steps, 
         nb_steps=train_environment_configs.num_episodes * nb_max_episode_steps,
         verbose=2) 
@@ -152,36 +153,36 @@ def config():
     """Configuration variables recorded in Sacred. These will be
     automatically passed to the main function.
     """
-    hyper_params = dict( 
+    hyper_params = dict(  #pylint: disable=W0612
         actor_account_funds_attention_dim=100,
         actor_account_funds_hidden_dim=100, 
-        actor_account_orders_hidden_dim=100, 
+        actor_account_orders_num_filters=100, 
         actor_account_orders_attention_dim=100, 
         actor_matches_attention_dim=100, 
-        actor_matches_hidden_dim=100, 
+        actor_matches_num_filters=100, 
         actor_merged_branch_attention_dim=100, 
-        actor_merged_branch_hidden_dim=100, 
+        actor_merged_branch_num_filters=100, 
         actor_order_book_num_filters=100, 
         actor_order_book_kernel_size=4, 
         actor_orders_attention_dim=100, 
-        actor_orders_hidden_dim=100,
-        batch_size=1,
+        actor_orders_num_filters=100,
+        batch_size=10,
         critic_account_funds_attention_dim=100, 
         critic_account_funds_hidden_dim=100, 
-        critic_account_orders_hidden_dim=100, 
+        critic_account_orders_num_filters=100, 
         critic_account_orders_attention_dim=100, 
         critic_matches_attention_dim=100, 
-        critic_matches_hidden_dim=100, 
+        critic_matches_num_filters=100, 
         critic_merged_branch_attention_dim=100, 
-        critic_merged_branch_hidden_dim=100, 
+        critic_merged_branch_num_filters=100, 
         critic_order_book_num_filters=100, 
         critic_order_book_kernel_size=4, 
         critic_orders_attention_dim=100, 
-        critic_orders_hidden_dim=100,
+        critic_orders_num_filters=100,
         critic_output_branch_hidden_dim=100,
         num_time_steps=c.NUM_TIME_STEPS)  
 
-    train_environment_configs = dict( 
+    train_environment_configs = dict(  #pylint: disable=W0612
         end_dt=parser.parse('2019-01-28 04:13:36.79'),
         initial_btc=0,
         initial_usd=10000,
@@ -190,7 +191,7 @@ def config():
         time_delta=timedelta(seconds=10)
         )
 
-    test_environment_configs = dict( 
+    test_environment_configs = dict(  #pylint: disable=W0612
         end_dt=parser.parse('2019-01-28 05:13:36.79'),
         initial_btc=0,
         initial_usd=10000,

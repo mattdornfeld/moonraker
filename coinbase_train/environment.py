@@ -5,12 +5,13 @@ from queue import deque
 
 import numpy as np
 
+from fakebase.constants import PRECISION
 from fakebase.mock_auth_client import MockAuthenticatedClient
 from fakebase.utils import IllegalTransactionException
 from lib.rl.core import Env
 
 from coinbase_train import constants as c
-from coinbase_train.utils import EnvironmentFinishedException
+from coinbase_train.utils import round_to_min_precision, EnvironmentFinishedException
 
 LOGGER = logging.getLogger(__name__)
 
@@ -59,6 +60,19 @@ class MockEnvironment(Env):
 
         return max(0.0, current_usd - previous_usd)
 
+    def _exchange_step(self):
+        """Summary
+        """
+        if self.verbose and self._results_queue_is_empty:
+            LOGGER.info('Data queue is empty. Waiting for next entry.')
+        
+        self.auth_client.exchange.step()
+
+        if self.verbose:
+            interval_end_dt = self.auth_client.exchange.interval_end_dt
+            interval_start_dt = self.auth_client.exchange.interval_start_dt
+            LOGGER.info(f'Exchange stepped to {interval_start_dt}-{interval_end_dt}.') #pylint: disable=W1203
+
     def _get_state_from_buffer(self):
         """Summary
         
@@ -93,13 +107,14 @@ class MockEnvironment(Env):
 
         size, price, post_only, do_nothing, cancel_all_orders = action
 
+        price = max(price, 0)
+        price = round_to_min_precision(price, PRECISION[c.FIAT_CURRENCY])
+
+        size = round_to_min_precision(size, PRECISION[c.ACCOUNT_PRODUCT])
+        
+
         if bool(round(cancel_all_orders)):
             self.auth_client.cancel_all(product_id=c.PRODUCT_ID)
-
-        #Smallest size increment allowed by coinbase
-        #TODO: Move this into place_limit_order
-        size = round(size, c.PRECISION[c.ACCOUNT_PRODUCT])
-        price = round(price, c.PRECISION['USD'])
 
         if bool(round(do_nothing)):
             message = {'id': None, 'message': 'No purchase made.'}
@@ -141,6 +156,10 @@ class MockEnvironment(Env):
 
         return [self._stack_branch_states_over_time_steps(branch_state_over_time) 
                 for branch_state_over_time in state_by_branch]
+
+    @property
+    def _results_queue_is_empty(self):
+        return self.auth_client.exchange.database_workers.results_queue.qsize() == 0
 
     @staticmethod
     def _stack_branch_states_over_time_steps(branch_state_over_time):
@@ -188,7 +207,8 @@ class MockEnvironment(Env):
 
     def _warmup(self):
         for _ in range(self._buffer.maxlen - 1):
-            self.auth_client.exchange.step()
+
+            self._exchange_step()
 
             state = self.auth_client.exchange.get_exchange_state_as_array(
                 c.PAD_ORDER_BOOK_TO_LENGTH)
@@ -219,6 +239,9 @@ class MockEnvironment(Env):
     def reset(self):
         """Summary
         """
+        if self.verbose:
+            LOGGER.info('Resetting the environment.')
+
         self.auth_client.init_exchange(
             end_dt=self.end_dt, 
             num_workers=self.num_workers, 
@@ -234,6 +257,9 @@ class MockEnvironment(Env):
 
         state = self._get_state_from_buffer()
 
+        if self.verbose:
+            LOGGER.info('Environment reset.')
+
         return state
 
     def seed(self, seed=None):
@@ -244,7 +270,7 @@ class MockEnvironment(Env):
         """Summary
         
         Args:
-            action (np.ndarray): Description
+            action (np.ndarray): size, price, post_only, do_nothing, cancel_all_orders
         
         Returns:
             Tuple[List[np.ndarray], float, bool, Dict]: Description
@@ -263,7 +289,7 @@ class MockEnvironment(Env):
             
             self._made_illegal_transaction = True #pylint: disable=W0201
 
-        self.auth_client.exchange.step()
+        self._exchange_step()
 
         self._buffer.append(
             self.auth_client.exchange.get_exchange_state_as_array(c.PAD_ORDER_BOOK_TO_LENGTH))

@@ -15,9 +15,8 @@ from keras import backend as K
 from fakebase.orm import CoinbaseMatch, CoinbaseOrder
 
 from coinbase_train import constants as c
-from coinbase_train.layers import (
-    Attention, BidirectionalRNN, TDBidirectionalRNN, 
-    TDConv1D, TDConv2D, TDDense, TDMaxPooling1D)
+from coinbase_train.layers import (AtrousConvolutionBlock, Attention, TDConv1D, 
+                                   TDConv2D, TDDense, TDMaxPooling1D)
 
 MATCHES = Input( 
     batch_shape=(None, c.NUM_TIME_STEPS, None, CoinbaseMatch.get_array_length()), 
@@ -43,10 +42,10 @@ def actor_output_activation(input_tensor):
     """Summary
     
     Args:
-        input_tensor (TYPE): Description
+        input_tensor (tensorflow.Tensor): Description
     
     Returns:
-        TYPE: Description
+        tensorflow.Tensor: Description
     """
     size = K.expand_dims(input_tensor[:, 0], axis=-1)
     price = K.expand_dims(input_tensor[:, 1], axis=-1)
@@ -59,44 +58,56 @@ def actor_output_activation(input_tensor):
 def build_actor(
         account_funds_attention_dim, 
         account_funds_hidden_dim, 
-        account_orders_hidden_dim, 
+        account_orders_num_filters, 
         account_orders_attention_dim,
         matches_attention_dim,
-        matches_hidden_dim,
+        matches_num_filters,
         merged_branch_attention_dim,
-        merged_branch_hidden_dim,
+        merged_branch_num_filters,
         order_book_num_filters,
         order_book_kernel_size,
         orders_attention_dim,
-        orders_hidden_dim):
+        orders_num_filters):
     """Summary
     
     Args:
         account_funds_attention_dim (int): Description
         account_funds_hidden_dim (int): Description
-        account_orders_hidden_dim (int): Description
+        account_orders_num_filters (int): Description
         account_orders_attention_dim (int): Description
         matches_attention_dim (int): Description
-        matches_hidden_dim (int): Description
+        matches_num_filters (int): Description
+        merged_branch_attention_dim (int): Description
+        merged_branch_num_filters (int): Description
         order_book_num_filters (int): Description
         order_book_kernel_size (int): Description
         orders_attention_dim (int): Description
-        orders_hidden_dim (int): Description
-        merged_branch_attention_dim (int): Description
-        merged_branch_hidden_dim (int): Description
+        orders_num_filters (int): Description
     
     Returns:
         Model: Description
     """
     match_branch = compose(
         Attention(matches_attention_dim),
-        TDBidirectionalRNN(matches_hidden_dim),
+        AtrousConvolutionBlock(
+            causal=False, 
+            dilation_depth=9, 
+            nb_filters=matches_num_filters, 
+            nb_stacks=4, 
+            time_distributed=True, 
+            use_skip_connections=True),
         BatchNormalization()
         )(MATCHES)
 
     orders_branch = compose(
         Attention(orders_attention_dim),
-        TDBidirectionalRNN(orders_hidden_dim),
+        AtrousConvolutionBlock(
+            causal=False, 
+            dilation_depth=9, 
+            nb_filters=orders_num_filters, 
+            nb_stacks=4, 
+            time_distributed=True, 
+            use_skip_connections=True),
         BatchNormalization()
         )(ORDERS)
 
@@ -113,7 +124,13 @@ def build_actor(
 
     account_orders_branch = compose(
         Attention(account_orders_attention_dim),
-        TDBidirectionalRNN(account_orders_hidden_dim),
+        AtrousConvolutionBlock(
+            causal=False, 
+            dilation_depth=9, 
+            nb_filters=account_orders_num_filters, 
+            nb_stacks=4, 
+            time_distributed=True, 
+            use_skip_connections=True),
         BatchNormalization()
         )(ACCOUNT_ORDERS)
 
@@ -132,8 +149,14 @@ def build_actor(
     output = compose(
         Lambda(actor_output_activation),
         Dense(5),
-        Attention(merged_branch_hidden_dim),
-        BidirectionalRNN(merged_branch_attention_dim),
+        Attention(merged_branch_attention_dim),
+        AtrousConvolutionBlock(
+            causal=False, 
+            dilation_depth=9, 
+            nb_filters=merged_branch_num_filters, 
+            nb_stacks=4, 
+            time_distributed=False, 
+            use_skip_connections=True),
         BatchNormalization()
         )(merged_branch)
 
@@ -147,33 +170,33 @@ def build_actor(
 def build_critic(
         account_funds_attention_dim, 
         account_funds_hidden_dim,
-        account_orders_hidden_dim, 
+        account_orders_num_filters, 
         account_orders_attention_dim,
         matches_attention_dim,
-        matches_hidden_dim,
+        matches_num_filters,
         merged_branch_attention_dim,
-        merged_branch_hidden_dim,
+        merged_branch_num_filters,
         order_book_num_filters,
         order_book_kernel_size,
         orders_attention_dim,
-        orders_hidden_dim,
+        orders_num_filters,
         output_branch_hidden_dim):
     """Summary
     
     Args:
         account_funds_attention_dim (int): Description
         account_funds_hidden_dim (int): Description
-        account_orders_hidden_dim (int): Description
+        account_orders_num_filters (int): Description
         account_orders_attention_dim (int): Description
         matches_attention_dim (int): Description
-        matches_hidden_dim (int): Description
+        matches_num_filters (int): Description
+        merged_branch_attention_dim (int): Description
+        merged_branch_num_filters (int): Description
         order_book_num_filters (int): Description
         order_book_kernel_size (int): Description
         orders_attention_dim (int): Description
-        orders_hidden_dim (int): Description
+        orders_num_filters (int): Description
         output_branch_hidden_dim (int): Description
-        merged_branch_attention_dim (int): Description
-        merged_branch_hidden_dim (int): Description
     
     Returns:
         Model: Description
@@ -184,13 +207,25 @@ def build_critic(
 
     match_branch = compose(
         Attention(matches_attention_dim),
-        TDBidirectionalRNN(matches_hidden_dim),
+        AtrousConvolutionBlock(
+            causal=False, 
+            dilation_depth=9, 
+            nb_filters=matches_num_filters, 
+            nb_stacks=4, 
+            time_distributed=True, 
+            use_skip_connections=True),
         BatchNormalization()
         )(MATCHES)
 
     orders_branch = compose(
         Attention(orders_attention_dim),
-        TDBidirectionalRNN(orders_hidden_dim),
+        AtrousConvolutionBlock(
+            causal=False, 
+            dilation_depth=9, 
+            nb_filters=orders_num_filters, 
+            nb_stacks=4, 
+            time_distributed=True, 
+            use_skip_connections=True),
         BatchNormalization()
         )(ORDERS)
 
@@ -207,7 +242,13 @@ def build_critic(
 
     account_orders_branch = compose(
         Attention(account_orders_attention_dim),
-        TDBidirectionalRNN(account_orders_hidden_dim),
+        AtrousConvolutionBlock(
+            causal=False, 
+            dilation_depth=9, 
+            nb_filters=account_orders_num_filters, 
+            nb_stacks=4, 
+            time_distributed=True, 
+            use_skip_connections=True),
         BatchNormalization()
         )(ACCOUNT_ORDERS)
 
@@ -228,8 +269,14 @@ def build_critic(
         Dense(output_branch_hidden_dim),
         Concatenate(axis=-1),
         lambda tensor: [action_input] + [tensor],
-        Attention(merged_branch_hidden_dim),
-        BidirectionalRNN(merged_branch_attention_dim),
+        Attention(merged_branch_attention_dim),
+        AtrousConvolutionBlock(
+            causal=False, 
+            dilation_depth=9, 
+            nb_filters=merged_branch_num_filters, 
+            nb_stacks=4, 
+            time_distributed=False, 
+            use_skip_connections=True),
         BatchNormalization()
         )(merged_branch)
 
@@ -239,4 +286,3 @@ def build_critic(
         )
 
     return critic
-    
