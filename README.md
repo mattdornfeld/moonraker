@@ -5,4 +5,6 @@
 
 [An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling](https://arxiv.org/abs/1803.01271)
 
+[Hierarchical Attention Networks for Document Classification](https://www.cs.cmu.edu/~hovy/papers/16HLT-hierarchical-attention-networks.pdf)
+
 [WaveNet: A Generative Model for Raw Audio](https://arxiv.org/abs/1609.03499)
