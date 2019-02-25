@@ -166,7 +166,7 @@ def config():
         actor_order_book_kernel_size=4, 
         actor_orders_attention_dim=100, 
         actor_orders_num_filters=100,
-        batch_size=10,
+        batch_size=1,
         critic_account_funds_attention_dim=100, 
         critic_account_funds_hidden_dim=100, 
         critic_account_orders_num_filters=100, 
