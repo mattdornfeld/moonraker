@@ -26,7 +26,6 @@ REQUIREMENTS = [
     'keras==2.2.4',
     'fakebase',
     'funcy==1.11',
-    'phased_lstm_keras==1.0.2',
     'pymongo==3.6.1',
     'python-dateutil==2.7.3',
     'sacred==0.7.2',

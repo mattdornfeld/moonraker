@@ -79,16 +79,27 @@ class MockEnvironment(Env):
         Returns:
             List[np.ndarray]: Description
         """
-        _state = self._process_buffer()
-        
-        state = [_state[0], #matches
-                 _state[1], #orders
-                 self._stack_order_books(buy_order_book=_state[2], sell_order_book=_state[3]),
-                 _state[4], #account_orders
-                 _state[5] #account_funds
-                ]
+        num_branches = len(self._buffer[0])
 
-        return state
+        state_by_branch = [[] for _ in range(num_branches)]
+
+        for state_at_time in self._buffer:
+            for i, branch_state_at_time in enumerate(state_at_time):
+                state_by_branch[i].append(branch_state_at_time)
+
+        matches = self._stack_branch_states_over_time_steps(state_by_branch[0])
+
+        # orders = self._stack_branch_states_over_time_steps(state_by_branch[1])
+
+        buy_order_book = self._stack_branch_states_over_time_steps(state_by_branch[2])
+        sell_order_book = self._stack_branch_states_over_time_steps(state_by_branch[3])
+        order_book = self._stack_order_books(buy_order_book, sell_order_book)
+
+        account_orders = state_by_branch[4][-1]
+        
+        account_funds = state_by_branch[5][-1]
+
+        return [matches, order_book, account_orders, account_funds]
 
     def _make_transactions(self, action):
         """
@@ -111,7 +122,6 @@ class MockEnvironment(Env):
         price = round_to_min_precision(price, PRECISION[c.FIAT_CURRENCY])
 
         size = round_to_min_precision(size, PRECISION[c.ACCOUNT_PRODUCT])
-        
 
         if bool(round(cancel_all_orders)):
             self.auth_client.cancel_all(product_id=c.PRODUCT_ID)
@@ -139,23 +149,6 @@ class MockEnvironment(Env):
                     post_only=bool(round(post_only)))
 
         return message
-
-    def _process_buffer(self):
-        """Summary
-        
-        Returns:
-            List[np.ndarray]: Description
-        """
-        num_branches = len(self._buffer[0])
-
-        state_by_branch = [[] for _ in range(num_branches)]
-
-        for state_at_time in self._buffer:
-            for i, branch_state_at_time in enumerate(state_at_time):
-                state_by_branch[i].append(branch_state_at_time)
-
-        return [self._stack_branch_states_over_time_steps(branch_state_over_time) 
-                for branch_state_over_time in state_by_branch]
 
     @property
     def _results_queue_is_empty(self):
@@ -191,7 +184,8 @@ class MockEnvironment(Env):
 
     @staticmethod
     def _stack_order_books(buy_order_book, sell_order_book):
-        """Summary
+        """Stacks order books. Will pad smaller order book to have
+        same size as larger one.
         
         Args:
             buy_order_book (np.ndarray): Description
@@ -200,18 +194,35 @@ class MockEnvironment(Env):
         Returns:
             np.ndarray: Description
         """
+
+        orders_tuple = (buy_order_book.shape[1], sell_order_book.shape[1])
+        most_orders = max(orders_tuple)
+        least_orders = min(orders_tuple)
+        pad_width = ((0, 0), (0, most_orders - least_orders), (0, 0))
+
+        if np.argmax(orders_tuple) == 0:
+            sell_order_book = np.pad(
+                array=sell_order_book, 
+                pad_width=pad_width, 
+                mode='constant', 
+                constant_values=(0,))
+        else:
+            buy_order_book = np.pad(
+                array=buy_order_book, 
+                pad_width=pad_width, 
+                mode='constant', 
+                constant_values=(0,)) 
+
         return np.concatenate([
             np.expand_dims(buy_order_book, axis=-1),
-            np.expand_dims(sell_order_book, axis=-1)
-            ], axis=-1)
+            np.expand_dims(sell_order_book, axis=-1)], axis=-1)
 
     def _warmup(self):
         for _ in range(self._buffer.maxlen - 1):
 
             self._exchange_step()
 
-            state = self.auth_client.exchange.get_exchange_state_as_array(
-                c.PAD_ORDER_BOOK_TO_LENGTH)
+            state = self.auth_client.exchange.get_exchange_state_as_array()
             
             self._buffer.append(state)
 
@@ -291,11 +302,18 @@ class MockEnvironment(Env):
 
         self._exchange_step()
 
-        self._buffer.append(
-            self.auth_client.exchange.get_exchange_state_as_array(c.PAD_ORDER_BOOK_TO_LENGTH))
+        exchange_state = self.auth_client.exchange.get_exchange_state_as_array()
+
+        self._buffer.append(exchange_state)
 
         state = self._get_state_from_buffer()
 
         reward = self._calculate_reward()  
+
+        if self.verbose:
+            LOGGER.info(f'(size, price, post_only, do_nothing, cancel_all_orders) = {action}') #pylint: disable=W1203
+            LOGGER.info('Shape of (matches, order_book, account_orders, account_funds) = {}'. #pylint: disable=W1202
+                        format([s.shape for s in state]))
+            LOGGER.info(f'reward = {reward}') #pylint: disable=W1203
 
         return state, reward, self.episode_finished, {}
