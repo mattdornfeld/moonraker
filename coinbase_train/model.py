@@ -2,7 +2,6 @@
 
 Attributes:
     ACCOUNT_FUNDS (tf.Tensor): Description
-    ACCOUNT_ORDERS (tf.Tensor): Description
     MATCHES (tf.Tensor): Description
     ORDER_BOOK (tf.Tensor): Description
     ORDERS (tf.Tensor): Description
@@ -15,27 +14,23 @@ from keras import backend as K
 from fakebase.orm import CoinbaseMatch, CoinbaseOrder
 
 from coinbase_train import constants as c
-from coinbase_train.layers import (AtrousConvolutionBlock, Attention, TDConv1D, 
-                                   TDConv2D, TDDense, TDMaxPooling1D)
+from coinbase_train.layers import (AtrousConvolutionBlock, Attention, DenseBlock, 
+                                   FullConvolutionBlock)
 
 MATCHES = Input( 
-    batch_shape=(None, c.NUM_TIME_STEPS, None, CoinbaseMatch.get_array_length()), 
+    batch_shape=(c.BATCH_SIZE, c.NUM_TIME_STEPS, None, CoinbaseMatch.get_array_length()), 
     name='matches')
 
-ORDERS = Input( 
-    batch_shape=(None, c.NUM_TIME_STEPS, None, CoinbaseOrder.get_array_length()), 
-    name='orders')
-
 ORDER_BOOK = Input( 
-    batch_shape=(None, c.NUM_TIME_STEPS, c.PAD_ORDER_BOOK_TO_LENGTH, 2, 2), 
+    batch_shape=(c.BATCH_SIZE, c.NUM_TIME_STEPS, None, 2, 2), 
     name='order_book')
 
 ACCOUNT_ORDERS = Input( 
-    batch_shape=(None, c.NUM_TIME_STEPS, None, CoinbaseOrder.get_array_length()), 
+    batch_shape=(c.BATCH_SIZE, None, CoinbaseOrder.get_array_length()), 
     name='account_orders')
 
 ACCOUNT_FUNDS = Input( 
-    batch_shape=(None, c.NUM_TIME_STEPS, 1, 4), 
+    batch_shape=(c.BATCH_SIZE, 1, 4), 
     name='account_funds')
 
 def actor_output_activation(input_tensor):
@@ -48,7 +43,7 @@ def actor_output_activation(input_tensor):
         tensorflow.Tensor: Description
     """
     size = K.expand_dims(input_tensor[:, 0], axis=-1)
-    price = K.expand_dims(input_tensor[:, 1], axis=-1)
+    price = K.expand_dims(K.relu(input_tensor[:, 1]), axis=-1)
     post_only = K.expand_dims(K.sigmoid(input_tensor[:, 2]), axis=-1)
     do_nothing = K.expand_dims(K.sigmoid(input_tensor[:, 3]), axis=-1)
     cancel_all_orders = K.expand_dims(K.sigmoid(input_tensor[:, 4]), axis=-1)
@@ -56,232 +51,176 @@ def actor_output_activation(input_tensor):
     return K.concatenate([size, price, post_only, do_nothing, cancel_all_orders])
 
 def build_actor(
-        account_funds_attention_dim, 
-        account_funds_hidden_dim, 
-        account_orders_num_filters, 
-        account_orders_attention_dim,
-        matches_attention_dim,
-        matches_num_filters,
-        merged_branch_attention_dim,
-        merged_branch_num_filters,
-        order_book_num_filters,
-        order_book_kernel_size,
-        orders_attention_dim,
-        orders_num_filters):
+        attention_dim,
+        batch_size,
+        depth,
+        num_filters,
+        num_stacks):
     """Summary
     
     Args:
-        account_funds_attention_dim (int): Description
-        account_funds_hidden_dim (int): Description
-        account_orders_num_filters (int): Description
-        account_orders_attention_dim (int): Description
-        matches_attention_dim (int): Description
-        matches_num_filters (int): Description
-        merged_branch_attention_dim (int): Description
-        merged_branch_num_filters (int): Description
-        order_book_num_filters (int): Description
-        order_book_kernel_size (int): Description
-        orders_attention_dim (int): Description
-        orders_num_filters (int): Description
+        attention_dim (int): Description
+        depth (int): Description
+        num_filters (int): Description
+        num_stacks (int): Description
     
     Returns:
         Model: Description
     """
     match_branch = compose(
-        Attention(matches_attention_dim),
+        Attention(attention_dim),
         AtrousConvolutionBlock(
             causal=False, 
-            dilation_depth=9, 
-            nb_filters=matches_num_filters, 
-            nb_stacks=4, 
+            dilation_depth=depth, 
+            nb_filters=num_filters, 
+            nb_stacks=num_stacks, 
             time_distributed=True, 
             use_skip_connections=True),
         BatchNormalization()
         )(MATCHES)
 
-    orders_branch = compose(
-        Attention(orders_attention_dim),
-        AtrousConvolutionBlock(
-            causal=False, 
-            dilation_depth=9, 
-            nb_filters=orders_num_filters, 
-            nb_stacks=4, 
-            time_distributed=True, 
-            use_skip_connections=True),
-        BatchNormalization()
-        )(ORDERS)
-
+    new_shape = (batch_size, c.NUM_TIME_STEPS, -1, 2 * num_filters)
     order_book_branch = compose(
-        Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=-1)),
-        TDConv1D(1, order_book_kernel_size),
-        TDMaxPooling1D(),
-        TDConv1D(order_book_num_filters, order_book_kernel_size),
-        TDMaxPooling1D(),
-        Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=-2)),
-        TDConv2D(order_book_num_filters, (order_book_kernel_size, 2)),
+        Attention(attention_dim),
+        Lambda(lambda input_tensor: 
+               K.reshape(input_tensor, new_shape)),
+        FullConvolutionBlock(
+            depth=depth, 
+            kernel_size=(4, 2), 
+            nb_filters=num_filters, 
+            padding='same', 
+            time_distributed=True),
         BatchNormalization()
         )(ORDER_BOOK)
 
-    account_orders_branch = compose(
-        Attention(account_orders_attention_dim),
+    merged_branch = Concatenate(axis=-1)([match_branch, order_book_branch])
+
+    merged_branch_output = compose(
+        Attention(attention_dim),
         AtrousConvolutionBlock(
             causal=False, 
-            dilation_depth=9, 
-            nb_filters=account_orders_num_filters, 
-            nb_stacks=4, 
-            time_distributed=True, 
-            use_skip_connections=True),
-        BatchNormalization()
-        )(ACCOUNT_ORDERS)
-
-    account_funds_branchs = compose(
-        Attention(account_funds_attention_dim),
-        TDDense(account_funds_hidden_dim, activation='relu'),
-        BatchNormalization()
-        )(ACCOUNT_FUNDS)
-
-    merged_branch = Concatenate(axis=-1)([match_branch, 
-                                          orders_branch, 
-                                          order_book_branch, 
-                                          account_orders_branch,
-                                          account_funds_branchs])
-
-    output = compose(
-        Lambda(actor_output_activation),
-        Dense(5),
-        Attention(merged_branch_attention_dim),
-        AtrousConvolutionBlock(
-            causal=False, 
-            dilation_depth=9, 
-            nb_filters=merged_branch_num_filters, 
-            nb_stacks=4, 
+            dilation_depth=depth, 
+            nb_filters=num_filters, 
+            nb_stacks=num_stacks, 
             time_distributed=False, 
             use_skip_connections=True),
         BatchNormalization()
         )(merged_branch)
 
+    account_orders_branch = compose(
+        Attention(attention_dim),
+        DenseBlock(
+            depth=depth, 
+            units=num_filters),
+        BatchNormalization())(ACCOUNT_ORDERS)
+
+    account_funds_branch = compose(
+        DenseBlock(
+            depth=depth, 
+            units=num_filters),
+        BatchNormalization(),
+        Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1)))(ACCOUNT_FUNDS)
+
+    merged_output_branch = Concatenate(axis=-1)([merged_branch_output, 
+                                                 account_orders_branch, 
+                                                 account_funds_branch])
+
+    output = compose(Lambda(actor_output_activation), 
+                     Dense(c.NUM_ACTIONS))(merged_output_branch)
+
     actor = Model(
-        inputs=[MATCHES, ORDERS, ORDER_BOOK, ACCOUNT_ORDERS, ACCOUNT_FUNDS],
+        inputs=[MATCHES, ORDER_BOOK, ACCOUNT_ORDERS, ACCOUNT_FUNDS],
         outputs=[output]
         )
 
     return actor
 
 def build_critic(
-        account_funds_attention_dim, 
-        account_funds_hidden_dim,
-        account_orders_num_filters, 
-        account_orders_attention_dim,
-        matches_attention_dim,
-        matches_num_filters,
-        merged_branch_attention_dim,
-        merged_branch_num_filters,
-        order_book_num_filters,
-        order_book_kernel_size,
-        orders_attention_dim,
-        orders_num_filters,
-        output_branch_hidden_dim):
+        attention_dim,
+        batch_size,
+        depth,
+        num_filters,
+        num_stacks):
     """Summary
     
     Args:
-        account_funds_attention_dim (int): Description
-        account_funds_hidden_dim (int): Description
-        account_orders_num_filters (int): Description
-        account_orders_attention_dim (int): Description
-        matches_attention_dim (int): Description
-        matches_num_filters (int): Description
-        merged_branch_attention_dim (int): Description
-        merged_branch_num_filters (int): Description
-        order_book_num_filters (int): Description
-        order_book_kernel_size (int): Description
-        orders_attention_dim (int): Description
-        orders_num_filters (int): Description
-        output_branch_hidden_dim (int): Description
+        attention_dim (int): Description
+        depth (int): Description
+        num_filters (int): Description
+        num_stacks (int): Description
     
     Returns:
         Model: Description
     """
     action_input = Input( 
-        batch_shape=(None, c.NUM_ACTIONS),
+        batch_shape=(batch_size, c.NUM_ACTIONS),
         name='critic_action_input')
 
     match_branch = compose(
-        Attention(matches_attention_dim),
+        Attention(attention_dim),
         AtrousConvolutionBlock(
             causal=False, 
-            dilation_depth=9, 
-            nb_filters=matches_num_filters, 
-            nb_stacks=4, 
+            dilation_depth=depth, 
+            nb_filters=num_filters, 
+            nb_stacks=num_stacks, 
             time_distributed=True, 
             use_skip_connections=True),
         BatchNormalization()
         )(MATCHES)
 
-    orders_branch = compose(
-        Attention(orders_attention_dim),
-        AtrousConvolutionBlock(
-            causal=False, 
-            dilation_depth=9, 
-            nb_filters=orders_num_filters, 
-            nb_stacks=4, 
-            time_distributed=True, 
-            use_skip_connections=True),
-        BatchNormalization()
-        )(ORDERS)
-
+    new_shape = (batch_size, c.NUM_TIME_STEPS, -1, 2 * num_filters)
     order_book_branch = compose(
-        Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=-1)),
-        TDConv1D(1, order_book_kernel_size),
-        TDMaxPooling1D(),
-        TDConv1D(order_book_num_filters, order_book_kernel_size),
-        TDMaxPooling1D(),
-        Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=-2)),
-        TDConv2D(order_book_num_filters, (order_book_kernel_size, 2)),
+        Attention(attention_dim),
+        Lambda(lambda input_tensor: 
+               K.reshape(input_tensor, new_shape)),
+        FullConvolutionBlock(
+            depth=depth, 
+            kernel_size=(4, 2), 
+            nb_filters=num_filters, 
+            padding='same', 
+            time_distributed=True),
         BatchNormalization()
         )(ORDER_BOOK)
 
-    account_orders_branch = compose(
-        Attention(account_orders_attention_dim),
+    merged_branch = Concatenate(axis=-1)([match_branch, order_book_branch])
+
+    merged_branch_output = compose(
+        Attention(attention_dim),
         AtrousConvolutionBlock(
             causal=False, 
-            dilation_depth=9, 
-            nb_filters=account_orders_num_filters, 
-            nb_stacks=4, 
-            time_distributed=True, 
-            use_skip_connections=True),
-        BatchNormalization()
-        )(ACCOUNT_ORDERS)
-
-    account_funds_branchs = compose(
-        Attention(account_funds_attention_dim),
-        TDDense(account_funds_hidden_dim, activation='relu'),
-        BatchNormalization()
-        )(ACCOUNT_FUNDS)
-
-    merged_branch = Concatenate(axis=-1)([match_branch, 
-                                          orders_branch, 
-                                          order_book_branch, 
-                                          account_orders_branch,
-                                          account_funds_branchs])
-
-    output = compose(
-        Dense(1),
-        Dense(output_branch_hidden_dim),
-        Concatenate(axis=-1),
-        lambda tensor: [action_input] + [tensor],
-        Attention(merged_branch_attention_dim),
-        AtrousConvolutionBlock(
-            causal=False, 
-            dilation_depth=9, 
-            nb_filters=merged_branch_num_filters, 
-            nb_stacks=4, 
+            dilation_depth=depth, 
+            nb_filters=num_filters, 
+            nb_stacks=num_stacks, 
             time_distributed=False, 
             use_skip_connections=True),
         BatchNormalization()
         )(merged_branch)
 
+    account_orders_branch = compose(
+        Attention(attention_dim),
+        DenseBlock(
+            depth=depth, 
+            units=num_filters),
+        BatchNormalization())(ACCOUNT_ORDERS)
+
+    action_funds_branch = compose(
+        DenseBlock(
+            depth=depth, 
+            units=num_filters),
+        BatchNormalization(),
+        Concatenate(axis=-1),
+        lambda tensor: [action_input] + [tensor],
+        Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1))
+        )(ACCOUNT_FUNDS)
+
+    merged_output_branch = Concatenate(axis=-1)([merged_branch_output, 
+                                                 account_orders_branch, 
+                                                 action_funds_branch])
+
+    output = Dense(1)(merged_output_branch)
+
     critic = Model(
-        inputs=[action_input, MATCHES, ORDERS, ORDER_BOOK, ACCOUNT_ORDERS, ACCOUNT_FUNDS],
+        inputs=[action_input, MATCHES, ORDER_BOOK, ACCOUNT_ORDERS, ACCOUNT_FUNDS],
         outputs=[output]
         )
 

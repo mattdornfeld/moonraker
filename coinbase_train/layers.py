@@ -1,8 +1,8 @@
 """Summary
 """
+from funcy import compose
 from keras.layers import (Add, Bidirectional, Conv1D, Conv2D, Dense, Layer, 
                           MaxPooling1D, Multiply, TimeDistributed)
-from phased_lstm_keras.PhasedLSTM import PhasedLSTM as RNNCell
 import tensorflow as tf
 
 class AtrousConvolutionBlock:
@@ -190,6 +190,7 @@ class Attention(Layer):
         Returns:
             tf.Tensor: Description
         """
+
         u = tf.tanh(self._matmul(self.W_w, h) + self.b_w) #pylint: disable=C0103
 
         numerator = tf.reduce_sum(self.u_w * u, axis=-1)
@@ -221,30 +222,85 @@ class Attention(Layer):
         """
         return {'attention_dim' : self.attention_dim}
 
-def BidirectionalRNN(*args, **kwargs): #pylint: disable=C0103
-    """Summary
-    
-    Args:
-        *args: Description
-        **kwargs: Description
-    
-    Returns:
-        Bidirectional: Description
-    """
-    return Bidirectional(RNNCell(
-        return_sequences=True, go_backwards=True, *args, **kwargs))
+class DenseBlock:
 
-def TDBidirectionalRNN(*args, **kwargs): #pylint: disable=C0103
     """Summary
     
-    Args:
-        *args: Description
-        **kwargs: Description
-    
-    Returns:
-        TimeDistributed: Description
+    Attributes:
+        depth (int): Description
+        units (int): Description
     """
-    return TimeDistributed(BidirectionalRNN(*args, **kwargs))
+    
+    def __init__(self, depth, units):
+        """Summary
+        
+        Args:
+            depth (int): Description
+            units (int): Description
+        """
+        self.depth = depth
+        self.units = units
+
+    def __call__(self, input_tensor):
+        """Summary
+        
+        Args:
+            input_tensor (tf.Tensor): Description
+        
+        Returns:
+            Union[tf.Tensor, TimeDistributed]: Description
+        """
+        layers = [Dense(units=self.units) for _ in range(self.depth)]
+
+        return compose(*layers)(input_tensor)
+
+class FullConvolutionBlock:
+
+    """Summary
+    
+    Attributes:
+        depth (int): Description
+        kernel_size (Tuple[int]): Description
+        nb_filters (int): Description
+        padding (str): Description
+        time_distributed (bool): Description
+    """
+    
+    def __init__(self, depth, kernel_size, nb_filters, padding, time_distributed):
+        """Summary
+        
+        Args:
+            depth (int): Description
+            kernel_size (Tuple[int]): Description
+            nb_filters (int): Description
+            padding (str): Description
+            time_distributed (bool): Description
+        """
+        self.depth = depth
+        self.kernel_size = kernel_size
+        self.nb_filters = nb_filters
+        self.padding = padding
+        self.time_distributed = time_distributed
+
+    def __call__(self, input_tensor):
+        """Summary
+        
+        Args:
+            input_tensor (tf.Tensor): Description
+        
+        Returns:
+            Union[tf.Tensor, TimeDistributed]: Description
+        """
+        Conv2D = TDConv2D if self.time_distributed else Conv2D #pylint: disable=E0601,C0103
+
+        layers = [Conv2D(
+            filters=self.nb_filters, 
+            kernel_size=self.kernel_size,
+            padding=self.padding)
+            for _ in range(self.depth) #pylint: disable=C0330
+            ] #pylint: disable=C0330
+
+        return compose(*layers)(input_tensor)
 
 def TDConv1D(*args, **kwargs): #pylint: disable=C0103
     """Summary
@@ -269,27 +325,3 @@ def TDConv2D(*args, **kwargs): #pylint: disable=C0103
         TimeDistributed: Description
     """
     return TimeDistributed(Conv2D(*args, **kwargs))
-
-def TDDense(*args, **kwargs): #pylint: disable=C0103
-    """Summary
-    
-    Args:
-        *args: Description
-        **kwargs: Description
-    
-    Returns:
-        TimeDistributed: Description
-    """
-    return TimeDistributed(Dense(*args, **kwargs))
-
-def TDMaxPooling1D(*args, **kwargs): #pylint: disable=C0103
-    """Summary
-    
-    Args:
-        *args: Description
-        **kwargs: Description
-    
-    Returns:
-        TimeDistributed: Description
-    """
-    return TimeDistributed(MaxPooling1D(*args, **kwargs))

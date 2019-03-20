@@ -7,7 +7,6 @@ from datetime import timedelta
 
 from dateutil import parser
 from keras.optimizers import SGD
-from phased_lstm_keras.PhasedLSTM import PhasedLSTM 
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
@@ -45,23 +44,19 @@ def create_agent(actor, critic, hyper_params):
     random_process = OrnsteinUhlenbeckProcess(
         size=c.NUM_ACTIONS, 
         theta=0.15, 
-        mu=0.0, 
+        mu=0.0,
         sigma=0.3)
 
     processor = CoibaseEnvironmentProcessor()
     
     critic_action_input = critic.inputs[0]
-
-    custom_model_objects = {
-        'Attention' : Attention, 
-        'PhasedLSTM' : PhasedLSTM}
     
     agent = DDPGAgent(
         actor=actor, 
         batch_size=hyper_params.batch_size,
         critic=critic, 
         critic_action_input=critic_action_input, 
-        custom_model_objects=custom_model_objects, 
+        custom_model_objects={'Attention' : Attention}, 
         memory=memory, 
         nb_actions=c.NUM_ACTIONS,
         nb_steps_warmup_actor=hyper_params.batch_size,
@@ -86,33 +81,18 @@ def build_and_train(hyper_params, tensorboard_dir, train_environment_configs):
     """
 
     actor = build_actor(
-        account_funds_attention_dim=hyper_params.actor_account_funds_attention_dim, 
-        account_funds_hidden_dim=hyper_params.actor_account_funds_hidden_dim, 
-        account_orders_num_filters=hyper_params.actor_account_orders_num_filters, 
-        account_orders_attention_dim=hyper_params.actor_account_orders_attention_dim,
-        matches_attention_dim=hyper_params.actor_matches_attention_dim,
-        matches_num_filters=hyper_params.actor_matches_num_filters,
-        merged_branch_attention_dim=hyper_params.actor_merged_branch_attention_dim,
-        merged_branch_num_filters=hyper_params.actor_merged_branch_num_filters,
-        order_book_num_filters=hyper_params.actor_order_book_num_filters,
-        order_book_kernel_size=hyper_params.actor_order_book_kernel_size,
-        orders_attention_dim=hyper_params.actor_orders_attention_dim,
-        orders_num_filters=hyper_params.actor_orders_num_filters)
+        attention_dim=hyper_params.attention_dim,
+        batch_size=hyper_params.batch_size,
+        depth=hyper_params.depth,
+        num_filters=hyper_params.num_filters,
+        num_stacks=hyper_params.num_stacks)
 
     critic = build_critic(
-        account_funds_attention_dim=hyper_params.critic_account_funds_attention_dim, 
-        account_funds_hidden_dim=hyper_params.critic_account_funds_hidden_dim,
-        account_orders_num_filters=hyper_params.critic_account_orders_num_filters, 
-        account_orders_attention_dim=hyper_params.critic_account_orders_attention_dim,
-        matches_attention_dim=hyper_params.critic_matches_attention_dim,
-        matches_num_filters=hyper_params.critic_matches_num_filters,
-        merged_branch_attention_dim=hyper_params.critic_merged_branch_attention_dim,
-        merged_branch_num_filters=hyper_params.critic_merged_branch_num_filters,
-        order_book_num_filters=hyper_params.critic_order_book_num_filters,
-        order_book_kernel_size=hyper_params.critic_order_book_kernel_size,
-        orders_attention_dim=hyper_params.critic_orders_attention_dim,
-        orders_num_filters=hyper_params.critic_orders_num_filters,
-        output_branch_hidden_dim=hyper_params.critic_output_branch_hidden_dim)
+        attention_dim=hyper_params.attention_dim,
+        batch_size=hyper_params.batch_size,
+        depth=hyper_params.depth,
+        num_filters=hyper_params.num_filters,
+        num_stacks=hyper_params.num_stacks)
 
     train_environment = MockEnvironment(
         end_dt=train_environment_configs.end_dt,
@@ -154,39 +134,18 @@ def config():
     automatically passed to the main function.
     """
     hyper_params = dict(  #pylint: disable=W0612
-        actor_account_funds_attention_dim=100,
-        actor_account_funds_hidden_dim=100, 
-        actor_account_orders_num_filters=100, 
-        actor_account_orders_attention_dim=100, 
-        actor_matches_attention_dim=100, 
-        actor_matches_num_filters=100, 
-        actor_merged_branch_attention_dim=100, 
-        actor_merged_branch_num_filters=100, 
-        actor_order_book_num_filters=100, 
-        actor_order_book_kernel_size=4, 
-        actor_orders_attention_dim=100, 
-        actor_orders_num_filters=100,
-        batch_size=1,
-        critic_account_funds_attention_dim=100, 
-        critic_account_funds_hidden_dim=100, 
-        critic_account_orders_num_filters=100, 
-        critic_account_orders_attention_dim=100, 
-        critic_matches_attention_dim=100, 
-        critic_matches_num_filters=100, 
-        critic_merged_branch_attention_dim=100, 
-        critic_merged_branch_num_filters=100, 
-        critic_order_book_num_filters=100, 
-        critic_order_book_kernel_size=4, 
-        critic_orders_attention_dim=100, 
-        critic_orders_num_filters=100,
-        critic_output_branch_hidden_dim=100,
+        attention_dim=50,
+        batch_size=c.BATCH_SIZE,
+        depth=4,
+        num_filters=100,
+        num_stacks=1,
         num_time_steps=c.NUM_TIME_STEPS)  
 
     train_environment_configs = dict(  #pylint: disable=W0612
-        end_dt=parser.parse('2019-01-28 04:13:36.79'),
+        end_dt=parser.parse('2019-01-28 03:20:36.79'),
         initial_btc=0,
         initial_usd=10000,
-        num_episodes=1,
+        num_episodes=10,
         start_dt=parser.parse('2019-01-28 03:13:36.79'),
         time_delta=timedelta(seconds=10)
         )

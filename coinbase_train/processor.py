@@ -67,10 +67,10 @@ class CoibaseEnvironmentProcessor(Processor):
         branched_state_batches = [[] for _ in range(len(most_events))]
         for state in batch:
             for i, branch_state in enumerate(state[0]):
-                branch_state = self._pad_state(branch_state, most_events[i])
-                branch_state = np.expand_dims(branch_state, axis=0)
+                _branch_state = self._pad_state(branch_state, most_events[i])
+                branch_state = np.expand_dims(_branch_state, axis=0)
                 branched_state_batches[i].append(branch_state)
 
-        branched_state_batches = list(map(np.vstack, branched_state_batches))
+        branched_state_batches = [np.vstack(bsb) for bsb in branched_state_batches]
 
         return branched_state_batches
