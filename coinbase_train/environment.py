@@ -1,9 +1,12 @@
 """Summary
 """
 import logging
+from math import inf
 from queue import deque
 
 import numpy as np
+from keras import backend as K
+import tensorflow as tf
 
 from fakebase.constants import PRECISION
 from fakebase.mock_auth_client import MockAuthenticatedClient
@@ -11,8 +14,15 @@ from fakebase.utils import IllegalTransactionException
 from lib.rl.core import Env
 
 from coinbase_train import constants as c
-from coinbase_train.utils import round_to_min_precision, EnvironmentFinishedException
+from coinbase_train.copula import GaussianCopula
+from coinbase_train.utils import (clamp_to_range, convert_to_bool, round_to_min_precision, 
+                                  EnvironmentFinishedException)
 
+GAUSSIAN_COUPULA_MU = tf.placeholder(dtype=tf.float32, shape=(2,))
+GAUSSIAN_COUPULA_SIGMA_CHOLESKY = tf.placeholder(dtype=tf.float32, shape=(2, 2))
+GAUSSIAN_COUPULA_SAMPLE_OPERATION = GaussianCopula(
+    mu=GAUSSIAN_COUPULA_MU, 
+    sigma_cholesky=GAUSSIAN_COUPULA_SIGMA_CHOLESKY).sample()
 LOGGER = logging.getLogger(__name__)
 
 class MockEnvironment(Env):
@@ -21,17 +31,26 @@ class MockEnvironment(Env):
     
     Attributes:
         auth_client (MockAuthenticatedClient): Description
+        end_dt (TYPE): Description
         initial_btc (float): Description
         initial_usd (float): Description
+        num_workers (TYPE): Description
+        start_dt (TYPE): Description
+        time_delta (TYPE): Description
+        verbose (TYPE): Description
     """
     def __init__(self, end_dt, initial_usd, initial_btc, num_time_steps, num_workers, 
                  start_dt, time_delta, verbose=False):
         """Summary
         
         Args:
+            end_dt (TYPE): Description
             initial_usd (float): Description
             initial_btc (float): Description
             num_time_steps (int): Description
+            num_workers (TYPE): Description
+            start_dt (TYPE): Description
+            time_delta (TYPE): Description
             verbose (bool, optional): Description
         """
 
@@ -55,10 +74,29 @@ class MockEnvironment(Env):
         Returns:
             float: reward
         """
-        current_usd = self._buffer[-1][5][0, 0]
-        previous_usd = self._buffer[-2][5][0, 0]
+        current_usd = self._buffer[-1]['account_funds'][0, 0]
+        previous_usd = self._buffer[-2]['account_funds'][0, 0]
 
         return max(0.0, current_usd - previous_usd)
+
+    def _cancel_orders_in_range(self, cancel_side, cancel_max_price, cancel_min_price):
+        """Summary
+        
+        Args:
+            cancel_max_price (float): Description
+            cancel_min_price (float): Description
+            cancel_side (str): Description
+        """
+
+        canceled_orders = self.auth_client.cancel_all_orders_in_price_range(
+            min_price=cancel_min_price, 
+            max_price=cancel_max_price, 
+            order_side=cancel_side)
+
+        if self.verbose:
+            LOGGER.info(#pylint: disable=W1203
+                f'Canceled {len(canceled_orders)} {cancel_side} orders in range '
+                f'{cancel_min_price} - {cancel_max_price}.') 
 
     def _exchange_step(self):
         """Summary
@@ -84,7 +122,7 @@ class MockEnvironment(Env):
         state_by_branch = [[] for _ in range(num_branches)]
 
         for state_at_time in self._buffer:
-            for i, branch_state_at_time in enumerate(state_at_time):
+            for i, branch_state_at_time in enumerate(state_at_time.values()):
                 state_by_branch[i].append(branch_state_at_time)
 
         matches = self._stack_branch_states_over_time_steps(state_by_branch[0])
@@ -101,57 +139,103 @@ class MockEnvironment(Env):
 
         return [matches, order_book, account_orders, account_funds]
 
-    def _make_transactions(self, action):
+    def _make_transactions(self, 
+                           available_btc, 
+                           available_usd, 
+                           order_side, 
+                           post_only, 
+                           max_transactions,
+                           transaction_percent_funds_mean, 
+                           transaction_price_mean,
+                           transaction_price_sigma_cholesky_00,
+                           transaction_price_sigma_cholesky_10,
+                           transaction_price_sigma_cholesky_11):
         """
-        action: np.ndarray
-        
-        Returns
-        
-        message: dict
-        
         Args:
-            action (np.ndarray): Description
+            available_btc (float): Description
+            available_usd (float): Description
+            order_side (str): Description
+            post_only (bool): Description
+            max_transactions (int): Description
+            transaction_percent_funds_mean (float): Description
+            transaction_price_mean (float): Description
+            transaction_price_sigma_cholesky_00 (float): Description
+            transaction_price_sigma_cholesky_10 (float): Description
+            transaction_price_sigma_cholesky_11 (float): Description
         
         Returns:
             Dict[str, str]: Description
+        
+        Deleted Parameters:
+            buy_sell (bool): Description
+            percent_funds (float): Description
+            price (float): Description
         """
 
-        size, price, post_only, do_nothing, cancel_all_orders = action
+        sess = K.get_session()
 
-        price = max(price, 0)
-        price = round_to_min_precision(price, PRECISION[c.FIAT_CURRENCY])
+        mu = [transaction_price_mean, transaction_percent_funds_mean] #pylint: disable=C0103
+        sigma_cholesky = [
+            [transaction_price_sigma_cholesky_00, 0.0], 
+            [transaction_price_sigma_cholesky_10, transaction_price_sigma_cholesky_11]
+        ]
+        
+        total_percent_funds = 0.0
+        num_transactions = 0 
+        while (num_transactions < max_transactions and 
+               total_percent_funds < c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP):
+            
+            percent_price, _percent_funds = sess.run(
+                fetches=GAUSSIAN_COUPULA_SAMPLE_OPERATION, 
+                feed_dict={GAUSSIAN_COUPULA_MU: mu, GAUSSIAN_COUPULA_SIGMA_CHOLESKY: sigma_cholesky}) #pylint: disable=C0301
 
-        size = round_to_min_precision(size, PRECISION[c.ACCOUNT_PRODUCT])
+            price = percent_price * c.MAX_PRICE
+            percent_funds = _percent_funds * c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP
 
-        if bool(round(cancel_all_orders)):
-            self.auth_client.cancel_all(product_id=c.PRODUCT_ID)
+            price = round_to_min_precision(price, PRECISION[c.FIAT_CURRENCY])
+            
+            total_percent_funds += percent_funds
+            num_transactions += 1
 
-        if bool(round(do_nothing)):
-            message = {'id': None, 'message': 'No purchase made.'}
-        else:
+            if order_side == 'buy':
 
-            if size > 0.0:
-
-                message = self.auth_client.place_limit_order(
-                    product_id=c.PRODUCT_ID, 
-                    price=price, 
-                    side='buy', 
-                    size=size, 
-                    post_only=bool(round(post_only)))
+                available_funds = available_usd
+                _size = percent_funds * available_funds / price
+                size = round_to_min_precision(_size, PRECISION[c.ACCOUNT_PRODUCT])
 
             else:
 
-                message = self.auth_client.place_limit_order(
-                    product_id=c.PRODUCT_ID, 
-                    price=price, 
-                    side='sell', 
-                    size=abs(size), 
-                    post_only=bool(round(post_only)))
+                available_funds = available_btc
+                _size = percent_funds * available_funds
+                size = round_to_min_precision(_size, PRECISION[c.ACCOUNT_PRODUCT])
+
+            message = self.auth_client.place_limit_order(
+                product_id=c.PRODUCT_ID, 
+                price=price, 
+                side=order_side, 
+                size=size, 
+                post_only=post_only)        
+
+        if self.verbose:
+            _sigma_cholesky = np.array(sigma_cholesky)
+            sigma = _sigma_cholesky.dot(_sigma_cholesky.T)
+            LOGGER.info( #pylint: disable=W1203
+                f"{num_transactions} {'post_only' if post_only else ''} {order_side} orders have been placed "
+                f'using {total_percent_funds} of {available_funds} funds. The orders were ' 
+                f'drawn from a 2D Gaussian distribution with price_mean = '
+                f'{c.MAX_PRICE * mu[0]} and percent_funds_mean = '
+                f'{c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP * mu[1]} '
+                f'and covariance matrix {sigma}.')
 
         return message
 
     @property
     def _results_queue_is_empty(self):
+        """Is results queue empty
+        
+        Returns:
+            bool: Description
+        """
         return self.auth_client.exchange.database_workers.results_queue.qsize() == 0
 
     @staticmethod
@@ -281,7 +365,9 @@ class MockEnvironment(Env):
         """Summary
         
         Args:
-            action (np.ndarray): size, price, post_only, do_nothing, cancel_all_orders
+            action (np.ndarray):
+                percent_funds, price, buy_sell, post_only, should_buy, 
+                should_cancel, cancel_buy_sell, cancel_min_price, cancel_max_price
         
         Returns:
             Tuple[List[np.ndarray], float, bool, Dict]: Description
@@ -292,13 +378,78 @@ class MockEnvironment(Env):
         if self.episode_finished:
             raise EnvironmentFinishedException
 
-        try:
-            self._make_transactions(action)
-        except IllegalTransactionException as exception:            
-            if self.verbose:
-                LOGGER.exception(exception)
+        (cancel_buy,
+         cancel_max_price,
+         cancel_min_price,
+         cancel_none,
+         cancel_sell,
+         transaction_buy,
+         transaction_none,
+         max_transactions,
+         transaction_percent_funds_mean,
+         transaction_post_only,
+         transaction_price_mean,
+         transaction_price_sigma_cholesky_00,
+         transaction_price_sigma_cholesky_10,
+         transaction_price_sigma_cholesky_11,
+         transaction_sell) = action
+
+        if self.verbose:
+            LOGGER.info(action)
+
+        cancel_max_price = clamp_to_range(cancel_max_price, 0.0, inf)
+        cancel_min_price = clamp_to_range(cancel_min_price, 0.0, inf)
+        max_transactions = int(round(clamp_to_range(max_transactions, 0.0, inf)))
+        transaction_percent_funds_mean = clamp_to_range(transaction_percent_funds_mean, 0.0, 1.0)
+        transaction_post_only = convert_to_bool(transaction_post_only)
+        transaction_price_mean = clamp_to_range(transaction_price_mean, 0.0, inf)
+        transaction_price_sigma_cholesky_00 = clamp_to_range(
+            transaction_price_sigma_cholesky_00, 0.0, inf)
+        transaction_price_sigma_cholesky_10 = transaction_price_sigma_cholesky_10
+        transaction_price_sigma_cholesky_11 = clamp_to_range(
+            transaction_price_sigma_cholesky_11, 0.0, inf)
+
+        should_cancel = np.argmax([cancel_buy, cancel_sell, cancel_none]) != 2
+        if should_cancel and cancel_min_price < cancel_max_price:
             
-            self._made_illegal_transaction = True #pylint: disable=W0201
+            cancel_side = 'buy' if (np.argmax([cancel_buy, cancel_sell]) == 0) else 'sell'
+            self._cancel_orders_in_range(cancel_side, cancel_max_price, cancel_min_price)
+
+        else:
+            if self.verbose:
+                LOGGER.info('Canceling no orders.')
+
+        should_buy = np.argmax([transaction_buy, transaction_sell, transaction_none]) != 2
+        available_usd = self.auth_client.exchange.account.get_available_funds('USD')
+        available_btc = self.auth_client.exchange.account.get_available_funds('BTC')
+
+        if should_buy and max_transactions > 0:
+
+            order_side = 'buy' if (np.argmax([transaction_buy, transaction_sell]) == 0) else 'sell'
+
+            try:
+                
+                self._make_transactions(available_btc, 
+                                        available_usd, 
+                                        order_side, 
+                                        transaction_post_only, 
+                                        max_transactions, 
+                                        transaction_percent_funds_mean, 
+                                        transaction_price_mean, 
+                                        transaction_price_sigma_cholesky_00, 
+                                        transaction_price_sigma_cholesky_10, 
+                                        transaction_price_sigma_cholesky_11)
+
+            except IllegalTransactionException as exception:
+                self._made_illegal_transaction = True #pylint: disable=W0201
+                if self.verbose:
+                    LOGGER.exception(exception)
+
+        else:
+            if self.verbose:
+                LOGGER.info( #pylint: disable=W1203
+                    f'Placing no orders. Available USD = {available_usd}. '
+                    f'Available BTC = {available_btc}.')          
 
         self._exchange_step()
 
@@ -311,7 +462,6 @@ class MockEnvironment(Env):
         reward = self._calculate_reward()  
 
         if self.verbose:
-            LOGGER.info(f'(size, price, post_only, do_nothing, cancel_all_orders) = {action}') #pylint: disable=W1203
             LOGGER.info('Shape of (matches, order_book, account_orders, account_funds) = {}'. #pylint: disable=W1202
                         format([s.shape for s in state]))
             LOGGER.info(f'reward = {reward}') #pylint: disable=W1203

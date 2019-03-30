@@ -40,15 +40,49 @@ def actor_output_activation(input_tensor):
         input_tensor (tensorflow.Tensor): Description
     
     Returns:
-        tensorflow.Tensor: Description
+        tensorflow.Tensor:
     """
-    size = K.expand_dims(input_tensor[:, 0], axis=-1)
-    price = K.expand_dims(K.relu(input_tensor[:, 1]), axis=-1)
-    post_only = K.expand_dims(K.sigmoid(input_tensor[:, 2]), axis=-1)
-    do_nothing = K.expand_dims(K.sigmoid(input_tensor[:, 3]), axis=-1)
-    cancel_all_orders = K.expand_dims(K.sigmoid(input_tensor[:, 4]), axis=-1)
+    def softmax_and_unpack(*input_tensors):
+        _input_tensors = [K.expand_dims(t, axis=-1) for t in input_tensors]
+        _soft_max = K.softmax(K.concatenate(_input_tensors))
+        _output_tensors = K.tf.unstack(_soft_max, axis=-1)
 
-    return K.concatenate([size, price, post_only, do_nothing, cancel_all_orders])
+        return [K.expand_dims(t, axis=-1) for t in _output_tensors]
+
+    cancel_buy, cancel_none, cancel_sell = softmax_and_unpack(input_tensor[:, 0], 
+                                                              input_tensor[:, 3], 
+                                                              input_tensor[:, 4])
+
+    cancel_max_price = K.expand_dims(K.relu(input_tensor[:, 1]), axis=-1)
+    cancel_min_price = K.expand_dims(K.relu(input_tensor[:, 2]), axis=-1)
+
+    transaction_buy, transaction_none, transaction_sell = softmax_and_unpack(input_tensor[:, 5], 
+                                                                             input_tensor[:, 6], 
+                                                                             input_tensor[:, 11])
+    
+    max_transactions = K.expand_dims(K.relu(input_tensor[:, 7]), axis=-1)
+    transaction_percent_funds_mean = K.expand_dims(K.sigmoid(input_tensor[:, 8]), axis=-1)
+    transaction_post_only = K.expand_dims(K.sigmoid(input_tensor[:, 9]), axis=-1)
+    transaction_price_mean = K.expand_dims(K.relu(input_tensor[:, 10]), axis=-1)
+    transaction_price_sigma_cholesky_00 = K.expand_dims(K.relu(input_tensor[:, 12]), axis=-1)
+    transaction_price_sigma_cholesky_10 = K.expand_dims(input_tensor[:, 13], axis=-1)
+    transaction_price_sigma_cholesky_11 = K.expand_dims(K.relu(input_tensor[:, 14]), axis=-1)
+
+    return K.concatenate([cancel_buy,
+                          cancel_max_price,
+                          cancel_min_price,
+                          cancel_none,
+                          cancel_sell,
+                          transaction_buy,
+                          transaction_none,
+                          max_transactions,
+                          transaction_percent_funds_mean,
+                          transaction_post_only,
+                          transaction_price_mean,
+                          transaction_price_sigma_cholesky_00,
+                          transaction_price_sigma_cholesky_10,
+                          transaction_price_sigma_cholesky_11,
+                          transaction_sell])
 
 def build_actor(
         attention_dim,

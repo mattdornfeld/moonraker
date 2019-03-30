@@ -61,7 +61,7 @@ def create_agent(actor, critic, hyper_params):
         nb_actions=c.NUM_ACTIONS,
         nb_steps_warmup_actor=hyper_params.batch_size,
         nb_steps_warmup_critic=hyper_params.batch_size,
-        processor=processor, 
+        processor=processor,
         random_process=random_process)
 
     agent.compile(SGD(lr=0.001, clipnorm=0.1))
@@ -137,15 +137,16 @@ def config():
         attention_dim=50,
         batch_size=c.BATCH_SIZE,
         depth=4,
+        learning_rate=0.001,
         num_filters=100,
         num_stacks=1,
         num_time_steps=c.NUM_TIME_STEPS)  
 
     train_environment_configs = dict(  #pylint: disable=W0612
-        end_dt=parser.parse('2019-01-28 03:20:36.79'),
+        end_dt=parser.parse('2019-01-28 04:13:36.79'),
         initial_btc=0,
         initial_usd=10000,
-        num_episodes=10,
+        num_episodes=1,
         start_dt=parser.parse('2019-01-28 03:13:36.79'),
         time_delta=timedelta(seconds=10)
         )
