@@ -37,6 +37,27 @@ def calc_nb_max_episode_steps(end_dt, start_dt, time_delta):
     """
     return int((end_dt - start_dt) / time_delta) - c.NUM_TIME_STEPS - 1
 
+def clamp_to_range(num, smallest, largest): 
+    """Returns num clamped to interval [smallest, largest]
+    
+    Args:
+        num (Sortable): Description
+        smallest (Sortable): Description
+        largest (Sortable): Description
+    
+    Returns:
+        Sortable: Description
+    """
+    return max(smallest, min(num, largest))
+
+def convert_to_bool(num):
+    """Summary
+    
+    Args:
+        num (Union[float, int]): Description
+    """
+    return bool(round(clamp_to_range(num, 0, 1)))
+
 def make_tensorboard_dir(_run):
     """Summary
     
@@ -109,9 +130,10 @@ class EnvironmentFinishedException(Exception):
 
 HyperParameters = namedtuple(typename='HyperParameters',
                              field_names=[
-                                'attention_dim',
-                                'batch_size',
-                                'depth',
-                                'num_filters',
-                                'num_stacks',
-                                'num_time_steps'])
+                                 'attention_dim',
+                                 'batch_size',
+                                 'depth',
+                                 'learning_rate',
+                                 'num_filters',
+                                 'num_stacks',
+                                 'num_time_steps'])
