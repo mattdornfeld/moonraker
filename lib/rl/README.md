@@ -1,0 +1,2 @@
+# Keras-RL
+This is a hard fork of (keras-rl)[https://github.com/keras-rl/keras-rl]. That project for the most part is not regularly maintained. This contains some changes to make it work better for the Moonraker project. When open source RL libraries start to become more mature this should be replaced with another library.
