@@ -3,6 +3,10 @@ include:
     file: '.gitlab-ci-templates.yml'
     ref: master
 
+stages:
+  - increment_version
+  - build
+
 #YAML Anchors
 .create_credentials_ini_file: &create_credentials_ini_file |
   cat << EOF > gitlab_credentials.ini 
@@ -12,6 +16,9 @@ include:
   EOF
 
 #CI Jobs
+
+increment_version:increment_version:
+  extends: .increment_version
 
 build:build_gpu_image:
   extends: .build_image
