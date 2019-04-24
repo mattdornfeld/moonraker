@@ -1,125 +1,40 @@
-variables:
-  DOCKER_REPO: registry.gitlab.com/moonraker/coinbase_train
+include:
+  - project: 'moonraker/common'
+    file: '.gitlab-ci-templates.yml'
+    ref: master
 
-deploy_coinbase_train_dry_run:
-  image: registry.gitlab.com/moonraker/gcp_infrastructure:latest
-  
-  only:
-    - merge_requests
+#YAML Anchors
+.create_credentials_ini_file: &create_credentials_ini_file |
+  cat << EOF > gitlab_credentials.ini 
+  [CREDENTIALS]
+  GITLAB_PASSWORD = $CI_TOKEN
+  GITLAB_USERNAME = $CI_USERNAME
+  EOF
 
-  script:
-    - echo $GOOGLE_CLOUD_ACCOUNT_JSON | base64 --decode --ignore-garbage > ./account.json
-    - gcloud auth activate-service-account --key-file=./account.json
-    - gcloud config set project ${PROJECT_NAME}
-    - gcloud container clusters get-credentials ${PROJECT_NAME} --zone=${GOOGLE_CLOUD_ZONE}
-    - helm upgrade coinbase-train helm/coinbase-train
-      --install
-      --dry-run
-      --debug 
-      --namespace moonraker 
-      --set postgres.password=$POSTGRES_PASSWORD 
-      --set postgres.username=$POSTGRES_USERNAME 
-      --set registry.password=$MOONRAKER_CI_TOKEN
-      --set registry.username=$MOONRAKER_CI_USERNAME
-      --set jupyter.image_base=$DOCKER_REPO
-      --set jupyter.image_tag=$CI_COMMIT_SHA
+#CI Jobs
 
-  stage: test
-
-build_gpu_image:
-  image: docker:stable
-
-  only:
-    - master
+build:build_gpu_image:
+  extends: .build_image
       
-  script:
-    - |
-      cat << EOF > gitlab_credentials.ini 
-      [CREDENTIALS]
-      GITLAB_PASSWORD = $MOONRAKER_CI_TOKEN
-      GITLAB_USERNAME = $MOONRAKER_CI_USERNAME
-      EOF
-
-    - docker login registry.gitlab.com -u $MOONRAKER_CI_USERNAME -p $MOONRAKER_CI_TOKEN
-
-    - DOCKER_BUILDKIT=1 docker build 
-      --secret id=gitlab_credentials.ini,src=gitlab_credentials.ini 
-      -t $DOCKER_REPO/gpu:$CI_COMMIT_SHA 
-      -f dockerfiles/Dockerfile.gpu .
-
-    - docker tag $DOCKER_REPO/gpu:$CI_COMMIT_SHA $DOCKER_REPO/gpu:latest
-
-    - docker push $DOCKER_REPO/gpu:$CI_COMMIT_SHA 
-
-    - docker push $DOCKER_REPO/gpu:latest
-
-  services:
-    - docker:dind
+  before_script:
+    - *create_credentials_ini_file
   
   stage: build
 
   variables:
-   DOCKER_DRIVER: overlay2
-   DOCKER_HOST: tcp://docker:2375/
+   DOCKER_ARGS: '--secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.gpu'
+   DOCKER_BUILDKIT: 1
+   DOCKER_REPO: $CI_REGISTRY_IMAGE/gpu
 
-build_cpu_image:
-  image: docker:stable
-
-  only:
-    - master
+build:build_cpu_image:
+  extends: .build_image
       
-  script:
-    - |
-      cat << EOF > gitlab_credentials.ini 
-      [CREDENTIALS]
-      GITLAB_PASSWORD = $MOONRAKER_CI_TOKEN
-      GITLAB_USERNAME = $MOONRAKER_CI_USERNAME
-      EOF
-
-    - docker login registry.gitlab.com -u $MOONRAKER_CI_USERNAME -p $MOONRAKER_CI_TOKEN
-
-    - DOCKER_BUILDKIT=1 docker build 
-      --secret id=gitlab_credentials.ini,src=gitlab_credentials.ini 
-      -t $DOCKER_REPO/cpu:$CI_COMMIT_SHA 
-      -f dockerfiles/Dockerfile.cpu .
-
-    - docker tag $DOCKER_REPO/cpu:$CI_COMMIT_SHA $DOCKER_REPO/cpu:latest
-
-    - docker push $DOCKER_REPO/cpu:$CI_COMMIT_SHA 
-
-    - docker push $DOCKER_REPO/cpu:latest
-
-  services:
-    - docker:dind
+  before_script:
+    - *create_credentials_ini_file
   
   stage: build
 
   variables:
-   DOCKER_DRIVER: overlay2
-   DOCKER_HOST: tcp://docker:2375/
-
-deploy_coinbase_train:
-  environment:
-    name: production
-    
-  image: registry.gitlab.com/moonraker/gcp_infrastructure:latest
-  
-  only:
-    - master
-
-  script:
-    - echo $GOOGLE_CLOUD_ACCOUNT_JSON | base64 --decode --ignore-garbage > ./account.json
-    - gcloud auth activate-service-account --key-file=./account.json
-    - gcloud config set project ${PROJECT_NAME}
-    - gcloud container clusters get-credentials ${PROJECT_NAME} --zone=${GOOGLE_CLOUD_ZONE}
-    - helm upgrade coinbase-train helm/coinbase-train
-      --install 
-      --namespace moonraker 
-      --set postgres.password=$POSTGRES_PASSWORD 
-      --set postgres.username=$POSTGRES_USERNAME 
-      --set registry.password=$MOONRAKER_CI_TOKEN
-      --set registry.username=$MOONRAKER_CI_USERNAME
-      --set jupyter.image_base=$DOCKER_REPO
-      --set jupyter.image_tag=$CI_COMMIT_SHA
-
-  stage: deploy
+   DOCKER_ARGS: '--secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.cpu'
+   DOCKER_BUILDKIT: 1
+   DOCKER_REPO: $CI_REGISTRY_IMAGE/cpu

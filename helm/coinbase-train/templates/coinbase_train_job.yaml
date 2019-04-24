@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-coinbase-train
+spec:
+  template:
+    spec:
+
+      imagePullSecrets:
+      - name: {{ .Release.Name }}-registry-credentials
+
+      restartPolicy: OnFailure
+      
+      containers:
+      - name: coinbase-train
+
+        command: ['python3', 'coinbase_train/train.py']
+
+        env:
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: sacred-mongodb
+                key: mongodb-root-password
+
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: password
+
+        imagePullPolicy: Always
+        {{ if gt .Values.num_gpus 0.0}}
+        image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{ .Chart.Version }}"
+        {{ else }}
+        image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{ .Chart.Version }}"
+        {{ end }}
+
+        resources:
+          limits:
+            cpu: {{ .Values.num_cpus }}
+            nvidia.com/gpu: {{ .Values.num_gpus }}

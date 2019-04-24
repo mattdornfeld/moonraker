@@ -1,5 +1,2 @@
-jupyter:
-  num_cpus: 1.5
-  num_gpus: 1
-  num_replicas: 1
-  storage_request: "1Gi"
+num_cpus: 3.0
+num_gpus: 1

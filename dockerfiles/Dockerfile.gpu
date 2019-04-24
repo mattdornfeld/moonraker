@@ -1,18 +1,9 @@
 # syntax=docker/dockerfile:1.0.0-experimental
-FROM nvidia/cuda:9.0-cudnn7-runtime-ubuntu16.04
+FROM nvidia/cuda:10.1-cudnn7-runtime-ubuntu18.04 
 
 RUN apt-get update && \
-	apt-get install software-properties-common -y && \
-	add-apt-repository ppa:deadsnakes/ppa -y && \
-	apt-get update && \
-	apt-get install python3.6 git wget libgomp1 -y && \
-	ln -s /usr/bin/python3.6 /usr/local/bin/python3 && \
-	wget https://bootstrap.pypa.io/get-pip.py && \
-	python3.6 get-pip.py pip==9.0.2 && \
-	rm get-pip.py && \
-	mkdir app /var/log/sacred_tensorboard  /var/moonraker_models
-
-ENV JUPYTER_PATH=/app/lib
+	apt-get install python3-pip git wget libgomp1 -y && \
+	mkdir app /var/log/sacred_tensorboard /var/moonraker_models
 
 ENV PYTHONPATH=/app/lib
 
@@ -20,6 +11,6 @@ ADD ./ /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
 	cd /app && \
-	pip3 install --process-dependency-links -e .[jupyter,gpu]
+	pip3 install --process-dependency-links -e .[gpu]
 
 WORKDIR /app
