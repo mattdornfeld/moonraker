@@ -6,3 +6,7 @@ secrets.env
 venv/
 gitlab_credentials.ini
 .ipynb_checkpoints
+helm/coinbase-train/charts
+helm/coinbase-train/requirements.lock
+coinbase-train*.tgz
+.eggs

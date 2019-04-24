@@ -22,18 +22,19 @@ DEPENDENCY_LINKS = [
     '/Moonraker/fakebase@master#egg=fakebase-0.1']
 
 REQUIREMENTS = [
-    'GitPython==2.1.10',
-    'keras==2.2.4',
+    'GitPython>=2.1.10,<2.2.0',
+    'keras>=2.2.4,<2.3.0',
     'fakebase',
-    'funcy==1.11',
-    'pymongo==3.6.1',
-    'python-dateutil==2.7.3',
-    'sacred==0.7.2',
-    'tensorflow==1.8.0']
+    'funcy>=1.11.0,<1.12.0',
+    'pymongo>=3.6.1,<3.7.0',
+    'python-dateutil>=2.7.3,<2.8.0',
+    'sacred>=0.7.2,<0.8.0',
+    'tensorflow>=1.13.1,<1.14.0',
+    'tensorflow-probability>=0.6.0,<0.7.0']
 
 setup(
     dependency_links=DEPENDENCY_LINKS,
-    extras_require=dict(jupyter=["jupyterlab"], gpu=['tensorflow-gpu==1.8.0']),
+    extras_require=dict(jupyter=["jupyterlab"], gpu=['tensorflow-gpu>=1.13.1,<1.14.0']),
     install_requires=REQUIREMENTS,
     name="coinbase_train",
     packages=find_packages(),

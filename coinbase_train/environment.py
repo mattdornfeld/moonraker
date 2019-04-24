@@ -70,6 +70,8 @@ class MockEnvironment(Env):
         """Calculates the amount of USD gained this time step.
         If gain is negative will return 0.0, since we do not want 
         to penalize buying product. We just want to reward selling it.
+        If an illegal transaction was made return a negative reward because
+        we want to penalize this.
         
         Returns:
             float: reward
@@ -77,7 +79,28 @@ class MockEnvironment(Env):
         current_usd = self._buffer[-1]['account_funds'][0, 0]
         previous_usd = self._buffer[-2]['account_funds'][0, 0]
 
-        return max(0.0, current_usd - previous_usd)
+        return (-c.ILLEGAL_TRANSACTION_PENALTY if 
+                self._made_illegal_transaction else 
+                max(0.0, current_usd - previous_usd))
+
+    def _cancel_orders_in_range(self, cancel_side, cancel_max_price, cancel_min_price):
+        """Summary
+        
+        Args:
+            cancel_max_price (float): Description
+            cancel_min_price (float): Description
+            cancel_side (str): Description
+        """
+
+        canceled_orders = self.auth_client.cancel_all_orders_in_price_range(
+            min_price=cancel_min_price, 
+            max_price=cancel_max_price, 
+            order_side=cancel_side)
+
+        if self.verbose:
+            LOGGER.info(#pylint: disable=W1203
+                f'Canceled {len(canceled_orders)} {cancel_side} orders in range '
+                f'{cancel_min_price} - {cancel_max_price}.') 
 
     def _cancel_orders_in_range(self, cancel_side, cancel_max_price, cancel_min_price):
         """Summary
@@ -162,14 +185,6 @@ class MockEnvironment(Env):
             transaction_price_sigma_cholesky_00 (float): Description
             transaction_price_sigma_cholesky_10 (float): Description
             transaction_price_sigma_cholesky_11 (float): Description
-        
-        Returns:
-            Dict[str, str]: Description
-        
-        Deleted Parameters:
-            buy_sell (bool): Description
-            percent_funds (float): Description
-            price (float): Description
         """
 
         sess = K.get_session()
@@ -183,7 +198,8 @@ class MockEnvironment(Env):
         total_percent_funds = 0.0
         num_transactions = 0 
         while (num_transactions < max_transactions and 
-               total_percent_funds < c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP):
+               total_percent_funds < c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP and
+               not self._made_illegal_transaction):
             
             percent_price, _percent_funds = sess.run(
                 fetches=GAUSSIAN_COUPULA_SAMPLE_OPERATION, 
@@ -209,25 +225,32 @@ class MockEnvironment(Env):
                 _size = percent_funds * available_funds
                 size = round_to_min_precision(_size, PRECISION[c.ACCOUNT_PRODUCT])
 
-            message = self.auth_client.place_limit_order(
-                product_id=c.PRODUCT_ID, 
-                price=price, 
-                side=order_side, 
-                size=size, 
-                post_only=post_only)        
+            try:
 
-        if self.verbose:
-            _sigma_cholesky = np.array(sigma_cholesky)
-            sigma = _sigma_cholesky.dot(_sigma_cholesky.T)
-            LOGGER.info( #pylint: disable=W1203
-                f"{num_transactions} {'post_only' if post_only else ''} {order_side} orders have been placed "
-                f'using {total_percent_funds} of {available_funds} funds. The orders were ' 
-                f'drawn from a 2D Gaussian distribution with price_mean = '
-                f'{c.MAX_PRICE * mu[0]} and percent_funds_mean = '
-                f'{c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP * mu[1]} '
-                f'and covariance matrix {sigma}.')
+                self.auth_client.place_limit_order(
+                    product_id=c.PRODUCT_ID, 
+                    price=price, 
+                    side=order_side, 
+                    size=size, 
+                    post_only=post_only)
 
-        return message
+                if self.verbose:
+                    _sigma_cholesky = np.array(sigma_cholesky)
+                    sigma = _sigma_cholesky.dot(_sigma_cholesky.T)
+                    LOGGER.info( #pylint: disable=W1203
+                        f"{num_transactions} {'post_only' if post_only else ''} {order_side} orders have "
+                        f'been placed using {total_percent_funds} of {available_funds} funds. The orders ' 
+                        f'were drawn from a 2D Gaussian distribution with price_mean = '
+                        f'{c.MAX_PRICE * mu[0]} and percent_funds_mean = '
+                        f'{c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP * mu[1]} '
+                        f'and covariance matrix {sigma}.')
+
+            except IllegalTransactionException as exception:
+                
+                self._made_illegal_transaction = True #pylint: disable=W0201
+                
+                if self.verbose:
+                    LOGGER.exception(exception)
 
     @property
     def _results_queue_is_empty(self):
@@ -427,23 +450,16 @@ class MockEnvironment(Env):
 
             order_side = 'buy' if (np.argmax([transaction_buy, transaction_sell]) == 0) else 'sell'
 
-            try:
-                
-                self._make_transactions(available_btc, 
-                                        available_usd, 
-                                        order_side, 
-                                        transaction_post_only, 
-                                        max_transactions, 
-                                        transaction_percent_funds_mean, 
-                                        transaction_price_mean, 
-                                        transaction_price_sigma_cholesky_00, 
-                                        transaction_price_sigma_cholesky_10, 
-                                        transaction_price_sigma_cholesky_11)
-
-            except IllegalTransactionException as exception:
-                self._made_illegal_transaction = True #pylint: disable=W0201
-                if self.verbose:
-                    LOGGER.exception(exception)
+            self._make_transactions(available_btc, 
+                                    available_usd, 
+                                    order_side, 
+                                    transaction_post_only, 
+                                    max_transactions, 
+                                    transaction_percent_funds_mean, 
+                                    transaction_price_mean, 
+                                    transaction_price_sigma_cholesky_00, 
+                                    transaction_price_sigma_cholesky_10, 
+                                    transaction_price_sigma_cholesky_11)
 
         else:
             if self.verbose:

@@ -146,7 +146,7 @@ def config():
         end_dt=parser.parse('2019-01-28 04:13:36.79'),
         initial_btc=0,
         initial_usd=10000,
-        num_episodes=1,
+        num_episodes=1000,
         start_dt=parser.parse('2019-01-28 03:13:36.79'),
         time_delta=timedelta(seconds=10)
         )
