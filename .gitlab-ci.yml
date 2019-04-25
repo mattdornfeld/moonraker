@@ -63,6 +63,10 @@ build:package_helm_chart:
     CHART_NAME: coinbase-train
 
 deploy:deploy_coinbase_train_to_staging:
+  environment:
+    name: staging
+    on_stop: deploy:delete_coinbase_train_from_staging
+
   extends: .deploy_helm_chart
 
   variables:
@@ -70,11 +74,10 @@ deploy:deploy_coinbase_train_to_staging:
     HELM_ARGS: *helm_deploy_args
     K8S_NAMESPACE: moonraker
 
-  variables:
-    ENVIRONMENT_NAME: staging
+deploy:delete_coinbase_train_from_staging:
+  environment:
+    name: staging
+    action: stop
 
-deploy:delete_coinbase_train_from_stagin:
   extends: .delete_helm_release
-
-  variables:
-    ENVIRONMENT_NAME: staging
+  
