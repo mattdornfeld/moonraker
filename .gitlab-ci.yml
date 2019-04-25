@@ -6,6 +6,7 @@ include:
 stages:
   - increment_version
   - build
+  - deploy
 
 #YAML Anchors
 .create_credentials_ini_file: &create_credentials_ini_file |
@@ -14,6 +15,11 @@ stages:
   GITLAB_PASSWORD = $CI_TOKEN
   GITLAB_USERNAME = $CI_USERNAME
   EOF
+
+.helm_deploy_args: &helm_deploy_args |
+  --force
+  --set moonraker-common.registry.username=$CI_USERNAME
+  --set moonraker-common.registry.password=$CI_TOKEN
 
 #CI Jobs
 
@@ -52,3 +58,14 @@ build:package_helm_chart:
   variables:
     HELM_ARGS: "--dependency-update"
     CHART_NAME: coinbase-train
+
+deploy:deploy_coinbase_train_to_staging:
+  extends: .deploy_helm_chart
+
+  environment: staging
+
+  variables:
+    CHART_NAME: coinbase-train
+    HELM_ARGS: *helm_deploy_args
+    K8S_NAMESPACE: moonraker
+    RELEASE_NAME: coinbase-train
