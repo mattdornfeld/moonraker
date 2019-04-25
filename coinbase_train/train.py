@@ -134,11 +134,11 @@ def config():
     automatically passed to the main function.
     """
     hyper_params = dict(  #pylint: disable=W0612
-        attention_dim=50,
+        attention_dim=100,
         batch_size=c.BATCH_SIZE,
-        depth=4,
+        depth=2,
         learning_rate=0.001,
-        num_filters=100,
+        num_filters=500,
         num_stacks=1,
         num_time_steps=c.NUM_TIME_STEPS)  
 
@@ -146,7 +146,7 @@ def config():
         end_dt=parser.parse('2019-01-28 04:13:36.79'),
         initial_btc=0,
         initial_usd=10000,
-        num_episodes=1000,
+        num_episodes=1,
         start_dt=parser.parse('2019-01-28 03:13:36.79'),
         time_delta=timedelta(seconds=10)
         )
