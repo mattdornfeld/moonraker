@@ -8,6 +8,9 @@ stages:
   - build
   - deploy
 
+variables:
+  RELEASE_NAME: coinbase-train
+
 #YAML Anchors
 .create_credentials_ini_file: &create_credentials_ini_file |
   cat << EOF > gitlab_credentials.ini 
@@ -62,10 +65,16 @@ build:package_helm_chart:
 deploy:deploy_coinbase_train_to_staging:
   extends: .deploy_helm_chart
 
-  environment: staging
-
   variables:
     CHART_NAME: coinbase-train
     HELM_ARGS: *helm_deploy_args
     K8S_NAMESPACE: moonraker
-    RELEASE_NAME: coinbase-train
+
+  variables:
+    ENVIRONMENT_NAME: staging
+
+deploy:delete_coinbase_train_from_stagin:
+  extends: .delete_helm_release
+
+  variables:
+    ENVIRONMENT_NAME: staging
