@@ -1,24 +1,34 @@
 ---
-{{ if .Values.job.enabled }}
-apiVersion: batch/v1
-kind: Job
+{{ if .Values.notebook.enabled }}
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: {{ .Release.Name }}-coinbase-train
   labels:
     app: coinbase-train
 spec:
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      pod-selector: {{ .Release.Name }}-coinbase-train
   template:
+    metadata:
+      labels:
+        pod-selector: {{ .Release.Name }}-coinbase-train
     spec:
 
       imagePullSecrets:
       - name: {{ .Release.Name }}-registry-credentials
-
-      restartPolicy: OnFailure
       
       containers:
-      - name: coinbase-train
+      
+      - name: jupyter
+      
+        command: ["jupyter"]
+        args: ["lab", "--ip=0.0.0.0", "--allow-root"]
 
-        command: ['python3', 'coinbase_train/train.py']
+        workingDir: /
 
         env:
           - name: MONGO_INITDB_ROOT_PASSWORD
@@ -33,15 +43,19 @@ spec:
                 name: postgres-secret
                 key: password
 
-        {{ if gt .Values.num_gpus 0.0}}
+        imagePullPolicy: Always
+        {{ if gt .Values.notebook.num_gpus 0.0}}
         image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{ .Chart.Version }}"
         {{ else }}
         image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{ .Chart.Version }}"
         {{ end }}
 
+        ports:
+        - containerPort: 8888
+          name: jupyter-port
+
         resources:
           limits:
-            cpu: {{ .Values.job.num_cpus }}
-            nvidia.com/gpu: {{ .Values.job.num_gpus }}
-
+            cpu: {{ .Values.notebook.num_cpus }}
+            nvidia.com/gpu: {{ .Values.notebook.num_gpus }}
 {{ end }}

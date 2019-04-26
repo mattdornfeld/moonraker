@@ -11,6 +11,6 @@ ADD ./ /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
 	cd /app && \
-	pip3 install --process-dependency-links -e .[gpu]
+	pip3 install --process-dependency-links -e .[jupyter, gpu]
 
 WORKDIR /app
