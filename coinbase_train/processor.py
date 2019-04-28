@@ -1,5 +1,8 @@
 """Summary
 """
+from typing import Callable, List, Tuple
+
+from funcy import partial
 import numpy as np
 
 from lib.rl.core import Processor
@@ -12,48 +15,67 @@ class CoibaseEnvironmentProcessor(Processor):
     """
     
     @staticmethod
-    def _calc_largest_number_of_events(state_batch):
+    def _find_largest_size(list_of_arrays: List[np.ndarray], axis: int) -> int:
         """Summary
         
         Args:
-            state_batch (List[np.ndarray]): Description
+            list_of_arrays (List[np.ndarray]): Description
+            axis (int): Description
         
         Returns:
-            List[int]: Description
+            int: Description
         """
-        num_branches = len(state_batch[0][0])
-        most_events = [0 for _ in range(num_branches)]
-        for state in state_batch:
-            for i, branch in enumerate(state[0]):
-                num_events = branch.shape[1]
-                if num_events > most_events[i]:
-                    most_events[i] = num_events
+        largest_size = 1
+        for array in list_of_arrays:
+            new_size = array.shape[axis]
+            largest_size = new_size if new_size > largest_size else largest_size
 
-        return most_events
+        return largest_size
 
     @staticmethod
-    def _pad_state(branch_state, most_event):
+    def _pad_list_of_arrays_to_same_size(
+            list_of_arrays: List[np.ndarray], 
+            pad_width_fn: Callable[[np.ndarray], Tuple[int]]) -> List[np.ndarray]:
         """Summary
         
         Args:
-            branch_state (np.ndarray): Description
-            most_event (int): Description
+            list_of_arrays (List[np.ndarray]): Description
+            pad_width_fn (Callable[[np.ndarray], Tuple[int]]): Description
+        
+        Returns:
+            List[np.ndarray]: Description
+        """
+        return [np.pad(array=array, 
+                       pad_width=pad_width_fn(array), 
+                       mode='constant', 
+                       constant_values=0)
+                for array in list_of_arrays]
+
+    
+    def _pad_and_batch_list_of_arrays(
+            self,
+            list_of_arrays: List[np.ndarray], 
+            pad_axis: int,
+            pad_width_fn: Callable[[np.ndarray, int, int], Tuple[int]]) -> np.ndarray:
+        """Summary
+        
+        Args:
+            list_of_arrays (List[np.ndarray]): Description
+            pad_axis (int): Description
+            pad_width_fn (Callable[[np.ndarray, int, int], Tuple[int]]): Description
         
         Returns:
             np.ndarray: Description
         """
-        num_event = branch_state.shape[1]
+        pad_to_length = self._find_largest_size(list_of_arrays, axis=pad_axis)
         
-        if num_event < most_event:
-            shape = (branch_state.shape[0], most_event - num_event, branch_state.shape[2])
-            padding = np.zeros(shape)
+        padded_arrays = self._pad_list_of_arrays_to_same_size(
+            list_of_arrays=list_of_arrays,
+            pad_width_fn=partial(pad_width_fn, pad_axis=pad_axis, pad_to_length=pad_to_length)) 
+        
+        return np.vstack([np.expand_dims(array, axis=0) for array in padded_arrays])
 
-            branch_state = np.append(branch_state, padding, axis=1)
-
-        return branch_state
-
-
-    def process_state_batch(self, batch):
+    def process_state_batch(self, batch: List[List[np.ndarray]]) -> List[np.ndarray]:
         """Summary
         
         Args:
@@ -62,15 +84,25 @@ class CoibaseEnvironmentProcessor(Processor):
         Returns:
             List[np.ndarray]: Description
         """
-        most_events = self._calc_largest_number_of_events(batch)
+        batched_matches = self._pad_and_batch_list_of_arrays(
+            list_of_arrays=[a[0][0] for a in batch],
+            pad_axis=1,
+            pad_width_fn=lambda array, pad_axis, pad_to_length: ((0, 0), (0, pad_to_length - array.shape[pad_axis]), (0, 0)) #pylint: disable=C0301
+            )
 
-        branched_state_batches = [[] for _ in range(len(most_events))]
-        for state in batch:
-            for i, branch_state in enumerate(state[0]):
-                _branch_state = self._pad_state(branch_state, most_events[i])
-                branch_state = np.expand_dims(_branch_state, axis=0)
-                branched_state_batches[i].append(branch_state)
+        batched_order_books = self._pad_and_batch_list_of_arrays(
+            list_of_arrays=[a[0][1] for a in batch],
+            pad_axis=1,
+            pad_width_fn=lambda array, pad_axis, pad_to_length: ((0, 0), (0, pad_to_length - array.shape[pad_axis]), (0, 0), (0, 0))  #pylint: disable=C0301
+            )
 
-        branched_state_batches = [np.vstack(bsb) for bsb in branched_state_batches]
+        batched_account_orders = self._pad_and_batch_list_of_arrays(
+            list_of_arrays=[a[0][2] for a in batch],
+            pad_axis=0,
+            pad_width_fn=lambda array, pad_axis, pad_to_length: ((0, pad_to_length - array.shape[0]), (0, 0)) #pylint: disable=C0301
+            )
 
-        return branched_state_batches
+        account_funds_arrays = [a[0][3] for a in batch]
+        batched_account_funds = np.vstack([np.expand_dims(array, axis=0) for array in account_funds_arrays]) #pylint: disable=C0301
+
+        return [batched_matches, batched_order_books, batched_account_orders, batched_account_funds]

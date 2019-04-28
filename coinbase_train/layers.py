@@ -190,7 +190,6 @@ class Attention(Layer):
         Returns:
             tf.Tensor: Description
         """
-
         u = tf.tanh(self._matmul(self.W_w, h) + self.b_w) #pylint: disable=C0103
 
         numerator = tf.reduce_sum(self.u_w * u, axis=-1)
@@ -227,19 +226,24 @@ class DenseBlock:
     """Summary
     
     Attributes:
+        Dense (TYPE): Description
         depth (int): Description
+        time_distributed (bool): Description
         units (int): Description
     """
     
-    def __init__(self, depth, units):
+    def __init__(self, depth, units, time_distributed=False):
         """Summary
         
         Args:
             depth (int): Description
             units (int): Description
+            time_distributed (bool): Description
         """
         self.depth = depth
         self.units = units
+        self.time_distributed = time_distributed
+        self.Dense = TDDense if time_distributed else Dense #pylint: disable=C0103
 
     def __call__(self, input_tensor):
         """Summary
@@ -250,7 +254,7 @@ class DenseBlock:
         Returns:
             Union[tf.Tensor, TimeDistributed]: Description
         """
-        layers = [Dense(units=self.units) for _ in range(self.depth)]
+        layers = [self.Dense(units=self.units) for _ in range(self.depth)]
 
         return compose(*layers)(input_tensor)
 
@@ -325,3 +329,15 @@ def TDConv2D(*args, **kwargs): #pylint: disable=C0103
         TimeDistributed: Description
     """
     return TimeDistributed(Conv2D(*args, **kwargs))
+
+def TDDense(*args, **kwargs):
+    """Summary
+    
+    Args:
+        *args: Description
+        **kwargs: Description
+    
+    Returns:
+        TimeDistributed: Description
+    """
+    return TimeDistributed(Dense(*args, **kwargs))
