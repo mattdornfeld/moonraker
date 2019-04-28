@@ -17,21 +17,21 @@ from coinbase_train import constants as c
 from coinbase_train.layers import (AtrousConvolutionBlock, Attention, DenseBlock, 
                                    FullConvolutionBlock)
 
+ACCOUNT_FUNDS = Input( 
+    batch_shape=(None, 1, 4), 
+    name='account_funds')
+
+ACCOUNT_ORDERS = Input( 
+    batch_shape=(None, None, CoinbaseOrder.get_array_length()), 
+    name='account_orders')
+
 MATCHES = Input( 
-    batch_shape=(c.BATCH_SIZE, c.NUM_TIME_STEPS, None, CoinbaseMatch.get_array_length()), 
+    batch_shape=(None, c.NUM_TIME_STEPS, None, CoinbaseMatch.get_array_length()), 
     name='matches')
 
 ORDER_BOOK = Input( 
-    batch_shape=(c.BATCH_SIZE, c.NUM_TIME_STEPS, None, 2, 2), 
+    batch_shape=(None, c.NUM_TIME_STEPS, None, 2, 2), 
     name='order_book')
-
-ACCOUNT_ORDERS = Input( 
-    batch_shape=(c.BATCH_SIZE, None, CoinbaseOrder.get_array_length()), 
-    name='account_orders')
-
-ACCOUNT_FUNDS = Input( 
-    batch_shape=(c.BATCH_SIZE, 1, 4), 
-    name='account_funds')
 
 def actor_output_activation(input_tensor):
     """Summary
@@ -86,7 +86,6 @@ def actor_output_activation(input_tensor):
 
 def build_actor(
         attention_dim,
-        batch_size,
         depth,
         num_filters,
         num_stacks):
@@ -113,11 +112,9 @@ def build_actor(
         BatchNormalization()
         )(MATCHES)
 
-    new_shape = (batch_size, c.NUM_TIME_STEPS, -1, 2 * num_filters)
     order_book_branch = compose(
         Attention(attention_dim),
-        Lambda(lambda input_tensor: 
-               K.reshape(input_tensor, new_shape)),
+        Lambda(lambda input_tensor: K.sum(input_tensor, axis=[-2])),
         FullConvolutionBlock(
             depth=depth, 
             kernel_size=(4, 2), 
@@ -171,7 +168,6 @@ def build_actor(
 
 def build_critic(
         attention_dim,
-        batch_size,
         depth,
         num_filters,
         num_stacks):
@@ -187,7 +183,7 @@ def build_critic(
         Model: Description
     """
     action_input = Input( 
-        batch_shape=(batch_size, c.NUM_ACTIONS),
+        batch_shape=(None, c.NUM_ACTIONS),
         name='critic_action_input')
 
     match_branch = compose(
@@ -202,11 +198,9 @@ def build_critic(
         BatchNormalization()
         )(MATCHES)
 
-    new_shape = (batch_size, c.NUM_TIME_STEPS, -1, 2 * num_filters)
     order_book_branch = compose(
         Attention(attention_dim),
-        Lambda(lambda input_tensor: 
-               K.reshape(input_tensor, new_shape)),
+        Lambda(lambda input_tensor: K.sum(input_tensor, axis=[-2])),
         FullConvolutionBlock(
             depth=depth, 
             kernel_size=(4, 2), 

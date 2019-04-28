@@ -82,14 +82,12 @@ def build_and_train(hyper_params, tensorboard_dir, train_environment_configs):
 
     actor = build_actor(
         attention_dim=hyper_params.attention_dim,
-        batch_size=hyper_params.batch_size,
         depth=hyper_params.depth,
         num_filters=hyper_params.num_filters,
         num_stacks=hyper_params.num_stacks)
 
     critic = build_critic(
         attention_dim=hyper_params.attention_dim,
-        batch_size=hyper_params.batch_size,
         depth=hyper_params.depth,
         num_filters=hyper_params.num_filters,
         num_stacks=hyper_params.num_stacks)
@@ -134,11 +132,11 @@ def config():
     automatically passed to the main function.
     """
     hyper_params = dict(  #pylint: disable=W0612
-        attention_dim=100,
-        batch_size=c.BATCH_SIZE,
+        attention_dim=50,
+        batch_size=2,
         depth=2,
         learning_rate=0.001,
-        num_filters=500,
+        num_filters=100,
         num_stacks=1,
         num_time_steps=c.NUM_TIME_STEPS)  
 
