@@ -1,5 +1,5 @@
 job:
-  enabled: false
+  enabled: true
   num_cpus: 3.0
   num_gpus: 1
 
