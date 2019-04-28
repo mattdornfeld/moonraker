@@ -64,7 +64,7 @@ def create_agent(actor, critic, hyper_params):
         processor=processor,
         random_process=random_process)
 
-    agent.compile(SGD(lr=0.001, clipnorm=0.1))
+    agent.compile(SGD(lr=hyper_params.learning_rate, clipnorm=0.1))
 
     return agent
 
@@ -133,7 +133,7 @@ def config():
     """
     hyper_params = dict(  #pylint: disable=W0612
         attention_dim=50,
-        batch_size=2,
+        batch_size=5,
         depth=2,
         learning_rate=0.001,
         num_filters=100,
