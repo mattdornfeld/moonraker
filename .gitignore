@@ -10,3 +10,4 @@ helm/coinbase-train/charts
 helm/coinbase-train/requirements.lock
 coinbase-train*.tgz
 .eggs
+.mypy_cache

@@ -4,13 +4,18 @@ Attributes:
     ex (Experiment): Description
 """
 from datetime import timedelta
+from pathlib import Path
+from typing import List, Tuple
 
 from dateutil import parser
+from keras import Model
 from keras.optimizers import SGD
 from sacred import Experiment
 from sacred.observers import MongoObserver
+from sacred.run import Run
 
 from lib.rl.agents import DDPGAgent
+from lib.rl.callbacks import Callback
 from lib.rl.memory import SequentialMemory
 from lib.rl.random import OrnsteinUhlenbeckProcess
 
@@ -25,17 +30,19 @@ from coinbase_train.processor import CoibaseEnvironmentProcessor
 ex = Experiment()
 ex.observers.append(MongoObserver.create(url=c.MONGO_DB_URL))
 
-def create_agent(actor, critic, hyper_params):
+def create_agent(actor: Model, 
+                 critic: Model, 
+                 hyper_params: utils.HyperParameters) -> DDPGAgent:
     """Summary
     
     Args:
-        actor (keras.models.Model): Description
-        critic (keras.models.Model): Description
+        actor (Model): Description
+        critic (Model): Description
         hyper_params (utils.HyperParameters): Description
     
     Returns:
         DDPGAgent: Description
-
+    
     """
     memory = SequentialMemory(
         limit=100000, 
@@ -68,16 +75,19 @@ def create_agent(actor, critic, hyper_params):
 
     return agent
 
-def build_and_train(hyper_params, tensorboard_dir, train_environment_configs):
+def build_and_train(
+        hyper_params: utils.HyperParameters, 
+        tensorboard_dir: Path, 
+        train_environment_configs: utils.EnvironmentConfigs) -> Tuple[DDPGAgent, List[Callback]]:
     """Summary
     
     Args:
         hyper_params (utils.HyperParameters): Description
-        tensorboard_dir (pathlib.Path): Description
+        tensorboard_dir (Path): Description
         train_environment_configs (utils.EnvironmentConfigs): Description
     
     Returns:
-        List[rl.callbacks.Callback]: Description
+        Tuple[DDPGAgent, List[Callback]]: Description
     """
 
     actor = build_actor(
@@ -133,7 +143,7 @@ def config():
     """
     hyper_params = dict(  #pylint: disable=W0612
         attention_dim=50,
-        batch_size=5,
+        batch_size=2,
         depth=2,
         learning_rate=0.001,
         num_filters=100,
@@ -158,7 +168,10 @@ def config():
         time_delta=timedelta(seconds=10)
         )
 
-def evaluate_agent(agent, hyper_params, test_environment_configs):
+def evaluate_agent(
+        agent: DDPGAgent, 
+        hyper_params: utils.HyperParameters, 
+        test_environment_configs: utils.EnvironmentConfigs) -> Callback:
     """Summary
     
     Args:
@@ -167,16 +180,17 @@ def evaluate_agent(agent, hyper_params, test_environment_configs):
         test_environment_configs (utils.EnvironmentConfigs): Description
     
     Returns:
-        rl.callbacks.Callback: Description
+        Callback: Description
     """
     test_environment = MockEnvironment(
         end_dt=test_environment_configs.end_dt,
-        initial_usd=test_environment_configs.initial_usd,
         initial_btc=test_environment_configs.initial_btc, 
-        num_workers=c.NUM_DATABASE_WORKERS,
+        initial_usd=test_environment_configs.initial_usd,
         num_time_steps=hyper_params.num_time_steps,
+        num_workers=c.NUM_DATABASE_WORKERS,
         start_dt=test_environment_configs.start_dt,
-        time_delta=test_environment_configs.time_delta)
+        time_delta=test_environment_configs.time_delta,
+        verbose=True)
 
     nb_max_episode_steps = utils.calc_nb_max_episode_steps(
         end_dt=test_environment_configs.end_dt,
@@ -191,16 +205,19 @@ def evaluate_agent(agent, hyper_params, test_environment_configs):
     return history
 
 @ex.automain
-def main(_run, hyper_params, test_environment_configs, train_environment_configs):
+def main(_run: Run, 
+         hyper_params: dict, 
+         test_environment_configs: dict, 
+         train_environment_configs: dict) -> float:
     """Builds a DDPG agent, trains on the train environment, evaluates on the test
     environment, saves model weights as artifacts. Logs artifacts, configuration options,
     and test reward to Sacred.
     
     Args:
-        _run (sacred.run.Run): Description
-        hyper_params (utils.HyperParameters): Description
-        test_environment_configs (utils.EnvironmentConfigs): Description
-        train_environment_configs (utils.EnvironmentConfigs): Description
+        _run (Run): Description
+        hyper_params (dict): Description
+        test_environment_configs (dict): Description
+        train_environment_configs (dict): Description
     
     Returns:
         float: Reward from running a single episode on the testing environment
