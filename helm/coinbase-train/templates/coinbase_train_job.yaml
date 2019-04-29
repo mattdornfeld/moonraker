@@ -33,7 +33,7 @@ spec:
                 name: postgres-secret
                 key: password
 
-        {{ if gt .Values.num_gpus 0.0}}
+        {{ if gt .Values.job.num_gpus 0.0}}
         image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{ .Chart.Version }}"
         {{ else }}
         image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{ .Chart.Version }}"
