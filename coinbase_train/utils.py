@@ -90,21 +90,6 @@ def make_model_dir(_run):
 
     return model_dir
 
-def round_to_min_precision(num, min_precision):
-    """Rounds num to min_precision if abs(num) <  10**-min_precision.
-    Returns num otherwise.
-    
-    Args:
-        num (float): Description
-        min_precision (int): Description
-    
-    Returns:
-        float: Description
-    """
-    sign = np.sign(num + 1e-12)
-
-    return sign * 10**-min_precision if abs(num) < 10**-min_precision else num
-
 EnvironmentConfigs = namedtuple(typename='EnvironmentConfigs', 
                                 field_names=['end_dt', 'initial_usd', 'initial_btc', 
                                              'num_episodes', 'start_dt', 'time_delta'])

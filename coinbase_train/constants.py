@@ -1,7 +1,7 @@
 """Summary
 
 Attributes:
-    ACCOUNT_PRODUCT (str): Description
+    PRODUCT_CURRENCY (str): Description
     BATCH_SIZE (int): Description
     FIAT_CURRENCY (str): Description
     ILLEGAL_TRANSACTION_PENALTY (float): Description
@@ -21,13 +21,13 @@ Attributes:
 """
 import os
 
-ACCOUNT_PRODUCT = 'BTC'
+PRODUCT_CURRENCY = 'BTC'
 MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP = 0.1
 MAX_PRICE = 10e3
 FIAT_CURRENCY = 'USD'
 ILLEGAL_TRANSACTION_PENALTY = 1e3 #should be positive
 PRODUCT_ID = 'BTC-USD'
-NUM_ACTIONS = 15
+NUM_ACTIONS = 14
 NUM_DATABASE_WORKERS = 3
 NUM_TIME_STEPS = 3
 

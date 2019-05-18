@@ -56,17 +56,15 @@ def actor_output_activation(input_tensor):
     cancel_max_price = K.expand_dims(K.relu(input_tensor[:, 1]), axis=-1)
     cancel_min_price = K.expand_dims(K.relu(input_tensor[:, 2]), axis=-1)
 
-    transaction_buy, transaction_none, transaction_sell = softmax_and_unpack(input_tensor[:, 5], 
-                                                                             input_tensor[:, 6], 
-                                                                             input_tensor[:, 11])
+    transaction_buy, transaction_sell = softmax_and_unpack(input_tensor[:, 5], input_tensor[:, 10])
     
-    max_transactions = K.expand_dims(K.relu(input_tensor[:, 7]), axis=-1)
-    transaction_percent_funds_mean = K.expand_dims(K.sigmoid(input_tensor[:, 8]), axis=-1)
-    transaction_post_only = K.expand_dims(K.sigmoid(input_tensor[:, 9]), axis=-1)
-    transaction_price_mean = K.expand_dims(K.relu(input_tensor[:, 10]), axis=-1)
-    transaction_price_sigma_cholesky_00 = K.expand_dims(K.relu(input_tensor[:, 12]), axis=-1)
-    transaction_price_sigma_cholesky_10 = K.expand_dims(input_tensor[:, 13], axis=-1)
-    transaction_price_sigma_cholesky_11 = K.expand_dims(K.relu(input_tensor[:, 14]), axis=-1)
+    max_transactions = K.expand_dims(K.relu(input_tensor[:, 6]), axis=-1)
+    transaction_percent_funds_mean = K.expand_dims(K.sigmoid(input_tensor[:, 7]), axis=-1)
+    transaction_post_only = K.expand_dims(K.sigmoid(input_tensor[:, 8]), axis=-1)
+    transaction_price_mean = K.expand_dims(K.relu(input_tensor[:, 9]), axis=-1)
+    transaction_price_sigma_cholesky_00 = K.expand_dims(K.relu(input_tensor[:, 11]), axis=-1)
+    transaction_price_sigma_cholesky_10 = K.expand_dims(input_tensor[:, 12], axis=-1)
+    transaction_price_sigma_cholesky_11 = K.expand_dims(K.relu(input_tensor[:, 13]), axis=-1)
 
     return K.concatenate([cancel_buy,
                           cancel_max_price,
@@ -74,7 +72,6 @@ def actor_output_activation(input_tensor):
                           cancel_none,
                           cancel_sell,
                           transaction_buy,
-                          transaction_none,
                           max_transactions,
                           transaction_percent_funds_mean,
                           transaction_post_only,

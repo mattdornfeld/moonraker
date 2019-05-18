@@ -16,7 +16,6 @@ except KeyError:
     GITLAB_PASSWORD = os.environ['GITLAB_PASSWORD']
     GITLAB_USERNAME = os.environ['GITLAB_USERNAME']
 
-#TODO: Version fakebase module
 DEPENDENCY_LINKS = [
     f'git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com'
     '/Moonraker/fakebase@v0.3.0#egg=fakebase-0.1']
