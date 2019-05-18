@@ -13,6 +13,6 @@ spec:
     targetPort: 8888
     name: jupyter-port
   selector:
-    app: {{ .Release.Name }}-coinbase-train
+    pod-selector: {{ .Release.Name }}-coinbase-train
 
 {{ end }}
