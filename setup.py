@@ -18,7 +18,7 @@ except KeyError:
 
 DEPENDENCY_LINKS = [
     f'git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com'
-    '/Moonraker/fakebase@v0.3.0#egg=fakebase-0.1']
+    '/Moonraker/fakebase@v0.4.0#egg=fakebase-0.1']
 
 REQUIREMENTS = [
     'GitPython>=2.1.10,<2.2.0',

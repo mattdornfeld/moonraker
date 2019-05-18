@@ -142,7 +142,7 @@ def build_actor(
     account_funds_branch = compose(
         DenseBlock(
             depth=depth, 
-            units=num_filters)
+            units=num_filters),
         Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1)))(ACCOUNT_FUNDS)
 
     merged_output_branch = Concatenate(axis=-1)([merged_branch_output, 
@@ -224,7 +224,7 @@ def build_critic(
     action_funds_branch = compose(
         DenseBlock(
             depth=depth, 
-            units=num_filters)
+            units=num_filters),
         Concatenate(axis=-1),
         lambda tensor: [action_input] + [tensor],
         Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1))
