@@ -7,7 +7,7 @@ Attributes:
     ORDERS (tf.Tensor): Description
 """
 from funcy import compose
-from keras.layers import BatchNormalization, Concatenate, Dense, Input, Lambda
+from keras.layers import Concatenate, Dense, Input, Lambda
 from keras.models import Model
 from keras import backend as K
 
@@ -105,8 +105,7 @@ def build_actor(
             nb_filters=num_filters, 
             nb_stacks=num_stacks, 
             time_distributed=True, 
-            use_skip_connections=True),
-        BatchNormalization()
+            use_skip_connections=True)
         )(MATCHES)
 
     order_book_branch = compose(
@@ -117,8 +116,7 @@ def build_actor(
             kernel_size=(4, 2), 
             nb_filters=num_filters, 
             padding='same', 
-            time_distributed=True),
-        BatchNormalization()
+            time_distributed=True)
         )(ORDER_BOOK)
 
     merged_branch = Concatenate(axis=-1)([match_branch, order_book_branch])
@@ -131,22 +129,20 @@ def build_actor(
             nb_filters=num_filters, 
             nb_stacks=num_stacks, 
             time_distributed=False, 
-            use_skip_connections=True),
-        BatchNormalization()
+            use_skip_connections=True)
         )(merged_branch)
 
     account_orders_branch = compose(
         Attention(attention_dim),
         DenseBlock(
             depth=depth, 
-            units=num_filters),
-        BatchNormalization())(ACCOUNT_ORDERS)
+            units=num_filters)
+        )(ACCOUNT_ORDERS)
 
     account_funds_branch = compose(
         DenseBlock(
             depth=depth, 
-            units=num_filters),
-        BatchNormalization(),
+            units=num_filters)
         Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1)))(ACCOUNT_FUNDS)
 
     merged_output_branch = Concatenate(axis=-1)([merged_branch_output, 
@@ -191,8 +187,7 @@ def build_critic(
             nb_filters=num_filters, 
             nb_stacks=num_stacks, 
             time_distributed=True, 
-            use_skip_connections=True),
-        BatchNormalization()
+            use_skip_connections=True)
         )(MATCHES)
 
     order_book_branch = compose(
@@ -203,8 +198,7 @@ def build_critic(
             kernel_size=(4, 2), 
             nb_filters=num_filters, 
             padding='same', 
-            time_distributed=True),
-        BatchNormalization()
+            time_distributed=True)
         )(ORDER_BOOK)
 
     merged_branch = Concatenate(axis=-1)([match_branch, order_book_branch])
@@ -217,22 +211,20 @@ def build_critic(
             nb_filters=num_filters, 
             nb_stacks=num_stacks, 
             time_distributed=False, 
-            use_skip_connections=True),
-        BatchNormalization()
+            use_skip_connections=True)
         )(merged_branch)
 
     account_orders_branch = compose(
         Attention(attention_dim),
         DenseBlock(
             depth=depth, 
-            units=num_filters),
-        BatchNormalization())(ACCOUNT_ORDERS)
+            units=num_filters)
+        )(ACCOUNT_ORDERS)
 
     action_funds_branch = compose(
         DenseBlock(
             depth=depth, 
-            units=num_filters),
-        BatchNormalization(),
+            units=num_filters)
         Concatenate(axis=-1),
         lambda tensor: [action_input] + [tensor],
         Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1))
