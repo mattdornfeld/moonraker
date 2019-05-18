@@ -1,5 +1,6 @@
 """Summary
 """
+from decimal import Decimal
 import logging
 from math import inf
 from queue import deque
@@ -8,15 +9,13 @@ import numpy as np
 from keras import backend as K
 import tensorflow as tf
 
-from fakebase.constants import PRECISION
 from fakebase.mock_auth_client import MockAuthenticatedClient
-from fakebase.utils import IllegalTransactionException
+from fakebase.utils import round_to_currency_precision, IllegalTransactionException
 from lib.rl.core import Env
 
 from coinbase_train import constants as c
 from coinbase_train.copula import GaussianCopula
-from coinbase_train.utils import (clamp_to_range, convert_to_bool, round_to_min_precision, 
-                                  EnvironmentFinishedException)
+from coinbase_train.utils import (clamp_to_range, convert_to_bool, EnvironmentFinishedException)
 
 GAUSSIAN_COUPULA_MU = tf.placeholder(dtype=tf.float32, shape=(2,))
 GAUSSIAN_COUPULA_SIGMA_CHOLESKY = tf.placeholder(dtype=tf.float32, shape=(2, 2))
@@ -195,7 +194,7 @@ class MockEnvironment(Env):
             [transaction_price_sigma_cholesky_10, transaction_price_sigma_cholesky_11]
         ]
         
-        total_percent_funds = 0.0
+        total_percent_funds = Decimal(0.0)
         num_transactions = 0 
         while (num_transactions < max_transactions and 
                total_percent_funds < c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP and
@@ -205,26 +204,20 @@ class MockEnvironment(Env):
                 fetches=GAUSSIAN_COUPULA_SAMPLE_OPERATION, 
                 feed_dict={GAUSSIAN_COUPULA_MU: mu, GAUSSIAN_COUPULA_SIGMA_CHOLESKY: sigma_cholesky}) #pylint: disable=C0301
 
-            price = percent_price * c.MAX_PRICE
-            percent_funds = _percent_funds * c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP
-
-            price = round_to_min_precision(price, PRECISION[c.FIAT_CURRENCY])
+            price = round_to_currency_precision(c.FIAT_CURRENCY, percent_price * c.MAX_PRICE)
+            percent_funds = Decimal(_percent_funds * c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP)
             
             total_percent_funds += percent_funds
             num_transactions += 1
 
             if order_side == 'buy':
-
                 available_funds = available_usd
                 _size = percent_funds * available_funds / price
-                size = round_to_min_precision(_size, PRECISION[c.ACCOUNT_PRODUCT])
-
             else:
-
                 available_funds = available_btc
                 _size = percent_funds * available_funds
-                size = round_to_min_precision(_size, PRECISION[c.ACCOUNT_PRODUCT])
 
+            size = round_to_currency_precision(c.PRODUCT_CURRENCY, _size)
             try:
 
                 self.auth_client.place_limit_order(
@@ -407,7 +400,6 @@ class MockEnvironment(Env):
          cancel_none,
          cancel_sell,
          transaction_buy,
-         transaction_none,
          max_transactions,
          transaction_percent_funds_mean,
          transaction_post_only,
@@ -442,11 +434,10 @@ class MockEnvironment(Env):
             if self.verbose:
                 LOGGER.info('Canceling no orders.')
 
-        should_buy = np.argmax([transaction_buy, transaction_sell, transaction_none]) != 2
         available_usd = self.auth_client.exchange.account.get_available_funds('USD')
         available_btc = self.auth_client.exchange.account.get_available_funds('BTC')
 
-        if should_buy and max_transactions > 0:
+        if max_transactions > 0:
 
             order_side = 'buy' if (np.argmax([transaction_buy, transaction_sell]) == 0) else 'sell'
 
