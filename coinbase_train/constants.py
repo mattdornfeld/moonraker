@@ -1,35 +1,37 @@
 """Summary
 
 Attributes:
-    PRODUCT_CURRENCY (str): Description
-    BATCH_SIZE (int): Description
-    FIAT_CURRENCY (str): Description
     ILLEGAL_TRANSACTION_PENALTY (float): Description
     MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP (float): Description
     MAX_PRICE (float): Description
-    MONGO_DB_HOST (TYPE): Description
-    MONGO_DB_PASSWORD (TYPE): Description
-    MONGO_DB_PORT (TYPE): Description
-    MONGO_DB_URL (TYPE): Description
-    MONGO_DB_USERNAME (TYPE): Description
+    MONGO_DB_HOST (str): Description
+    MONGO_DB_PASSWORD (str): Description
+    MONGO_DB_PORT (int): Description
+    MONGO_DB_URL (str): Description
+    MONGO_DB_USERNAME (str): Description
     NUM_ACTIONS (int): Description
+    NUM_CHANNELS_IN_TIME_SERIES (int): Description
     NUM_DATABASE_WORKERS (int): Description
-    NUM_TIME_STEPS (int): Description
+    ORDER_BOOK_BIN_SIZE (Decimal): Description
     PRODUCT_ID (str): Description
     SAVED_MODELS_ROOT_DIR (str): Description
     TENSORBOARD_ROOT_DIR (str): Description
+    VERBOSE (bool): Description
 """
+from decimal import Decimal
 import os
 
-PRODUCT_CURRENCY = 'BTC'
 MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP = 0.1
 MAX_PRICE = 10e3
-FIAT_CURRENCY = 'USD'
+MAX_SIZE = 100
+NUM_CHANNELS_IN_TIME_SERIES = 26
+ORDER_BOOK_BIN_SIZE = Decimal('1.00')
 ILLEGAL_TRANSACTION_PENALTY = 1e3 #should be positive
 PRODUCT_ID = 'BTC-USD'
-NUM_ACTIONS = 14
+PRODUCT_CURRENCY, QUOTE_CURRENCY = PRODUCT_ID.split('-')
+NUM_ACTIONS = 9
 NUM_DATABASE_WORKERS = 3
-NUM_TIME_STEPS = 3
+VERBOSE = True
 
 #logging configs
 SAVED_MODELS_ROOT_DIR = '/var/moonraker_models'

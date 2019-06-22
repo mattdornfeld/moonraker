@@ -84,25 +84,19 @@ class CoibaseEnvironmentProcessor(Processor):
         Returns:
             List[np.ndarray]: Description
         """
-        batched_matches = self._pad_and_batch_list_of_arrays(
-            list_of_arrays=[a[0][0] for a in batch],
-            pad_axis=1,
-            pad_width_fn=lambda array, pad_axis, pad_to_length: ((0, 0), (0, pad_to_length - array.shape[pad_axis]), (0, 0)) #pylint: disable=C0301
-            )
+
+        batched_account_funds = np.vstack([np.expand_dims(array, axis=0) for 
+                                           array in [a[0][0] for a in batch]])
 
         batched_order_books = self._pad_and_batch_list_of_arrays(
             list_of_arrays=[a[0][1] for a in batch],
             pad_axis=1,
-            pad_width_fn=lambda array, pad_axis, pad_to_length: ((0, 0), (0, pad_to_length - array.shape[pad_axis]), (0, 0), (0, 0))  #pylint: disable=C0301
+            pad_width_fn=lambda array, pad_axis, pad_to_length: ((0, pad_to_length - array.shape[pad_axis]), (0, 0), (0, 0))  #pylint: disable=C0301
             )
 
-        batched_account_orders = self._pad_and_batch_list_of_arrays(
-            list_of_arrays=[a[0][2] for a in batch],
-            pad_axis=0,
-            pad_width_fn=lambda array, pad_axis, pad_to_length: ((0, pad_to_length - array.shape[0]), (0, 0)) #pylint: disable=C0301
-            )
+        batched_time_series = np.vstack([np.expand_dims(array, axis=0) for 
+                                         array in [a[0][2] for a in batch]])
 
-        account_funds_arrays = [a[0][3] for a in batch]
-        batched_account_funds = np.vstack([np.expand_dims(array, axis=0) for array in account_funds_arrays]) #pylint: disable=C0301
-
-        return [batched_matches, batched_order_books, batched_account_orders, batched_account_funds]
+        return [batched_account_funds, 
+                batched_order_books, 
+                batched_time_series]

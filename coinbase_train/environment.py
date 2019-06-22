@@ -1,36 +1,37 @@
 """Summary
 """
+from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
 from math import inf
 from queue import deque
+from typing import Dict, List, Tuple
 
 import numpy as np
 from keras import backend as K
 import tensorflow as tf
 
 from fakebase.mock_auth_client import MockAuthenticatedClient
-from fakebase.utils import round_to_currency_precision, IllegalTransactionException
+from fakebase import utils as fakebase_utils
 from lib.rl.core import Env
 
 from coinbase_train import constants as c
 from coinbase_train.copula import GaussianCopula
+from coinbase_train.exchange import Exchange
 from coinbase_train.utils import (clamp_to_range, convert_to_bool, EnvironmentFinishedException)
 
-GAUSSIAN_COUPULA_MU = tf.placeholder(dtype=tf.float32, shape=(2,))
-GAUSSIAN_COUPULA_SIGMA_CHOLESKY = tf.placeholder(dtype=tf.float32, shape=(2, 2))
-GAUSSIAN_COUPULA_SAMPLE_OPERATION = GaussianCopula(
-    mu=GAUSSIAN_COUPULA_MU, 
-    sigma_cholesky=GAUSSIAN_COUPULA_SIGMA_CHOLESKY).sample()
 LOGGER = logging.getLogger(__name__)
 
-class MockEnvironment(Env):
+class MockEnvironment(Env): #pylint: disable=W0223
 
     """Summary
     
     Attributes:
         auth_client (MockAuthenticatedClient): Description
         end_dt (TYPE): Description
+        gaussian_coupula_mu (TYPE): Description
+        gaussian_coupula_sample_operation (TYPE): Description
+        gaussian_coupula_sigma_cholesky (TYPE): Description
         initial_btc (float): Description
         initial_usd (float): Description
         num_workers (TYPE): Description
@@ -38,22 +39,30 @@ class MockEnvironment(Env):
         time_delta (TYPE): Description
         verbose (TYPE): Description
     """
-    def __init__(self, end_dt, initial_usd, initial_btc, num_time_steps, num_workers, 
-                 start_dt, time_delta, verbose=False):
+    def __init__(self, 
+                 end_dt: datetime, 
+                 initial_usd: Decimal, 
+                 initial_btc: Decimal, 
+                 num_time_steps: int, 
+                 num_workers: int, 
+                 start_dt: datetime, 
+                 time_delta: timedelta, 
+                 verbose: bool = False):
         """Summary
         
         Args:
-            end_dt (TYPE): Description
-            initial_usd (float): Description
-            initial_btc (float): Description
+            end_dt (datetime): Description
+            initial_usd (Decimal): Description
+            initial_btc (Decimal): Description
             num_time_steps (int): Description
-            num_workers (TYPE): Description
-            start_dt (TYPE): Description
-            time_delta (TYPE): Description
+            num_workers (int): Description
+            start_dt (datetime): Description
+            time_delta (timedelta): Description
             verbose (bool, optional): Description
         """
 
         self._buffer = deque(maxlen=num_time_steps)
+        self._made_illegal_transaction = False
         self.auth_client = MockAuthenticatedClient()
         self.end_dt = end_dt
         self.initial_btc = initial_btc
@@ -62,10 +71,16 @@ class MockEnvironment(Env):
         self.start_dt = start_dt
         self.time_delta = time_delta
         self.verbose = verbose
+
+        self.gaussian_coupula_mu = tf.placeholder(dtype=tf.float32, shape=(2,))
+        self.gaussian_coupula_sigma_cholesky = tf.placeholder(dtype=tf.float32, shape=(2, 2))
+        self.gaussian_coupula_sample_operation = GaussianCopula(
+            mu=self.gaussian_coupula_mu, 
+            sigma_cholesky=self.gaussian_coupula_sigma_cholesky).sample()
         
         self.reset()
 
-    def _calculate_reward(self):
+    def _calculate_reward(self) -> float:
         """Calculates the amount of USD gained this time step.
         If gain is negative will return 0.0, since we do not want 
         to penalize buying product. We just want to reward selling it.
@@ -82,45 +97,7 @@ class MockEnvironment(Env):
                 self._made_illegal_transaction else 
                 max(0.0, current_usd - previous_usd))
 
-    def _cancel_orders_in_range(self, cancel_side, cancel_max_price, cancel_min_price):
-        """Summary
-        
-        Args:
-            cancel_max_price (float): Description
-            cancel_min_price (float): Description
-            cancel_side (str): Description
-        """
-
-        canceled_orders = self.auth_client.cancel_all_orders_in_price_range(
-            min_price=cancel_min_price, 
-            max_price=cancel_max_price, 
-            order_side=cancel_side)
-
-        if self.verbose:
-            LOGGER.info(#pylint: disable=W1203
-                f'Canceled {len(canceled_orders)} {cancel_side} orders in range '
-                f'{cancel_min_price} - {cancel_max_price}.') 
-
-    def _cancel_orders_in_range(self, cancel_side, cancel_max_price, cancel_min_price):
-        """Summary
-        
-        Args:
-            cancel_max_price (float): Description
-            cancel_min_price (float): Description
-            cancel_side (str): Description
-        """
-
-        canceled_orders = self.auth_client.cancel_all_orders_in_price_range(
-            min_price=cancel_min_price, 
-            max_price=cancel_max_price, 
-            order_side=cancel_side)
-
-        if self.verbose:
-            LOGGER.info(#pylint: disable=W1203
-                f'Canceled {len(canceled_orders)} {cancel_side} orders in range '
-                f'{cancel_min_price} - {cancel_max_price}.') 
-
-    def _exchange_step(self):
+    def _exchange_step(self) -> None:
         """Summary
         """
         if self.verbose and self._results_queue_is_empty:
@@ -133,49 +110,39 @@ class MockEnvironment(Env):
             interval_start_dt = self.auth_client.exchange.interval_start_dt
             LOGGER.info(f'Exchange stepped to {interval_start_dt}-{interval_end_dt}.') #pylint: disable=W1203
 
-    def _get_state_from_buffer(self):
+    def _get_state_from_buffer(self) -> List[np.ndarray]:
         """Summary
         
         Returns:
             List[np.ndarray]: Description
         """
-        num_branches = len(self._buffer[0])
+        account_funds = self._buffer[-1]['account_funds']
 
-        state_by_branch = [[] for _ in range(num_branches)]
+        order_book = self._stack_order_books(buy_order_book=self._buffer[-1]['buy_order_book'], 
+                                             sell_order_book=self._buffer[-1]['sell_order_book'])
 
-        for state_at_time in self._buffer:
-            for i, branch_state_at_time in enumerate(state_at_time.values()):
-                state_by_branch[i].append(branch_state_at_time)
+        time_series = np.array([np.hstack((state_at_time['cancellation_statistics'],
+                                           state_at_time['order_statistics'],
+                                           state_at_time['match_statistics']))
+                                for state_at_time in self._buffer]).astype(float)
 
-        matches = self._stack_branch_states_over_time_steps(state_by_branch[0])
-
-        # orders = self._stack_branch_states_over_time_steps(state_by_branch[1])
-
-        buy_order_book = self._stack_branch_states_over_time_steps(state_by_branch[2])
-        sell_order_book = self._stack_branch_states_over_time_steps(state_by_branch[3])
-        order_book = self._stack_order_books(buy_order_book, sell_order_book)
-
-        account_orders = state_by_branch[4][-1]
-        
-        account_funds = state_by_branch[5][-1]
-
-        return [matches, order_book, account_orders, account_funds]
+        return [account_funds, order_book, time_series]
 
     def _make_transactions(self, 
-                           available_btc, 
-                           available_usd, 
-                           order_side, 
-                           post_only, 
-                           max_transactions,
-                           transaction_percent_funds_mean, 
-                           transaction_price_mean,
-                           transaction_price_sigma_cholesky_00,
-                           transaction_price_sigma_cholesky_10,
-                           transaction_price_sigma_cholesky_11):
+                           available_btc: Decimal, 
+                           available_usd: Decimal, 
+                           order_side: str, 
+                           post_only: bool, 
+                           max_transactions: int,
+                           transaction_percent_funds_mean: float, 
+                           transaction_price_mean: float,
+                           transaction_price_sigma_cholesky_00: float,
+                           transaction_price_sigma_cholesky_10: float,
+                           transaction_price_sigma_cholesky_11: float):
         """
         Args:
-            available_btc (float): Description
-            available_usd (float): Description
+            available_btc (Decimal): Description
+            available_usd (Decimal): Description
             order_side (str): Description
             post_only (bool): Description
             max_transactions (int): Description
@@ -201,23 +168,32 @@ class MockEnvironment(Env):
                not self._made_illegal_transaction):
             
             percent_price, _percent_funds = sess.run(
-                fetches=GAUSSIAN_COUPULA_SAMPLE_OPERATION, 
-                feed_dict={GAUSSIAN_COUPULA_MU: mu, GAUSSIAN_COUPULA_SIGMA_CHOLESKY: sigma_cholesky}) #pylint: disable=C0301
+                fetches=self.gaussian_coupula_sample_operation, 
+                feed_dict={self.gaussian_coupula_mu: mu, 
+                           self.gaussian_coupula_sigma_cholesky: sigma_cholesky}) 
 
-            price = round_to_currency_precision(c.FIAT_CURRENCY, percent_price * c.MAX_PRICE)
+            _price = fakebase_utils.round_to_currency_precision(c.QUOTE_CURRENCY, percent_price * c.MAX_PRICE) #pylint: disable=C0301
+            price = clamp_to_range(
+                num=_price, 
+                smallest=fakebase_utils.get_currency_min_value(c.QUOTE_CURRENCY), 
+                largest=inf)
             percent_funds = Decimal(_percent_funds * c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP)
             
             total_percent_funds += percent_funds
-            num_transactions += 1
 
             if order_side == 'buy':
                 available_funds = available_usd
-                _size = percent_funds * available_funds / price
+                __size = percent_funds * available_funds / (price + Decimal(1e-10))
             else:
                 available_funds = available_btc
-                _size = percent_funds * available_funds
+                __size = percent_funds * available_funds
 
-            size = round_to_currency_precision(c.PRODUCT_CURRENCY, _size)
+            _size = fakebase_utils.round_to_currency_precision(c.PRODUCT_CURRENCY, __size)
+            size = clamp_to_range(
+                num=_size, 
+                smallest=fakebase_utils.get_currency_min_value(c.PRODUCT_CURRENCY),
+                largest=inf)
+
             try:
 
                 self.auth_client.place_limit_order(
@@ -227,24 +203,25 @@ class MockEnvironment(Env):
                     size=size, 
                     post_only=post_only)
 
-                if self.verbose:
-                    _sigma_cholesky = np.array(sigma_cholesky)
-                    sigma = _sigma_cholesky.dot(_sigma_cholesky.T)
-                    LOGGER.info( #pylint: disable=W1203
-                        f"{num_transactions} {'post_only' if post_only else ''} {order_side} orders have "
-                        f'been placed using {total_percent_funds} of {available_funds} funds. The orders ' 
-                        f'were drawn from a 2D Gaussian distribution with price_mean = '
-                        f'{c.MAX_PRICE * mu[0]} and percent_funds_mean = '
-                        f'{c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP * mu[1]} '
-                        f'and covariance matrix {sigma}.')
+                num_transactions += 1
 
-            except IllegalTransactionException as exception:
+            except fakebase_utils.IllegalTransactionException as exception:
                 
                 self._made_illegal_transaction = True #pylint: disable=W0201
                 
                 if self.verbose:
                     LOGGER.exception(exception)
 
+        if self.verbose:
+            _sigma_cholesky = np.array(sigma_cholesky)
+            sigma = _sigma_cholesky.dot(_sigma_cholesky.T)
+            LOGGER.info( #pylint: disable=W1203
+                f"{num_transactions} {'post_only' if post_only else ''} {order_side} orders have "
+                f'been placed using {total_percent_funds} of {available_funds} funds. The orders ' 
+                f'were drawn from a 2D Gaussian distribution with price_mean = '
+                f'{c.MAX_PRICE * mu[0]} and percent_funds_mean = '
+                f'{c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP * mu[1]} '
+                f'and covariance matrix {sigma}.')
     @property
     def _results_queue_is_empty(self):
         """Is results queue empty
@@ -295,10 +272,10 @@ class MockEnvironment(Env):
             np.ndarray: Description
         """
 
-        orders_tuple = (buy_order_book.shape[1], sell_order_book.shape[1])
+        orders_tuple = (buy_order_book.shape[0], sell_order_book.shape[0])
         most_orders = max(orders_tuple)
         least_orders = min(orders_tuple)
-        pad_width = ((0, 0), (0, most_orders - least_orders), (0, 0))
+        pad_width = ((0, most_orders - least_orders), (0, 0))
 
         if np.argmax(orders_tuple) == 0:
             sell_order_book = np.pad(
@@ -322,15 +299,11 @@ class MockEnvironment(Env):
 
             self._exchange_step()
 
-            state = self.auth_client.exchange.get_exchange_state_as_array()
+            state = self.auth_client.exchange.get_exchange_state_as_arrays()
             
             self._buffer.append(state)
 
     def close(self):
-        """Summary
-        """
-
-    def configure(self, *args, **kwargs):
         """Summary
         """
 
@@ -343,21 +316,18 @@ class MockEnvironment(Env):
         """
         return self.auth_client.exchange.finished or self._made_illegal_transaction
 
-    def render(self, mode='human', close=False):
-        """Summary
-        """
-
     def reset(self):
         """Summary
         """
         if self.verbose:
             LOGGER.info('Resetting the environment.')
 
-        self.auth_client.init_exchange(
-            end_dt=self.end_dt, 
-            num_workers=self.num_workers, 
-            start_dt=self.start_dt, 
-            time_delta=self.time_delta)
+        exchange = Exchange(end_dt=self.end_dt, 
+                            num_workers=self.num_workers, 
+                            start_dt=self.start_dt, 
+                            time_delta=self.time_delta)
+
+        self.auth_client = MockAuthenticatedClient(exchange)
 
         self.auth_client.deposit(currency='USD', amount=self.initial_usd)
         self.auth_client.deposit(currency='BTC', amount=self.initial_btc)
@@ -373,17 +343,11 @@ class MockEnvironment(Env):
 
         return state
 
-    def seed(self, seed=None):
-        """Summary
-        """
-
-    def step(self, action):
+    def step(self, action: np.ndarray) -> Tuple[List[np.ndarray], float, bool, Dict]:
         """Summary
         
         Args:
-            action (np.ndarray):
-                percent_funds, price, buy_sell, post_only, should_buy, 
-                should_cancel, cancel_buy_sell, cancel_min_price, cancel_max_price
+            action (np.ndarray): Description
         
         Returns:
             Tuple[List[np.ndarray], float, bool, Dict]: Description
@@ -394,12 +358,7 @@ class MockEnvironment(Env):
         if self.episode_finished:
             raise EnvironmentFinishedException
 
-        (cancel_buy,
-         cancel_max_price,
-         cancel_min_price,
-         cancel_none,
-         cancel_sell,
-         transaction_buy,
+        (transaction_buy,
          max_transactions,
          transaction_percent_funds_mean,
          transaction_post_only,
@@ -412,8 +371,6 @@ class MockEnvironment(Env):
         if self.verbose:
             LOGGER.info(action)
 
-        cancel_max_price = clamp_to_range(cancel_max_price, 0.0, inf)
-        cancel_min_price = clamp_to_range(cancel_min_price, 0.0, inf)
         max_transactions = int(round(clamp_to_range(max_transactions, 0.0, inf)))
         transaction_percent_funds_mean = clamp_to_range(transaction_percent_funds_mean, 0.0, 1.0)
         transaction_post_only = convert_to_bool(transaction_post_only)
@@ -423,16 +380,6 @@ class MockEnvironment(Env):
         transaction_price_sigma_cholesky_10 = transaction_price_sigma_cholesky_10
         transaction_price_sigma_cholesky_11 = clamp_to_range(
             transaction_price_sigma_cholesky_11, 0.0, inf)
-
-        should_cancel = np.argmax([cancel_buy, cancel_sell, cancel_none]) != 2
-        if should_cancel and cancel_min_price < cancel_max_price:
-            
-            cancel_side = 'buy' if (np.argmax([cancel_buy, cancel_sell]) == 0) else 'sell'
-            self._cancel_orders_in_range(cancel_side, cancel_max_price, cancel_min_price)
-
-        else:
-            if self.verbose:
-                LOGGER.info('Canceling no orders.')
 
         available_usd = self.auth_client.exchange.account.get_available_funds('USD')
         available_btc = self.auth_client.exchange.account.get_available_funds('BTC')
@@ -460,7 +407,7 @@ class MockEnvironment(Env):
 
         self._exchange_step()
 
-        exchange_state = self.auth_client.exchange.get_exchange_state_as_array()
+        exchange_state = self.auth_client.exchange.get_exchange_state_as_arrays()
 
         self._buffer.append(exchange_state)
 
@@ -469,8 +416,7 @@ class MockEnvironment(Env):
         reward = self._calculate_reward()  
 
         if self.verbose:
-            LOGGER.info('Shape of (matches, order_book, account_orders, account_funds) = {}'. #pylint: disable=W1202
-                        format([s.shape for s in state]))
+            LOGGER.info(f'Shape of input = {[s.shape for s in state]}') #pylint: disable=W1203
             LOGGER.info(f'reward = {reward}') #pylint: disable=W1203
 
         return state, reward, self.episode_finished, {}
