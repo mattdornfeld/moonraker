@@ -295,9 +295,9 @@ class FullConvolutionBlock:
         Returns:
             Union[tf.Tensor, TimeDistributed]: Description
         """
-        Conv2D = TDConv2D if self.time_distributed else Conv2D #pylint: disable=E0601,C0103
+        _Conv2D = TDConv2D if self.time_distributed else Conv2D #pylint: disable=E0601,C0103
 
-        layers = [Conv2D(
+        layers = [_Conv2D(
             filters=self.nb_filters, 
             kernel_size=self.kernel_size,
             padding=self.padding)

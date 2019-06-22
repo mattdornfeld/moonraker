@@ -1,18 +1,23 @@
 """Summary
 
 Attributes:
-    EnvironmentConfigs (namedtuple): Description
-    HyperParameters (namedtuple): Description
+    Number (typing.TypeVar): Description
 """
-from collections import namedtuple
+from datetime import datetime, timedelta
+from decimal import Decimal
+from math import sqrt
 import os
 from pathlib import Path
+from statistics import stdev as base_stdev
+from typing import Any, Callable, List, NamedTuple, Union
 
 import numpy as np
 from sacred.stflow import LogFileWriter
 import tensorflow as tf
 
 from coinbase_train import constants as c
+
+Number = Union[Decimal, float, int]
 
 def add_tensorboard_dir_to_sacred(sacred_experiment, tensorboard_dir):
     """Summary
@@ -24,18 +29,19 @@ def add_tensorboard_dir_to_sacred(sacred_experiment, tensorboard_dir):
     with LogFileWriter(sacred_experiment):
         tf.summary.FileWriter(logdir=str(tensorboard_dir))
 
-def calc_nb_max_episode_steps(end_dt, start_dt, time_delta):
+def calc_nb_max_episode_steps(end_dt, num_time_steps, start_dt, time_delta):
     """Summary
     
     Args:
         end_dt (datetime.datetime): Description
+        num_time_steps (int): Description
         start_dt (datetime.datetime): Description
         time_delta (datetime.timedelta): Description
     
     Returns:
         int: Description
     """
-    return int((end_dt - start_dt) / time_delta) - c.NUM_TIME_STEPS - 1
+    return int((end_dt - start_dt) / time_delta) - num_time_steps - 1
 
 def clamp_to_range(num, smallest, largest): 
     """Returns num clamped to interval [smallest, largest]
@@ -55,6 +61,9 @@ def convert_to_bool(num):
     
     Args:
         num (Union[float, int]): Description
+    
+    Returns:
+        TYPE: Description
     """
     return bool(round(clamp_to_range(num, 0, 1)))
 
@@ -90,9 +99,45 @@ def make_model_dir(_run):
 
     return model_dir
 
-EnvironmentConfigs = namedtuple(typename='EnvironmentConfigs', 
-                                field_names=['end_dt', 'initial_usd', 'initial_btc', 
-                                             'num_episodes', 'start_dt', 'time_delta'])
+def min_max_normalization(max_value: float, min_value: float, num: float) -> float:
+    """Summary
+    
+    Args:
+        max_value (float): Description
+        min_value (float): Description
+        num (float): Description
+    
+    Returns:
+        float: Description
+    """
+    return (num - min_value) / (max_value - min_value)
+
+
+def stdev(data: List[Number]) -> Number:
+    """Basically statistics.stdev but does not throw an
+    error for list of length 1. For lists of length 1 will
+    return 0. Otherwise returns statistics.stdev of list.
+    
+    Args:
+        data (List[Number]): Description
+    
+    Returns:
+        Number: stdev
+    """
+    _data = 2 * data if len(data) == 1 else data
+    
+    return base_stdev(_data)
+
+class EnvironmentConfigs(NamedTuple):
+    """Summary
+    """
+    
+    end_dt: datetime
+    initial_usd: Decimal
+    initial_btc: Decimal
+    num_episodes: int
+    start_dt: datetime
+    time_delta: timedelta
 
 class EnvironmentFinishedException(Exception):
     """Summary
@@ -113,12 +158,98 @@ class EnvironmentFinishedException(Exception):
 
         super().__init__(msg)
 
-HyperParameters = namedtuple(typename='HyperParameters',
-                             field_names=[
-                                 'attention_dim',
-                                 'batch_size',
-                                 'depth',
-                                 'learning_rate',
-                                 'num_filters',
-                                 'num_stacks',
-                                 'num_time_steps'])
+class HyperParameters(NamedTuple):
+
+    """Summary
+    """
+    
+    attention_dim: int
+    batch_size: int
+    depth: int
+    learning_rate: float
+    num_filters: int
+    num_stacks: int
+    num_time_steps: int
+
+class NormalizedOperation:
+
+    """A class for the normalizing the output of any operator that outputs a float.
+    Normalization is done using the z-normalization based on a running mean and variance.and
+    Useful for reinforcement learning algorithms.
+    """
+    
+    def __init__(self, operator: Callable[[Any], float], name: str, normalize: bool = True):
+        """Summary
+        
+        Args:
+            operator (Callable[[Any], float]): This operator will be executed when
+            name (str): Description
+            normalize (bool, optional): The result of __call__ is Normalized 
+            __call__ is called. If normalize is True the output will be noramlized.
+            using running mean and variance if True. If False __call__ will
+            simply apply operator.
+        """
+        self._mean = 0.0
+        self._m = 0.0
+        self._num_samples = 0
+        self._operator: Callable[[Any], float] = operator
+        self._s = 0.0
+        self._variance = 0.0
+        self.name = name
+        self.normalize = normalize
+
+    def __call__(self, operand: Any) -> float:
+        """Summary
+        
+        Args:
+            operand (Any): Description
+        
+        Returns:
+            float: Description
+        """
+        _result = self._operator(operand)
+
+        if self.normalize:
+            self._num_samples += 1
+            self._update_mean(_result)
+            self._update_variance(_result)
+
+            result = (_result - self._mean) / (sqrt(self._variance) + 1e-12)
+        else:
+            result = _result
+
+        return result
+
+    def __repr__(self):
+        """Summary
+        
+        Returns:
+            str: Description
+        """
+        return f'<Normalized {self.name}>'
+
+    def _update_mean(self, result: float):
+        """Summary
+        
+        Args:
+            result (float): Description
+        """
+        self._mean = (result + self._num_samples * self._mean) / (self._num_samples + 1)
+
+    def _update_variance(self, result: float):
+        """Summary
+        
+        Args:
+            result (float): Description
+        """
+        if self._num_samples == 1:
+            self._m = result
+            self._variance = 0
+        else:
+            old_m = self._m
+            self._m = old_m + (result - old_m) / self._num_samples
+
+            old_s = self._s
+            self._s = old_s + (result - old_m) * (result - self._m)  
+
+            self._variance = self._s / (self._num_samples - 1)

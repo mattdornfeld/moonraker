@@ -1,17 +1,10 @@
 """Summary
-
-Attributes:
-    ex (Experiment): Description
 """
-from datetime import timedelta
 from pathlib import Path
 from typing import List, Tuple
 
-from dateutil import parser
 from keras import Model
 from keras.optimizers import SGD
-from sacred import Experiment
-from sacred.observers import MongoObserver
 from sacred.run import Run
 
 from lib.rl.agents import DDPGAgent
@@ -23,12 +16,12 @@ from coinbase_train import constants as c
 from coinbase_train import utils
 from coinbase_train.callbacks import TrainLogger
 from coinbase_train.environment import MockEnvironment
+from coinbase_train.experiment import config, ex
 from coinbase_train.layers import Attention
 from coinbase_train.model import build_actor, build_critic
 from coinbase_train.processor import CoibaseEnvironmentProcessor
 
-ex = Experiment()
-ex.observers.append(MongoObserver.create(url=c.MONGO_DB_URL))
+NUM_TIME_STEPS = config()['hyper_params']['num_time_steps']
 
 def create_agent(actor: Model, 
                  critic: Model, 
@@ -110,7 +103,7 @@ def build_and_train(
         num_time_steps=hyper_params.num_time_steps,
         start_dt=train_environment_configs.start_dt,
         time_delta=train_environment_configs.time_delta,
-        verbose=True)
+        verbose=c.VERBOSE)
 
     agent = create_agent(
         actor=actor,
@@ -119,6 +112,7 @@ def build_and_train(
 
     nb_max_episode_steps = utils.calc_nb_max_episode_steps(
         end_dt=train_environment_configs.end_dt,
+        num_time_steps=NUM_TIME_STEPS,
         start_dt=train_environment_configs.start_dt,
         time_delta=train_environment_configs.time_delta)
 
@@ -135,38 +129,6 @@ def build_and_train(
     callbacks.append(history)
 
     return agent, callbacks
-
-@ex.config
-def config():
-    """Configuration variables recorded in Sacred. These will be
-    automatically passed to the main function.
-    """
-    hyper_params = dict(  #pylint: disable=W0612
-        attention_dim=50,
-        batch_size=2,
-        depth=2,
-        learning_rate=0.001,
-        num_filters=100,
-        num_stacks=1,
-        num_time_steps=c.NUM_TIME_STEPS)  
-
-    train_environment_configs = dict(  #pylint: disable=W0612
-        end_dt=parser.parse('2019-01-28 04:13:36.79'),
-        initial_btc=0,
-        initial_usd=10000,
-        num_episodes=1,
-        start_dt=parser.parse('2019-01-28 03:13:36.79'),
-        time_delta=timedelta(seconds=10)
-        )
-
-    test_environment_configs = dict(  #pylint: disable=W0612
-        end_dt=parser.parse('2019-01-28 05:13:36.79'),
-        initial_btc=0,
-        initial_usd=10000,
-        num_episodes=1,
-        start_dt=parser.parse('2019-01-28 04:13:36.79'),
-        time_delta=timedelta(seconds=10)
-        )
 
 def evaluate_agent(
         agent: DDPGAgent, 
@@ -190,10 +152,11 @@ def evaluate_agent(
         num_workers=c.NUM_DATABASE_WORKERS,
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta,
-        verbose=True)
+        verbose=c.VERBOSE)
 
     nb_max_episode_steps = utils.calc_nb_max_episode_steps(
         end_dt=test_environment_configs.end_dt,
+        num_time_steps=NUM_TIME_STEPS,
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta)
 
@@ -222,14 +185,14 @@ def main(_run: Run,
     Returns:
         float: Reward from running a single episode on the testing environment
     """
-    hyper_params = utils.HyperParameters(**hyper_params)
-    test_environment_configs = utils.EnvironmentConfigs(**test_environment_configs)
-    train_environment_configs = utils.EnvironmentConfigs(**train_environment_configs)
+    _hyper_params = utils.HyperParameters(**hyper_params)
+    _test_environment_configs = utils.EnvironmentConfigs(**test_environment_configs)
+    _train_environment_configs = utils.EnvironmentConfigs(**train_environment_configs)
 
     tensorboard_dir = utils.make_tensorboard_dir(_run)
     utils.add_tensorboard_dir_to_sacred(ex, tensorboard_dir)
     
-    agent, _ = build_and_train(hyper_params, tensorboard_dir, train_environment_configs)
+    agent, _ = build_and_train(_hyper_params, tensorboard_dir, _train_environment_configs)
 
     #Save weights using the agent method. Also save
     #the full actor and critic models in case they're
@@ -248,7 +211,7 @@ def main(_run: Run,
     _run.add_artifact(str(actor_save_path))
     _run.add_artifact(str(critic_save_path))
 
-    test_history = evaluate_agent(agent, hyper_params, test_environment_configs)
+    test_history = evaluate_agent(agent, _hyper_params, _test_environment_configs)
 
     test_reward = test_history.history['episode_reward'][-1]
 
