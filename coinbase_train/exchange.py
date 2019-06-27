@@ -9,13 +9,30 @@ from typing import Any, Callable, DefaultDict, Dict, List, TypeVar
 from funcy import compose, partial
 import numpy as np
 
-from fakebase.exchange import Exchange as BaseExchange
+from fakebase.exchange import Account as BaseAccount, Exchange as BaseExchange
 from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 
 from coinbase_train import constants as c
 from coinbase_train.utils import min_max_normalization, stdev, NormalizedOperation
 
 Event = TypeVar('Event', CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder)
+
+class Account(BaseAccount):
+
+    """Summary
+    """
+    
+    def get_account_state_as_array(self) -> Dict[str, np.ndarray]:
+        """Summary
+        
+        Returns:
+            Dict[str, np.ndarray]: Description
+        """
+        account_funds = self._get_funds_as_array()
+        normalized_account_funds = account_funds / np.array([c.NORMALIZERS['USD_FUNDS'], c.NORMALIZERS['USD_FUNDS'], c.NORMALIZERS['BTC_FUNDS'], c.NORMALIZERS['BTC_FUNDS']])
+
+        return dict(account_funds=account_funds,
+                    normalized_account_funds=normalized_account_funds)
 
 class Exchange(BaseExchange): #pylint: disable=W0223
 
@@ -27,7 +44,10 @@ class Exchange(BaseExchange): #pylint: disable=W0223
             num_workers: int, 
             start_dt: datetime, 
             time_delta: timedelta,
-            results_queue_size: int = 50): 
+            add_account: bool = False,
+            results_queue_size: int = 50):
+
+        super().__init__(end_dt, num_workers, start_dt, time_delta, add_account, results_queue_size) 
         
         self._cancellation_operators: List[NormalizedOperation] = []
         self._match_operators: List[NormalizedOperation] = []
@@ -59,7 +79,7 @@ class Exchange(BaseExchange): #pylint: disable=W0223
                     self._match_operators.append(NormalizedOperation(operator, name))
                     self._order_operators.append(NormalizedOperation(operator, name))
 
-        super().__init__(end_dt, num_workers, start_dt, time_delta, results_queue_size)
+        self.add_account(Account())
 
     @staticmethod
     def _calc_event_counts(order_side: str, events: List[Event]) -> int:
@@ -157,15 +177,16 @@ class Exchange(BaseExchange): #pylint: disable=W0223
         state = dict(
             buy_order_book=self._get_order_book_as_array(order_side='buy', 
                                                          price_aggregation=c.ORDER_BOOK_BIN_SIZE, 
-                                                         price_normalization=c.MAX_PRICE, 
-                                                         size_normalization=c.MAX_SIZE),
+                                                         price_normalization=c.NORMALIZERS['PRICE'], 
+                                                         size_normalization=c.NORMALIZERS['SIZE']),
             cancellation_statistics=cancellation_statistics,
+            closing_price=self.matches[-1].price if len(self.matches) > 0 else None,
             match_statistics=match_statistics, 
             order_statistics=order_statistics, 
             sell_order_book=self._get_order_book_as_array(order_side='sell', 
                                                           price_aggregation=c.ORDER_BOOK_BIN_SIZE, 
-                                                          price_normalization=c.MAX_PRICE, 
-                                                          size_normalization=c.MAX_SIZE),
+                                                          price_normalization=c.NORMALIZERS['PRICE'],  #pylint: disable=C0301
+                                                          size_normalization=c.NORMALIZERS['SIZE']),
             )
         
         state.update(self.account.get_account_state_as_array())

@@ -46,25 +46,25 @@ def actor_output_activation(input_tensor):
 
         return [K.expand_dims(t, axis=-1) for t in _output_tensors]
 
-    transaction_buy, transaction_sell = softmax_and_unpack(input_tensor[:, 0], input_tensor[:, 8])
+    transaction_buy, transaction_sell = softmax_and_unpack(input_tensor[:, 0], input_tensor[:, 7])
     
-    transactions_max = K.expand_dims(K.relu(input_tensor[:, 1]), axis=-1)
-    transaction_percent_funds_mean = K.expand_dims(K.sigmoid(input_tensor[:, 2]), axis=-1)
-    transaction_post_only = K.expand_dims(K.sigmoid(input_tensor[:, 3]), axis=-1)
-    transaction_price_mean = K.expand_dims(K.sigmoid(input_tensor[:, 4]), axis=-1)
-    transaction_price_sigma_cholesky_00 = K.expand_dims(K.sigmoid(input_tensor[:, 5]), axis=-1)
-    transaction_price_sigma_cholesky_10 = K.expand_dims(K.sigmoid(input_tensor[:, 6]), axis=-1)
-    transaction_price_sigma_cholesky_11 = K.expand_dims(K.sigmoid(input_tensor[:, 7]), axis=-1)
+    transaction_percent_funds_mean = K.expand_dims(K.sigmoid(input_tensor[:, 1]), axis=-1)
+    transaction_post_only = K.expand_dims(K.sigmoid(input_tensor[:, 2]), axis=-1)
+    transaction_price_mean = K.expand_dims(K.sigmoid(input_tensor[:, 3]), axis=-1)
+    transaction_price_sigma_cholesky_00 = K.expand_dims(K.sigmoid(input_tensor[:, 4]), axis=-1)
+    transaction_price_sigma_cholesky_10 = K.expand_dims(K.sigmoid(input_tensor[:, 5]), axis=-1)
+    transaction_price_sigma_cholesky_11 = K.expand_dims(K.sigmoid(input_tensor[:, 6]), axis=-1)
+    num_transactions = K.softmax(input_tensor[:, 8:])
 
     return K.concatenate([transaction_buy,
-                          transactions_max,
                           transaction_percent_funds_mean,
                           transaction_post_only,
                           transaction_price_mean,
                           transaction_price_sigma_cholesky_00,
                           transaction_price_sigma_cholesky_10,
                           transaction_price_sigma_cholesky_11,
-                          transaction_sell])
+                          transaction_sell,
+                          num_transactions])
 
 def build_actor(
         attention_dim,
@@ -115,7 +115,7 @@ def build_actor(
                                                  time_series_branch]) 
 
     output = compose(Lambda(actor_output_activation), 
-                     Dense(c.NUM_ACTIONS),
+                     Dense(c.ACTOR_OUTPUT_DIMENSION),
                      DenseBlock(depth=depth, 
                                 units=num_filters)
                      )(merged_output_branch)
@@ -144,7 +144,7 @@ def build_critic(
         Model: Description
     """
     action_input = Input( 
-        batch_shape=(None, c.NUM_ACTIONS),
+        batch_shape=(None, c.ACTOR_OUTPUT_DIMENSION),
         name='critic_action_input')
 
     account_funds_branch = compose(
