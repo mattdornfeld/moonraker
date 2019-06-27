@@ -42,7 +42,7 @@ def create_agent(actor: Model,
         window_length=1)
     
     random_process = OrnsteinUhlenbeckProcess(
-        size=c.NUM_ACTIONS, 
+        size=c.ACTOR_OUTPUT_DIMENSION, 
         theta=0.15, 
         mu=0.0,
         sigma=0.3)
@@ -58,7 +58,7 @@ def create_agent(actor: Model,
         critic_action_input=critic_action_input, 
         custom_model_objects={'Attention' : Attention}, 
         memory=memory, 
-        nb_actions=c.NUM_ACTIONS,
+        nb_actions=c.ACTOR_OUTPUT_DIMENSION,
         nb_steps_warmup_actor=hyper_params.batch_size,
         nb_steps_warmup_critic=hyper_params.batch_size,
         processor=processor,

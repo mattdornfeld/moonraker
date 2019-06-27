@@ -62,6 +62,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
         """
 
         self._buffer = deque(maxlen=num_time_steps)
+        self._closing_price = 0.0
         self._made_illegal_transaction = False
         self.auth_client = MockAuthenticatedClient()
         self.end_dt = end_dt
@@ -81,21 +82,31 @@ class MockEnvironment(Env): #pylint: disable=W0223
         self.reset()
 
     def _calculate_reward(self) -> float:
-        """Calculates the amount of USD gained this time step.
-        If gain is negative will return 0.0, since we do not want 
-        to penalize buying product. We just want to reward selling it.
-        If an illegal transaction was made return a negative reward because
-        we want to penalize this.
+        """Change in total value of walllet in USD
         
         Returns:
             float: reward
         """
-        current_usd = self._buffer[-1]['account_funds'][0, 0]
-        previous_usd = self._buffer[-2]['account_funds'][0, 0]
+        funds = self._buffer[-1]['account_funds']
+        old_funds = self._buffer[-2]['account_funds']
+
+        usd = funds[0, 0] + funds[0, 1]
+        old_usd = old_funds[0, 0] + old_funds[0, 1]
+        delta_usd = usd - old_usd
+
+        old_closing_price = self._closing_price
+
+        self._update_closing_price()
+        
+        btc = funds[0, 2] + funds[0, 3]
+        old_btc = old_funds[0, 2] + old_funds[0, 3]
+        delta_btc_value = self._closing_price * btc - old_closing_price * old_btc
+
+        delta_value = delta_usd + delta_btc_value
 
         return (-c.ILLEGAL_TRANSACTION_PENALTY if 
                 self._made_illegal_transaction else 
-                max(0.0, current_usd - previous_usd))
+                max(0.0, delta_value))
 
     def _exchange_step(self) -> None:
         """Summary
@@ -109,6 +120,10 @@ class MockEnvironment(Env): #pylint: disable=W0223
             interval_end_dt = self.auth_client.exchange.interval_end_dt
             interval_start_dt = self.auth_client.exchange.interval_start_dt
             LOGGER.info(f'Exchange stepped to {interval_start_dt}-{interval_end_dt}.') #pylint: disable=W1203
+
+    def _update_closing_price(self):
+        if self._buffer[-1]['closing_price'] is not None:
+            self._closing_price = float(self._buffer[-1]['closing_price'])
 
     def _get_state_from_buffer(self) -> List[np.ndarray]:
         """Summary
@@ -155,8 +170,8 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
         sess = K.get_session()
 
-        mu = [transaction_price_mean, transaction_percent_funds_mean] #pylint: disable=C0103
-        sigma_cholesky = [
+        copula_mu = [transaction_price_mean, transaction_percent_funds_mean] #pylint: disable=C0103
+        copula_sigma_cholesky = [
             [transaction_price_sigma_cholesky_00, 0.0], 
             [transaction_price_sigma_cholesky_10, transaction_price_sigma_cholesky_11]
         ]
@@ -169,10 +184,10 @@ class MockEnvironment(Env): #pylint: disable=W0223
             
             percent_price, _percent_funds = sess.run(
                 fetches=self.gaussian_coupula_sample_operation, 
-                feed_dict={self.gaussian_coupula_mu: mu, 
-                           self.gaussian_coupula_sigma_cholesky: sigma_cholesky}) 
+                feed_dict={self.gaussian_coupula_mu: copula_mu, 
+                           self.gaussian_coupula_sigma_cholesky: copula_sigma_cholesky}) 
 
-            _price = fakebase_utils.round_to_currency_precision(c.QUOTE_CURRENCY, percent_price * c.MAX_PRICE) #pylint: disable=C0301
+            _price = fakebase_utils.round_to_currency_precision(c.QUOTE_CURRENCY, percent_price * c.NORMALIZERS['PRICE']) #pylint: disable=C0301
             price = clamp_to_range(
                 num=_price, 
                 smallest=fakebase_utils.get_currency_min_value(c.QUOTE_CURRENCY), 
@@ -213,15 +228,16 @@ class MockEnvironment(Env): #pylint: disable=W0223
                     LOGGER.exception(exception)
 
         if self.verbose:
-            _sigma_cholesky = np.array(sigma_cholesky)
+            _sigma_cholesky = np.array(copula_sigma_cholesky)
             sigma = _sigma_cholesky.dot(_sigma_cholesky.T)
             LOGGER.info( #pylint: disable=W1203
-                f"{num_transactions} {'post_only' if post_only else ''} {order_side} orders have "
+                f"{num_transactions} / {max_transactions} {'post_only' if post_only else ''} {order_side} orders have " #pylint: disable=C0301
                 f'been placed using {total_percent_funds} of {available_funds} funds. The orders ' 
                 f'were drawn from a 2D Gaussian distribution with price_mean = '
-                f'{c.MAX_PRICE * mu[0]} and percent_funds_mean = '
-                f'{c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP * mu[1]} '
+                f"{c.NORMALIZERS['PRICE'] * copula_mu[0]} and percent_funds_mean = "
+                f'{c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP * copula_mu[1]} '
                 f'and covariance matrix {sigma}.')
+
     @property
     def _results_queue_is_empty(self):
         """Is results queue empty
@@ -322,10 +338,15 @@ class MockEnvironment(Env): #pylint: disable=W0223
         if self.verbose:
             LOGGER.info('Resetting the environment.')
 
+        if self.auth_client.exchange is not None:
+            self.auth_client.exchange.stop_database_workers()
+
         exchange = Exchange(end_dt=self.end_dt, 
                             num_workers=self.num_workers, 
                             start_dt=self.start_dt, 
                             time_delta=self.time_delta)
+
+        del self.auth_client
 
         self.auth_client = MockAuthenticatedClient(exchange)
 
@@ -337,6 +358,8 @@ class MockEnvironment(Env): #pylint: disable=W0223
         self._warmup()
 
         state = self._get_state_from_buffer()
+
+        self._update_closing_price()
 
         if self.verbose:
             LOGGER.info('Environment reset.')
@@ -359,19 +382,19 @@ class MockEnvironment(Env): #pylint: disable=W0223
             raise EnvironmentFinishedException
 
         (transaction_buy,
-         max_transactions,
          transaction_percent_funds_mean,
          transaction_post_only,
          transaction_price_mean,
          transaction_price_sigma_cholesky_00,
          transaction_price_sigma_cholesky_10,
          transaction_price_sigma_cholesky_11,
-         transaction_sell) = action
+         transaction_sell) = action[:c.NUM_ACTIONS]
+
+        max_transactions = np.argmax(action[c.NUM_ACTIONS:])
 
         if self.verbose:
             LOGGER.info(action)
 
-        max_transactions = int(round(clamp_to_range(max_transactions, 0.0, inf)))
         transaction_percent_funds_mean = clamp_to_range(transaction_percent_funds_mean, 0.0, 1.0)
         transaction_post_only = convert_to_bool(transaction_post_only)
         transaction_price_mean = clamp_to_range(transaction_price_mean, 0.0, inf)
