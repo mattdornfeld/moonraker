@@ -9,11 +9,11 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 from keras import backend as K
+from rl.core import Env
 import tensorflow as tf
 
 from fakebase.mock_auth_client import MockAuthenticatedClient
 from fakebase import utils as fakebase_utils
-from lib.rl.core import Env
 
 from coinbase_train import constants as c
 from coinbase_train.copula import GaussianCopula

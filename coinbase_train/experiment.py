@@ -26,7 +26,7 @@ def config():
         learning_rate=0.001,
         num_filters=100,
         num_stacks=1,
-        num_time_steps=100)  
+        num_time_steps=10)  
 
     train_environment_configs = dict(  #pylint: disable=W0612
         end_dt=parser.parse('2019-02-28 04:13:36.79'),

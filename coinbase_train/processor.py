@@ -4,8 +4,8 @@ from typing import Callable, List, Tuple
 
 from funcy import partial
 import numpy as np
+from rl.core import Processor
 
-from lib.rl.core import Processor
 
 class CoibaseEnvironmentProcessor(Processor):
 

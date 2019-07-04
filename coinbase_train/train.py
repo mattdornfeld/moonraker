@@ -5,12 +5,12 @@ from typing import List, Tuple
 
 from keras import Model
 from keras.optimizers import SGD
+from rl.agents import DDPGAgent
+from rl.callbacks import Callback
+from rl.memory import SequentialMemory
+from rl.random import OrnsteinUhlenbeckProcess
 from sacred.run import Run
 
-from lib.rl.agents import DDPGAgent
-from lib.rl.callbacks import Callback
-from lib.rl.memory import SequentialMemory
-from lib.rl.random import OrnsteinUhlenbeckProcess
 
 from coinbase_train import constants as c
 from coinbase_train import utils
