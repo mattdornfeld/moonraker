@@ -1,9 +1,9 @@
 """Summary
 """
 from keras import backend as K
+from rl.callbacks import Callback
 import tensorflow as tf
 
-from lib.rl.callbacks import Callback
 
 class TrainLogger(Callback):
 

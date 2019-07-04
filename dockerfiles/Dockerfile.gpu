@@ -2,15 +2,12 @@
 FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04 
 
 RUN apt-get update && \
-	apt-get install python3-pip git wget libgomp1 -y && \
+	apt-get install python3 git libgomp1-y && \
 	mkdir app /var/log/sacred_tensorboard /var/moonraker_models
-
-ENV PYTHONPATH=/app/lib
 
 ADD ./ /app
 
-RUN --mount=type=secret,id=gitlab_credentials.ini \ 
-	cd /app && \
-	pip3 install --process-dependency-links -e .[jupyter,gpu]
-
 WORKDIR /app
+
+RUN --mount=type=secret,id=gitlab_credentials.ini \ 
+	python3 setup.py install --gpu
