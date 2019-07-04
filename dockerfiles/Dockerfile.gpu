@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.0.0-experimental
 FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04 
 
+ENV LANG=C.UTF-8
+
 RUN apt-get update && \
 	apt-get install python3-pip git libgomp1 -y && \
 	mkdir app /var/log/sacred_tensorboard /var/moonraker_models
