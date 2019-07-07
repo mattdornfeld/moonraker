@@ -136,6 +136,7 @@ class EnvironmentConfigs(NamedTuple):
     initial_usd: Decimal
     initial_btc: Decimal
     num_episodes: int
+    num_warmup_time_steps: int
     start_dt: datetime
     time_delta: timedelta
 
@@ -166,6 +167,7 @@ class HyperParameters(NamedTuple):
     attention_dim: int
     batch_size: int
     depth: int
+    discount_factor: float
     learning_rate: float
     num_filters: int
     num_stacks: int

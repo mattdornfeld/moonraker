@@ -29,7 +29,14 @@ class Account(BaseAccount):
             Dict[str, np.ndarray]: Description
         """
         account_funds = self._get_funds_as_array()
-        normalized_account_funds = account_funds / np.array([c.NORMALIZERS['USD_FUNDS'], c.NORMALIZERS['USD_FUNDS'], c.NORMALIZERS['BTC_FUNDS'], c.NORMALIZERS['BTC_FUNDS']])
+        normalized_account_funds = (
+            account_funds / 
+            np.array([
+                c.NORMALIZERS['USD_FUNDS'], 
+                c.NORMALIZERS['USD_FUNDS'], 
+                c.NORMALIZERS['BTC_FUNDS'], 
+                c.NORMALIZERS['BTC_FUNDS']])
+            )
 
         return dict(account_funds=account_funds,
                     normalized_account_funds=normalized_account_funds)
