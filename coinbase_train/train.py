@@ -11,7 +11,6 @@ from rl.memory import SequentialMemory
 from rl.random import OrnsteinUhlenbeckProcess
 from sacred.run import Run
 
-
 from coinbase_train import constants as c
 from coinbase_train import utils
 from coinbase_train.callbacks import TrainLogger
@@ -56,7 +55,8 @@ def create_agent(actor: Model,
         batch_size=hyper_params.batch_size,
         critic=critic, 
         critic_action_input=critic_action_input, 
-        custom_model_objects={'Attention' : Attention}, 
+        custom_model_objects={'Attention' : Attention},
+        gamma=hyper_params.discount_factor,
         memory=memory, 
         nb_actions=c.ACTOR_OUTPUT_DIMENSION,
         nb_steps_warmup_actor=hyper_params.batch_size,
@@ -101,6 +101,7 @@ def build_and_train(
         initial_btc=train_environment_configs.initial_btc, 
         num_workers=c.NUM_DATABASE_WORKERS,
         num_time_steps=hyper_params.num_time_steps,
+        num_warmup_time_steps=train_environment_configs.num_warmup_time_steps,
         start_dt=train_environment_configs.start_dt,
         time_delta=train_environment_configs.time_delta,
         verbose=c.VERBOSE)
@@ -149,6 +150,7 @@ def evaluate_agent(
         initial_btc=test_environment_configs.initial_btc, 
         initial_usd=test_environment_configs.initial_usd,
         num_time_steps=hyper_params.num_time_steps,
+        num_warmup_time_steps=test_environment_configs.num_warmup_time_steps,
         num_workers=c.NUM_DATABASE_WORKERS,
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta,

@@ -28,7 +28,7 @@ ORDER_BOOK = Input(
 
 TIME_SERIES = Input( 
     batch_shape=(None, NUM_TIME_STEPS, c.NUM_CHANNELS_IN_TIME_SERIES), 
-    name='matches')
+    name='time_series')
 
 def actor_output_activation(input_tensor):
     """Summary

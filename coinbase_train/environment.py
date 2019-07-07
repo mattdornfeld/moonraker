@@ -5,7 +5,7 @@ from decimal import Decimal
 import logging
 from math import inf
 from queue import deque
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 from keras import backend as K
@@ -28,16 +28,17 @@ class MockEnvironment(Env): #pylint: disable=W0223
     
     Attributes:
         auth_client (MockAuthenticatedClient): Description
-        end_dt (TYPE): Description
-        gaussian_coupula_mu (TYPE): Description
-        gaussian_coupula_sample_operation (TYPE): Description
-        gaussian_coupula_sigma_cholesky (TYPE): Description
+        end_dt (datetime): Description
+        exchange (Exchange): Description
+        gaussian_coupula_mu (tf.placeholder): Description
+        gaussian_coupula_sample_operation (GaussianCopula): Description
+        gaussian_coupula_sigma_cholesky (tf.placeholder): Description
         initial_btc (float): Description
         initial_usd (float): Description
-        num_workers (TYPE): Description
-        start_dt (TYPE): Description
-        time_delta (TYPE): Description
-        verbose (TYPE): Description
+        num_workers (int): Description
+        start_dt (datetime): Description
+        time_delta (timedelta): Description
+        verbose (bool): Description
     """
     def __init__(self, 
                  end_dt: datetime, 
@@ -47,7 +48,8 @@ class MockEnvironment(Env): #pylint: disable=W0223
                  num_workers: int, 
                  start_dt: datetime, 
                  time_delta: timedelta, 
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 num_warmup_time_steps: Optional[int] = None):
         """Summary
         
         Args:
@@ -59,13 +61,15 @@ class MockEnvironment(Env): #pylint: disable=W0223
             start_dt (datetime): Description
             time_delta (timedelta): Description
             verbose (bool, optional): Description
+            num_warmup_time_steps (Optional[int], optional): defaults to num_time_steps
         """
-
-        self._buffer = deque(maxlen=num_time_steps)
+        self._buffer = deque(maxlen=num_time_steps) #pylint: disable=C0301
         self._closing_price = 0.0
         self._made_illegal_transaction = False
-        self.auth_client = MockAuthenticatedClient()
+        self._num_warmup_time_steps = num_warmup_time_steps
+        self.auth_client: Optional[MockAuthenticatedClient] = None
         self.end_dt = end_dt
+        self.exchange: Optional[Exchange] = None
         self.initial_btc = initial_btc
         self.initial_usd = initial_usd
         self.num_workers = num_workers
@@ -114,14 +118,16 @@ class MockEnvironment(Env): #pylint: disable=W0223
         if self.verbose and self._results_queue_is_empty:
             LOGGER.info('Data queue is empty. Waiting for next entry.')
         
-        self.auth_client.exchange.step()
+        self.exchange.step()
 
         if self.verbose:
-            interval_end_dt = self.auth_client.exchange.interval_end_dt
-            interval_start_dt = self.auth_client.exchange.interval_start_dt
+            interval_end_dt = self.exchange.interval_end_dt
+            interval_start_dt = self.exchange.interval_start_dt
             LOGGER.info(f'Exchange stepped to {interval_start_dt}-{interval_end_dt}.') #pylint: disable=W1203
 
-    def _update_closing_price(self):
+    def _update_closing_price(self) -> None:
+        """Summary
+        """
         if self._buffer[-1]['closing_price'] is not None:
             self._closing_price = float(self._buffer[-1]['closing_price'])
 
@@ -153,7 +159,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
                            transaction_price_mean: float,
                            transaction_price_sigma_cholesky_00: float,
                            transaction_price_sigma_cholesky_10: float,
-                           transaction_price_sigma_cholesky_11: float):
+                           transaction_price_sigma_cholesky_11: float) -> None:
         """
         Args:
             available_btc (Decimal): Description
@@ -222,7 +228,8 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
             except fakebase_utils.IllegalTransactionException as exception:
                 
-                self._made_illegal_transaction = True #pylint: disable=W0201
+                if not isinstance(exception, fakebase_utils.PostOnlyException):
+                    self._made_illegal_transaction = True #pylint: disable=W0201
                 
                 if self.verbose:
                     LOGGER.exception(exception)
@@ -239,16 +246,16 @@ class MockEnvironment(Env): #pylint: disable=W0223
                 f'and covariance matrix {sigma}.')
 
     @property
-    def _results_queue_is_empty(self):
+    def _results_queue_is_empty(self) -> bool:
         """Is results queue empty
         
         Returns:
             bool: Description
         """
-        return self.auth_client.exchange.database_workers.results_queue.qsize() == 0
+        return self.exchange.database_workers.results_queue.qsize() == 0
 
     @staticmethod
-    def _stack_branch_states_over_time_steps(branch_state_over_time):
+    def _stack_branch_states_over_time_steps(branch_state_over_time) -> np.ndarray:
         """Summary
         
         Args:
@@ -276,7 +283,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
         return np.vstack(_branch_state_over_time)
 
     @staticmethod
-    def _stack_order_books(buy_order_book, sell_order_book):
+    def _stack_order_books(buy_order_book: np.ndarray, sell_order_book: np.ndarray) -> np.ndarray:
         """Stacks order books. Will pad smaller order book to have
         same size as larger one.
         
@@ -310,52 +317,60 @@ class MockEnvironment(Env): #pylint: disable=W0223
             np.expand_dims(buy_order_book, axis=-1),
             np.expand_dims(sell_order_book, axis=-1)], axis=-1)
 
-    def _warmup(self):
-        for _ in range(self._buffer.maxlen - 1):
+    def _warmup(self) -> None:
+        """Summary
+        """
+        while len(self._buffer) > 0:
+            self._buffer.pop()
+        
+        for _ in range(self._num_warmup_time_steps):
 
             self._exchange_step()
 
-            state = self.auth_client.exchange.get_exchange_state_as_arrays()
+            state = self.exchange.get_exchange_state_as_arrays()
             
             self._buffer.append(state)
 
-    def close(self):
+    def close(self) -> None:
         """Summary
         """
 
     @property
-    def episode_finished(self):
+    def episode_finished(self) -> bool:
         """Summary
         
         Returns:
             bool: True if training episode is finished.
         """
-        return self.auth_client.exchange.finished or self._made_illegal_transaction
+        return self.exchange.finished or self._made_illegal_transaction
 
-    def reset(self):
+    def reset(self) -> List[np.ndarray]:
         """Summary
+        
+        Returns:
+            List[np.ndarray]: Description
         """
         if self.verbose:
             LOGGER.info('Resetting the environment.')
 
-        if self.auth_client.exchange is not None:
-            self.auth_client.exchange.stop_database_workers()
+        if self.exchange is None:
+            self.exchange = Exchange(end_dt=self.end_dt, 
+                                     num_workers=self.num_workers, 
+                                     start_dt=self.start_dt, 
+                                     time_delta=self.time_delta)
+            
+            self._warmup()        
+            self._exchange_checkpoint = self.exchange.create_checkpoint()
 
-        exchange = Exchange(end_dt=self.end_dt, 
-                            num_workers=self.num_workers, 
-                            start_dt=self.start_dt, 
-                            time_delta=self.time_delta)
-
-        del self.auth_client
-
-        self.auth_client = MockAuthenticatedClient(exchange)
-
+        else:
+            self.exchange.stop_database_workers()
+            self.exchange = self._exchange_checkpoint.restore()
+ 
+        self.auth_client = MockAuthenticatedClient(self.exchange)
         self.auth_client.deposit(currency='USD', amount=self.initial_usd)
         self.auth_client.deposit(currency='BTC', amount=self.initial_btc)
 
         self._made_illegal_transaction = False
-
-        self._warmup()
 
         state = self._get_state_from_buffer()
 
@@ -404,8 +419,8 @@ class MockEnvironment(Env): #pylint: disable=W0223
         transaction_price_sigma_cholesky_11 = clamp_to_range(
             transaction_price_sigma_cholesky_11, 0.0, inf)
 
-        available_usd = self.auth_client.exchange.account.get_available_funds('USD')
-        available_btc = self.auth_client.exchange.account.get_available_funds('BTC')
+        available_usd = self.exchange.account.get_available_funds('USD')
+        available_btc = self.exchange.account.get_available_funds('BTC')
 
         if max_transactions > 0:
 
@@ -430,7 +445,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
         self._exchange_step()
 
-        exchange_state = self.auth_client.exchange.get_exchange_state_as_arrays()
+        exchange_state = self.exchange.get_exchange_state_as_arrays()
 
         self._buffer.append(exchange_state)
 
