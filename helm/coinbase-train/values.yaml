@@ -4,6 +4,6 @@ job:
   num_gpus: 1
 
 notebook:
-  enabled: false
-  num_cpus: 3.0
+  enabled: true
+  num_cpus: 3.5
   num_gpus: 1.0
