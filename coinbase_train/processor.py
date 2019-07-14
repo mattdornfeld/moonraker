@@ -7,7 +7,7 @@ import numpy as np
 from rl.core import Processor
 
 
-class CoibaseEnvironmentProcessor(Processor):
+class CoinbaseEnvironmentProcessor(Processor):
 
     """This class takes output state from Environment.step
     and converts it to a form that can be processed by the
@@ -90,7 +90,7 @@ class CoibaseEnvironmentProcessor(Processor):
 
         batched_order_books = self._pad_and_batch_list_of_arrays(
             list_of_arrays=[a[0][1] for a in batch],
-            pad_axis=1,
+            pad_axis=0,
             pad_width_fn=lambda array, pad_axis, pad_to_length: ((0, pad_to_length - array.shape[pad_axis]), (0, 0), (0, 0))  #pylint: disable=C0301
             )
 
