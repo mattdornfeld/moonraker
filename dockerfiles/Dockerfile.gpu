@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.0.0-experimental
 FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04 
 
-ENV LANG=C.UTF-8
+ENV LANG=C.UTF-8 PYTHONPATH=/app
 
 RUN apt-get update && \
 	apt-get install python3-pip git libgomp1 -y && \
@@ -12,5 +12,4 @@ ADD ./ /app
 WORKDIR /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
-	python3 setup.py install --gpu && \
-	pip3 install -e .[gpu]
+	python3 setup.py install --gpu
