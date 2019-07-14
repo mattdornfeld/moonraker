@@ -11,7 +11,7 @@ stages:
 variables:
   RELEASE_NAME: coinbase-train
 
-#YAML Anchors
+# YAML Anchors
 .create_credentials_ini_file: &create_credentials_ini_file |
   cat << EOF > gitlab_credentials.ini 
   [CREDENTIALS]
@@ -24,7 +24,7 @@ variables:
   --set moonraker-common.registry.username=$CI_USERNAME
   --set moonraker-common.registry.password=$CI_TOKEN
 
-#CI Jobs
+# CI Jobs
 
 increment_version:increment_version:
   extends: .increment_version

@@ -12,4 +12,5 @@ ADD ./ /app
 WORKDIR /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
-	python3 setup.py install --gpu
+	python3 setup.py install --gpu && \
+	pip3 install -e .[gpu]

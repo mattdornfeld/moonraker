@@ -26,7 +26,7 @@ spec:
       - name: jupyter
       
         command: ["jupyter"]
-        args: ["lab", "--ip=0.0.0.0", "--allow-root"]
+        args: ["lab", "--ip=0.0.0.0", "--allow-root", "--core"]
 
         workingDir: /
 

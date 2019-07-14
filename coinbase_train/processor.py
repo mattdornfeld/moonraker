@@ -82,7 +82,6 @@ class CoinbaseEnvironmentProcessor(Processor):
             batch (List[List[np.ndarray]]): Description
         
         Returns:
-            List[np.ndarray]: Description
         """
 
         batched_account_funds = np.vstack([np.expand_dims(array, axis=0) for 

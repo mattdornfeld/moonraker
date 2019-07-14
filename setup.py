@@ -49,6 +49,7 @@ setup(
     author='Matthew Dornfeld',
     author_email='matt@firstorderlabs.co',
     dependency_links=DEPENDENCY_LINKS,
+    extras_require=dict(gpu=['tensorflow-gpu>=1.13.1,<1.14.0']),
     install_requires=INSTALL_REQUIRES,
     name="coinbase_train",
     packages=find_packages(),

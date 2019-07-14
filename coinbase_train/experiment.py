@@ -20,7 +20,7 @@ def config():
     """
     hyper_params = dict(  #pylint: disable=W0612
         attention_dim=50,
-        batch_size=1,
+        batch_size=2,
         depth=2,
         discount_factor=0.99,
         learning_rate=0.001,

@@ -18,7 +18,7 @@ from coinbase_train.environment import MockEnvironment
 from coinbase_train.experiment import config, ex
 from coinbase_train.layers import Attention
 from coinbase_train.model import build_actor, build_critic
-from coinbase_train.processor import CoibaseEnvironmentProcessor
+from coinbase_train.processor import CoinbaseEnvironmentProcessor
 
 NUM_TIME_STEPS = config()['hyper_params']['num_time_steps']
 
@@ -46,7 +46,7 @@ def create_agent(actor: Model,
         mu=0.0,
         sigma=0.3)
 
-    processor = CoibaseEnvironmentProcessor()
+    processor = CoinbaseEnvironmentProcessor()
     
     critic_action_input = critic.inputs[0]
     
