@@ -5,10 +5,11 @@ RUN apt-get update && \
 	apt-get install git -y && \
 	mkdir app /var/log/sacred_tensorboard /var/moonraker_models
 
+ENV PYTHONPATH=/app
+
 ADD ./ /app
 
 WORKDIR /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
-	python3 setup.py install && \
-	pip3 install -e .
+	python3 setup.py install
