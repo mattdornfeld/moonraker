@@ -26,7 +26,7 @@ except KeyError:
 GITLAB_PREFIX = f'git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com/moonraker'
 
 DEPENDENCY_LINKS = [
-    f'{GITLAB_PREFIX}/fakebase@v0.7.0#egg=fakebase-0.1',
+    f'{GITLAB_PREFIX}/fakebase@master#egg=fakebase-0.1',
     f'{GITLAB_PREFIX}/keras-rl@master#egg=keras-rl-0.4.2'
     ]
     
