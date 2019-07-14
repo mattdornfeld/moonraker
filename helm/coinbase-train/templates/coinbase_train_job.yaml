@@ -10,6 +10,13 @@ spec:
   template:
     spec:
 
+      {{ if gt .Values.job.num_gpus 0.0}}
+      tolerations:
+      - key: "gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      {{ end }}
+
       imagePullSecrets:
       - name: {{ .Release.Name }}-registry-credentials
 
@@ -44,11 +51,5 @@ spec:
             cpu: {{ .Values.job.num_cpus }}
             nvidia.com/gpu: {{ .Values.job.num_gpus }}
 
-        {{ if gt .Values.notebook.num_gpus 0.0}}
-        tolerations:
-        - key: "gpu"
-          operator: "Exists"
-          effect: "NoSchedule"
-        {{ end }}
 
 {{ end }}
