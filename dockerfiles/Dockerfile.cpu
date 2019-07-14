@@ -10,6 +10,5 @@ ADD ./ /app
 WORKDIR /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \ 
-	python3 setup.py install
-
-
+	python3 setup.py install && \
+	pip3 install -e .
