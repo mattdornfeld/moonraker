@@ -122,7 +122,7 @@ def build_and_train(
     history = agent.fit(
         callbacks=callbacks,
         env=train_environment, 
-        log_interval=1,
+        log_interval=10,
         nb_max_episode_steps=nb_max_episode_steps, 
         nb_steps=train_environment_configs.num_episodes * nb_max_episode_steps,
         verbose=2) 
