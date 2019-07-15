@@ -1,10 +1,10 @@
 """Summary
 """
+from collections import deque
 from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
 from math import inf
-from queue import deque
 from typing import Dict, List, Tuple, Optional
 
 import numpy as np
@@ -22,6 +22,14 @@ from coinbase_train.utils import (clamp_to_range, convert_to_bool, EnvironmentFi
 
 LOGGER = logging.getLogger(__name__)
 
+# These tensor operations need to be declared as constants so that 
+# they aren't redeclared everytime the Environment is reset
+GAUSSIAN_COUPULA_MU = tf.placeholder(dtype=tf.float32, shape=(2,))
+GAUSSIAN_COUPULA_SIGMA_CHOLESKY = tf.placeholder(dtype=tf.float32, shape=(2, 2))
+GAUSSIAN_COUPULA_SAMPLE_OPERATION = GaussianCopula(
+    mu=GAUSSIAN_COUPULA_MU, 
+    sigma_cholesky=GAUSSIAN_COUPULA_SIGMA_CHOLESKY).sample()
+
 class MockEnvironment(Env): #pylint: disable=W0223
 
     """Summary
@@ -30,9 +38,6 @@ class MockEnvironment(Env): #pylint: disable=W0223
         auth_client (MockAuthenticatedClient): Description
         end_dt (datetime): Description
         exchange (Exchange): Description
-        gaussian_coupula_mu (tf.placeholder): Description
-        gaussian_coupula_sample_operation (GaussianCopula): Description
-        gaussian_coupula_sigma_cholesky (tf.placeholder): Description
         initial_btc (float): Description
         initial_usd (float): Description
         num_workers (int): Description
@@ -63,7 +68,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
             verbose (bool, optional): Description
             num_warmup_time_steps (Optional[int], optional): defaults to num_time_steps
         """
-        self._buffer = deque(maxlen=num_time_steps) #pylint: disable=C0301
+        self._buffer: deque = deque(maxlen=num_time_steps) #pylint: disable=C0301
         self._closing_price = 0.0
         self._made_illegal_transaction = False
         self._num_warmup_time_steps = num_warmup_time_steps
@@ -76,12 +81,6 @@ class MockEnvironment(Env): #pylint: disable=W0223
         self.start_dt = start_dt
         self.time_delta = time_delta
         self.verbose = verbose
-
-        self.gaussian_coupula_mu = tf.placeholder(dtype=tf.float32, shape=(2,))
-        self.gaussian_coupula_sigma_cholesky = tf.placeholder(dtype=tf.float32, shape=(2, 2))
-        self.gaussian_coupula_sample_operation = GaussianCopula(
-            mu=self.gaussian_coupula_mu, 
-            sigma_cholesky=self.gaussian_coupula_sigma_cholesky).sample()
         
         self.reset()
 
@@ -110,7 +109,18 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
         return (-c.ILLEGAL_TRANSACTION_PENALTY if 
                 self._made_illegal_transaction else 
-                max(0.0, delta_value))
+                delta_value)
+
+    def _check_out_of_funds(self) -> bool:
+        """Summary
+        
+        Returns:
+            bool: Description
+        """
+        return (
+            self.exchange.account.funds[c.PRODUCT_CURRENCY] + 
+            self.exchange.account.funds[c.QUOTE_CURRENCY]
+            ) <= 0.0
 
     def _exchange_step(self) -> None:
         """Summary
@@ -189,9 +199,9 @@ class MockEnvironment(Env): #pylint: disable=W0223
                not self._made_illegal_transaction):
             
             percent_price, _percent_funds = sess.run(
-                fetches=self.gaussian_coupula_sample_operation, 
-                feed_dict={self.gaussian_coupula_mu: copula_mu, 
-                           self.gaussian_coupula_sigma_cholesky: copula_sigma_cholesky}) 
+                fetches=GAUSSIAN_COUPULA_SAMPLE_OPERATION, 
+                feed_dict={GAUSSIAN_COUPULA_MU: copula_mu, 
+                           GAUSSIAN_COUPULA_SIGMA_CHOLESKY: copula_sigma_cholesky}) 
 
             _price = fakebase_utils.round_to_currency_precision(c.QUOTE_CURRENCY, percent_price * c.NORMALIZERS['PRICE']) #pylint: disable=C0301
             price = clamp_to_range(
@@ -228,8 +238,8 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
             except fakebase_utils.IllegalTransactionException as exception:
                 
-                if not isinstance(exception, fakebase_utils.PostOnlyException):
-                    self._made_illegal_transaction = True #pylint: disable=W0201
+                if isinstance(exception, fakebase_utils.InsufficientFundsException):
+                    self._made_illegal_transaction = True
                 
                 if self.verbose:
                     LOGGER.exception(exception)
