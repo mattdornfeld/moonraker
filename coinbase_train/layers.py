@@ -1,9 +1,12 @@
 """Summary
 """
-from funcy import compose
-from keras.layers import (Add, Bidirectional, Conv1D, Conv2D, Dense, Layer, 
-                          MaxPooling1D, Multiply, TimeDistributed)
+from typing import Union
+
 import tensorflow as tf
+from funcy import compose
+from keras.layers import (Add, Concatenate, Conv1D, Conv2D, Dense, Layer,
+                          LeakyReLU, MaxPool1D, Multiply, TimeDistributed)
+
 
 class AtrousConvolutionBlock:
     """Summary
@@ -259,34 +262,35 @@ class DenseBlock:
         return compose(*layers)(input_tensor)
 
 class FullConvolutionBlock:
-
-    """Summary
+    """Summary    
     
     Attributes:
+        args (TYPE): Description
         depth (int): Description
-        kernel_size (Tuple[int]): Description
-        nb_filters (int): Description
-        padding (str): Description
+        kwargs (TYPE): Description
         time_distributed (bool): Description
     """
     
-    def __init__(self, depth, kernel_size, nb_filters, padding, time_distributed):
-        """Summary
+    def __init__(
+            self,
+            depth: int,  
+            time_distributed: bool = False,
+            *args,
+            **kwargs):
+        """__init__ [summary]
         
         Args:
-            depth (int): Description
-            kernel_size (Tuple[int]): Description
-            nb_filters (int): Description
-            padding (str): Description
-            time_distributed (bool): Description
+            depth (int): [description]
+            time_distributed (bool, optional): [description]
+            *args: Description
+            **kwargs: Description
         """
+        self.args = args
         self.depth = depth
-        self.kernel_size = kernel_size
-        self.nb_filters = nb_filters
-        self.padding = padding
+        self.kwargs = kwargs
         self.time_distributed = time_distributed
 
-    def __call__(self, input_tensor):
+    def __call__(self, input_tensor: tf.Tensor) -> Union[tf.Tensor, TimeDistributed]:
         """Summary
         
         Args:
@@ -297,14 +301,91 @@ class FullConvolutionBlock:
         """
         _Conv2D = TDConv2D if self.time_distributed else Conv2D #pylint: disable=E0601,C0103
 
-        layers = [_Conv2D(
-            filters=self.nb_filters, 
-            kernel_size=self.kernel_size,
-            padding=self.padding)
-            for _ in range(self.depth) #pylint: disable=C0330
-            ] #pylint: disable=C0330
+        layers = [_Conv2D(*self.args, **self.kwargs) for _ in range(self.depth)] #pylint: disable=C0330
 
         return compose(*layers)(input_tensor)
+
+class FullConvolutionBlock1D:
+    """Summary    
+    
+    Attributes:
+        args (TYPE): Description
+        depth (int): Description
+        kwargs (TYPE): Description
+        time_distributed (bool): Description
+    """
+    
+    def __init__(
+            self,
+            depth: int,  
+            time_distributed: bool = False,
+            *args,
+            **kwargs):
+        """__init__ [summary]
+        
+        Args:
+            depth (int): [description]
+            time_distributed (bool, optional): [description]
+            *args: Description
+            **kwargs: Description
+        """
+        self.args = args
+        self.depth = depth
+        self.kwargs = kwargs
+        self.time_distributed = time_distributed
+
+    def __call__(self, input_tensor: tf.Tensor) -> Union[tf.Tensor, TimeDistributed]:
+        """Summary
+        
+        Args:
+            input_tensor (tf.Tensor): Description
+        
+        Returns:
+            Union[tf.Tensor, TimeDistributed]: Description
+        """
+        _Conv1D = TDConv1D if self.time_distributed else Conv1D #pylint: disable=E0601,C0103
+
+        layers = [_Conv1D(*self.args, **self.kwargs) for _ in range(self.depth)] #pylint: disable=C0330
+
+        return compose(*layers)(input_tensor)
+
+class InceptionModule:
+    """Summary
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        __init__ [summary]
+        """        
+        self._towers = [
+            compose(
+                LeakyReLU(0.01),
+                Conv1D(kernel_size=3, *args, **kwargs, padding='same'),
+                LeakyReLU(0.01),
+                Conv1D(kernel_size=1, *args, **kwargs, padding='same')
+            ),
+            compose(
+                LeakyReLU(0.01),
+                Conv1D(kernel_size=5, *args, **kwargs, padding='same'),
+                LeakyReLU(0.01),
+                Conv1D(kernel_size=1, *args, **kwargs, padding='same')
+            ),
+            compose(
+                LeakyReLU(0.01),
+                Conv1D(kernel_size=5, *args, **kwargs, padding='same'),
+                MaxPool1D(pool_size=1, padding='same'))]
+
+    def __call__(self, input_tensor: tf.Tensor) -> tf.Tensor:
+        """
+        __call__ [summary]
+
+        Args:
+            input_tensor (tf.Tensor): [description]
+
+        Returns:
+            tf.Tensor: [description]
+        """
+        return Concatenate()([tower(input_tensor) for tower in self._towers])
 
 def TDConv1D(*args, **kwargs): #pylint: disable=C0103
     """Summary

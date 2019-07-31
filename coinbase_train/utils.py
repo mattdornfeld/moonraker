@@ -12,92 +12,105 @@ from statistics import stdev as base_stdev
 from typing import Any, Callable, List, NamedTuple, Union
 
 import numpy as np
-from sacred.stflow import LogFileWriter
 import tensorflow as tf
+from sacred import Experiment
+from sacred.stflow import LogFileWriter
+from sacred.run import Run
 
 from coinbase_train import constants as c
 
 Number = Union[Decimal, float, int]
 
-def add_tensorboard_dir_to_sacred(sacred_experiment, tensorboard_dir):
-    """Summary
+def add_tensorboard_dir_to_sacred(sacred_experiment: Experiment, 
+                                  tensorboard_dir: Path) -> None:
+    """
+    add_tensorboard_dir_to_sacred [summary]
     
     Args:
-        sacred_experiment (sacred.Experiment): Description
-        tensorboard_dir (Path): Description
+        sacred_experiment (Experiment): [description]
+        tensorboard_dir (Path): [description]
+    
+    Returns:
+        None: [description]
     """
     with LogFileWriter(sacred_experiment):
         tf.summary.FileWriter(logdir=str(tensorboard_dir))
 
-def calc_nb_max_episode_steps(end_dt, num_time_steps, start_dt, time_delta):
-    """Summary
+def calc_nb_max_episode_steps(end_dt: datetime, 
+                              num_time_steps: int, 
+                              start_dt: datetime, 
+                              time_delta: timedelta) -> int:
+    """
+    calc_nb_max_episode_steps [summary]
     
     Args:
-        end_dt (datetime.datetime): Description
-        num_time_steps (int): Description
-        start_dt (datetime.datetime): Description
-        time_delta (datetime.timedelta): Description
+        end_dt (datetime): [description]
+        num_time_steps (int): [description]
+        start_dt (datetime): [description]
+        time_delta (timedelta): [description]
     
     Returns:
-        int: Description
+        int: [description]
     """
     return int((end_dt - start_dt) / time_delta) - num_time_steps - 1
 
-def clamp_to_range(num, smallest, largest): 
-    """Returns num clamped to interval [smallest, largest]
+def clamp_to_range(num: float, smallest: float, largest: float) -> float: 
+    """
+    clamp_to_range [summary]
     
     Args:
-        num (Sortable): Description
-        smallest (Sortable): Description
-        largest (Sortable): Description
+        num (float): [description]
+        smallest (float): [description]
+        largest (float): [description]
     
     Returns:
-        Sortable: Description
+        float: [description]
     """
     return max(smallest, min(num, largest))
 
-def convert_to_bool(num):
-    """Summary
+def convert_to_bool(num: bool) -> bool:
+    """
+    convert_to_bool [summary]
     
     Args:
-        num (Union[float, int]): Description
+        num (bool): [description]
     
     Returns:
-        TYPE: Description
+        bool: [description]
     """
     return bool(round(clamp_to_range(num, 0, 1)))
 
-def make_tensorboard_dir(_run):
-    """Summary
+def get_tensorboard_path(_run: Run) -> Path:
+    """
+    get_tensorboard_path [summary]
     
     Args:
-        _run (sacred.run.Run): Description
+        _run (Run): [description]
     
     Returns:
-        Path: Description
+        Path: [description]
     """
     ex_name = _run.experiment_info['name']
     ex_id = _run._id #pylint: disable=W0212
-    tensorboard_dir = Path(c.TENSORBOARD_ROOT_DIR) / f'{ex_name}_{ex_id}'
-    os.mkdir(tensorboard_dir)
+    tensorboard_path = Path(c.TENSORBOARD_ROOT_DIR) / f'{ex_name}_{ex_id}'
 
-    return tensorboard_dir
+    return tensorboard_path
 
-def make_model_dir(_run):
-    """Summary
+def get_model_path(_run: Run) -> Path:
+    """
+    get_model_path [summary]
     
     Args:
-        _run (sacred.run.Run): Description
+        _run (Run): [description]
     
     Returns:
-        Path: Description
+        Path: [description]
     """
     ex_name = _run.experiment_info['name']
     ex_id = _run._id #pylint: disable=W0212
-    model_dir = Path(c.SAVED_MODELS_ROOT_DIR) / f'{ex_name}_{ex_id}'
-    os.mkdir(model_dir)
+    model_path = Path(c.SAVED_MODELS_ROOT_DIR) / f'{ex_name}_{ex_id}'
 
-    return model_dir
+    return model_path
 
 def min_max_normalization(max_value: float, min_value: float, num: float) -> float:
     """Summary
@@ -111,6 +124,24 @@ def min_max_normalization(max_value: float, min_value: float, num: float) -> flo
         float: Description
     """
     return (num - min_value) / (max_value - min_value)
+
+def pad_to_length(array: np.ndarray, 
+                  length: int, 
+                  pad_value: float = 0.0) -> np.ndarray:
+    """Summary
+    
+    Args:
+        array (np.ndarray): Description
+        length (int): Description
+        pad_value (float, optional): Description
+    
+    Returns:
+        np.ndarray: Description
+    """
+    return np.pad(array=array,
+                  pad_width=((0, length), (0, 0)),
+                  mode='constant',
+                  constant_values=(pad_value,))
 
 
 def stdev(data: List[Number]) -> Number:
@@ -131,7 +162,6 @@ def stdev(data: List[Number]) -> Number:
 class EnvironmentConfigs(NamedTuple):
     """Summary
     """
-    
     end_dt: datetime
     initial_usd: Decimal
     initial_btc: Decimal
@@ -143,7 +173,6 @@ class EnvironmentConfigs(NamedTuple):
 class EnvironmentFinishedException(Exception):
     """Summary
     """
-    
     def __init__(self, msg=None):
         """Summary
         
@@ -160,10 +189,8 @@ class EnvironmentFinishedException(Exception):
         super().__init__(msg)
 
 class HyperParameters(NamedTuple):
-
     """Summary
     """
-    
     attention_dim: int
     batch_size: int
     depth: int
@@ -222,7 +249,7 @@ class NormalizedOperation:
 
         return result
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Summary
         
         Returns:
@@ -230,7 +257,7 @@ class NormalizedOperation:
         """
         return f'<Normalized {self.name}>'
 
-    def _update_mean(self, result: float):
+    def _update_mean(self, result: float) -> None:
         """Summary
         
         Args:
@@ -238,7 +265,7 @@ class NormalizedOperation:
         """
         self._mean = (result + self._num_samples * self._mean) / (self._num_samples + 1)
 
-    def _update_variance(self, result: float):
+    def _update_variance(self, result: float) -> None:
         """Summary
         
         Args:

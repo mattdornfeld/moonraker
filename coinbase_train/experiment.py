@@ -26,11 +26,11 @@ def config():
         learning_rate=0.001,
         num_filters=100,
         num_stacks=1,
-        num_time_steps=20)  
+        num_time_steps=3)  
 
     initial_btc = 1.0
     initial_usd = 10000.0
-    num_warmup_time_steps = 20
+    num_warmup_time_steps = 3
     time_delta = timedelta(seconds=60)
 
     train_environment_configs = dict(  #pylint: disable=W0612
