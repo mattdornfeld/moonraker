@@ -18,7 +18,6 @@ from coinbase_train.utils import min_max_normalization, stdev, NormalizedOperati
 Event = TypeVar('Event', CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder)
 
 class Account(BaseAccount):
-
     """Summary
     """
     
@@ -91,11 +90,11 @@ class Exchange(BaseExchange): #pylint: disable=W0223
     @staticmethod
     def _calc_event_counts(order_side: str, events: List[Event]) -> int:
         """Summary
-        
+
         Args:
             order_side (str): Description
             events (List[Event]): Description
-        
+
         Returns:
             int: Description
         """
@@ -104,11 +103,10 @@ class Exchange(BaseExchange): #pylint: disable=W0223
     @staticmethod
     def _calc_op_for_attribute(
             attribute: str, 
-            operation: Callable[[List[Any]], float],  
+            operation: Callable[[List[Any]], float],
             order_side: str,
             events: List[Event]) -> float:
         """Summary
-        
         Args:
             attribute (str): Description
             operation (Callable[[List[Any]], float]): Description
@@ -125,12 +123,10 @@ class Exchange(BaseExchange): #pylint: disable=W0223
     @staticmethod
     def _filter_events(attribute: str, events: List[Event], order_side: str) -> List[Any]:
         """Summary
-        
         Args:
             attribute (str): Description
             events (List[Event]): Description
             order_side (str): Description
-        
         Returns:
             List[Any]: Description
         """
@@ -140,8 +136,8 @@ class Exchange(BaseExchange): #pylint: disable=W0223
 
     def _get_order_book_as_array(
             self, 
-            order_side: str, 
-            price_aggregation: Decimal = Decimal('0.01'), 
+            order_side: str,
+            price_aggregation: Decimal = Decimal('0.01'),
             price_normalization: float = 1.0, 
             size_normalization: float = 1.0) -> np.ndarray:
         """Summary
@@ -163,14 +159,17 @@ class Exchange(BaseExchange): #pylint: disable=W0223
         return (np.array([(min_max_normalization(price_normalization, 0, float(price)), 
                            min_max_normalization(size_normalization, 0, float(volume))) 
                           for price, volume in price_volume_dict.items()])
-                if len(price_volume_dict) > 0 else np.zeros((1, 2)))
+                
+                if len(price_volume_dict) > 0 else 
+                
+                np.zeros((1, 2)))
     
     def get_exchange_state_as_arrays(self) -> Dict[str, np.ndarray]:
         """[matches, received_orders, buy_order_book, sell_order_book, 
         account_orders, account_funds]
         
         Returns:
-            'Dict[str, np.ndarray]': Description
+            Dict[str, np.ndarray]: Description
         """
         cancellation_statistics = [operator(self.received_cancellations) for 
                                    operator in self._cancellation_operators]
@@ -188,14 +187,14 @@ class Exchange(BaseExchange): #pylint: disable=W0223
                                                          size_normalization=c.NORMALIZERS['SIZE']),
             cancellation_statistics=cancellation_statistics,
             closing_price=self.matches[-1].price if len(self.matches) > 0 else None,
-            match_statistics=match_statistics, 
-            order_statistics=order_statistics, 
-            sell_order_book=self._get_order_book_as_array(order_side='sell', 
+            match_statistics=match_statistics,
+            order_statistics=order_statistics,
+            sell_order_book=self._get_order_book_as_array(order_side='sell',
                                                           price_aggregation=c.ORDER_BOOK_BIN_SIZE, 
                                                           price_normalization=c.NORMALIZERS['PRICE'],  #pylint: disable=C0301
                                                           size_normalization=c.NORMALIZERS['SIZE']),
             )
-        
+
         state.update(self.account.get_account_state_as_array())
 
         return state

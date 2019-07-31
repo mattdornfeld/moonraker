@@ -1,5 +1,6 @@
 """Summary
 """
+import os
 from pathlib import Path
 from typing import List, Tuple
 
@@ -15,12 +16,10 @@ from coinbase_train import constants as c
 from coinbase_train import utils
 from coinbase_train.callbacks import TrainLogger
 from coinbase_train.environment import MockEnvironment
-from coinbase_train.experiment import config, ex
+from coinbase_train.experiment import ex
 from coinbase_train.layers import Attention
-from coinbase_train.model import build_actor, build_critic
+from coinbase_train.model import ActorCriticModel
 from coinbase_train.processor import CoinbaseEnvironmentProcessor
-
-NUM_TIME_STEPS = config()['hyper_params']['num_time_steps']
 
 def create_agent(actor: Model, 
                  critic: Model, 
@@ -82,18 +81,12 @@ def build_and_train(
     Returns:
         Tuple[DDPGAgent, List[Callback]]: Description
     """
-
-    actor = build_actor(
+    model = ActorCriticModel(
         attention_dim=hyper_params.attention_dim,
         depth=hyper_params.depth,
         num_filters=hyper_params.num_filters,
-        num_stacks=hyper_params.num_stacks)
-
-    critic = build_critic(
-        attention_dim=hyper_params.attention_dim,
-        depth=hyper_params.depth,
-        num_filters=hyper_params.num_filters,
-        num_stacks=hyper_params.num_stacks)
+        num_stacks=hyper_params.num_stacks,
+        num_time_steps=hyper_params.num_time_steps)
 
     train_environment = MockEnvironment(
         end_dt=train_environment_configs.end_dt,
@@ -107,13 +100,13 @@ def build_and_train(
         verbose=c.VERBOSE)
 
     agent = create_agent(
-        actor=actor,
-        critic=critic,
+        actor=model.actor,
+        critic=model.critic,
         hyper_params=hyper_params)
 
     nb_max_episode_steps = utils.calc_nb_max_episode_steps(
         end_dt=train_environment_configs.end_dt,
-        num_time_steps=NUM_TIME_STEPS,
+        num_time_steps=hyper_params.num_time_steps,
         start_dt=train_environment_configs.start_dt,
         time_delta=train_environment_configs.time_delta)
 
@@ -158,7 +151,7 @@ def evaluate_agent(
 
     nb_max_episode_steps = utils.calc_nb_max_episode_steps(
         end_dt=test_environment_configs.end_dt,
-        num_time_steps=NUM_TIME_STEPS,
+        num_time_steps=hyper_params.num_time_steps,
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta)
 
@@ -191,7 +184,8 @@ def main(_run: Run,
     _test_environment_configs = utils.EnvironmentConfigs(**test_environment_configs)
     _train_environment_configs = utils.EnvironmentConfigs(**train_environment_configs)
 
-    tensorboard_dir = utils.make_tensorboard_dir(_run)
+    tensorboard_dir = utils.get_tensorboard_path(_run)
+    os.makedirs(tensorboard_dir, exist_ok=True)
     utils.add_tensorboard_dir_to_sacred(ex, tensorboard_dir)
     
     agent, _ = build_and_train(_hyper_params, tensorboard_dir, _train_environment_configs)
@@ -199,7 +193,8 @@ def main(_run: Run,
     #Save weights using the agent method. Also save
     #the full actor and critic models in case they're
     #needed later.
-    model_dir = utils.make_model_dir(_run)
+    model_dir = utils.get_model_path(_run)
+    os.makedirs(model_dir, exist_ok=True)
 
     actor_save_path = str(model_dir / 'model_actor.hdf5')
     critic_save_path = str(model_dir / 'model_critic.hdf5')
