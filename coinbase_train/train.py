@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from keras import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam as Optimizer
 from rl.agents import DDPGAgent
 from rl.callbacks import Callback
 from rl.memory import SequentialMemory
@@ -63,7 +63,7 @@ def create_agent(actor: Model,
         processor=processor,
         random_process=random_process)
 
-    agent.compile(Adam(lr=hyper_params.learning_rate, clipnorm=0.1))
+    agent.compile(Optimizer(lr=hyper_params.learning_rate, clipnorm=0.1))
 
     return agent
 
@@ -81,12 +81,7 @@ def build_and_train(
     Returns:
         Tuple[DDPGAgent, List[Callback]]: Description
     """
-    model = ActorCriticModel(
-        attention_dim=hyper_params.attention_dim,
-        depth=hyper_params.depth,
-        num_filters=hyper_params.num_filters,
-        num_stacks=hyper_params.num_stacks,
-        num_time_steps=hyper_params.num_time_steps)
+    model = ActorCriticModel(hyper_params)
 
     train_environment = MockEnvironment(
         end_dt=train_environment_configs.end_dt,

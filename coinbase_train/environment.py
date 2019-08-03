@@ -207,10 +207,6 @@ class MockEnvironment(Env): #pylint: disable=W0223
         Returns:
             None: [description]
         """
-        transaction_price = fakebase_utils.round_to_currency_precision(
-            currency=c.QUOTE_CURRENCY,
-            value=c.MAX_PRICE * Decimal(str(transaction_price + 1e-10)))
-
         transaction_size = (available_usd * (1 - c.BUY_RESERVE_FRACTION) / transaction_price if
                             order_side == 'buy' else
                             available_btc)
@@ -319,9 +315,12 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
         self._cancel_expired_orders()
 
-        transaction_buy, _transaction_none, _transaction_price, transaction_sell = action
+        transaction_buy, _transaction_none, __transaction_price, transaction_sell = action
 
-        transaction_price = abs(clamp_to_range(_transaction_price, 0.0, 1.0))
+        _transaction_price = abs(clamp_to_range(__transaction_price, 0.0, 1.0))
+        transaction_price = fakebase_utils.round_to_currency_precision(
+            currency=c.QUOTE_CURRENCY,
+            value=c.MAX_PRICE * Decimal(str(_transaction_price + 1e-10)))
         transaction_none = convert_to_bool(_transaction_none)
 
         available_usd = self.exchange.account.get_available_funds('USD')
