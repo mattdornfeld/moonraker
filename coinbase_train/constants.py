@@ -22,20 +22,19 @@ from datetime import timedelta
 from decimal import Decimal
 import os
 
+ACTOR_OUTPUT_DIMENSION = 4
 ILLEGAL_TRANSACTION_PENALTY = 1e3 #should be positive
-MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP = 0.1
-MAX_TRANSACTIONS = 9
+MAX_PRICE = Decimal('13000.00')
 NORMALIZERS = dict(BTC_FUNDS=1e1, PRICE=10e3, SIZE=1e2, USD_FUNDS=100e3)
-NUM_ACTIONS = 8
+BUY_RESERVE_FRACTION = Decimal('0.005') # Whenever a buy order is placed leave this amount of funds in reserve
 NUM_DATABASE_WORKERS = 3
 NUM_CHANNELS_IN_TIME_SERIES = 26
 ORDER_BOOK_BIN_SIZE = Decimal('0.01')
 ORDER_BOOK_DEPTH = 10
-ORDER_TIME_TO_LIVE = timedelta(minutes=10)
+ORDER_TIME_TO_LIVE = timedelta(minutes=0.5)
 PRODUCT_ID = 'BTC-USD'
 PRODUCT_CURRENCY, QUOTE_CURRENCY = PRODUCT_ID.split('-')
 VERBOSE = True
-ACTOR_OUTPUT_DIMENSION = NUM_ACTIONS + MAX_TRANSACTIONS + 1
 
 #logging configs
 SAVED_MODELS_ROOT_DIR = '/var/moonraker_models'
