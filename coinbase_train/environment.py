@@ -4,32 +4,20 @@ from collections import deque
 from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
-from math import inf
 from typing import Dict, List, Tuple, Optional
 
 import numpy as np
-from keras import backend as K
 from rl.core import Env
-import tensorflow as tf
 
-from fakebase.mock_auth_client import MockAuthenticatedClient
 from fakebase import utils as fakebase_utils
+from fakebase.mock_auth_client import MockAuthenticatedClient
 
 from coinbase_train import constants as c
-from coinbase_train.copula import GaussianCopula
 from coinbase_train.exchange import Exchange
 from coinbase_train.utils import (clamp_to_range, convert_to_bool, pad_to_length,
                                   EnvironmentFinishedException)
 
 LOGGER = logging.getLogger(__name__)
-
-# These tensor operations need to be declared as constants so that
-# they aren't redeclared everytime the Environment is reset
-GAUSSIAN_COUPULA_MU = tf.placeholder(dtype=tf.float32, shape=(2,))
-GAUSSIAN_COUPULA_SIGMA_CHOLESKY = tf.placeholder(dtype=tf.float32, shape=(2, 2))
-GAUSSIAN_COUPULA_SAMPLE_OPERATION = GaussianCopula(
-    mu=GAUSSIAN_COUPULA_MU,
-    sigma_cholesky=GAUSSIAN_COUPULA_SIGMA_CHOLESKY).sample()
 
 class MockEnvironment(Env): #pylint: disable=W0223
 
@@ -129,15 +117,15 @@ class MockEnvironment(Env): #pylint: disable=W0223
             if self.exchange.interval_start_dt >= deadline:
                 self.exchange.cancel_order(order.order_id)
 
-    def _check_out_of_funds(self) -> bool:
+    def _check_is_out_of_funds(self) -> bool:
         """Summary
 
         Returns:
             bool: Description
         """
         return (
-            self.exchange.account.funds[c.PRODUCT_CURRENCY] +
-            self.exchange.account.funds[c.QUOTE_CURRENCY]
+            self.exchange.account.funds[c.PRODUCT_CURRENCY]['balance'] +
+            self.exchange.account.funds[c.QUOTE_CURRENCY]['balance']
             ) <= 0.0
 
     def _exchange_step(self) -> None:
@@ -206,98 +194,40 @@ class MockEnvironment(Env): #pylint: disable=W0223
                            available_btc: Decimal,
                            available_usd: Decimal,
                            order_side: str,
-                           post_only: bool,
-                           max_transactions: int,
-                           transaction_percent_funds_mean: float,
-                           transaction_price_mean: float,
-                           transaction_price_sigma_cholesky_00: float,
-                           transaction_price_sigma_cholesky_10: float,
-                           transaction_price_sigma_cholesky_11: float) -> None:
+                           transaction_price: Decimal) -> None:
         """
+        _make_transactions [summary]
+
         Args:
-            available_btc (Decimal): Description
-            available_usd (Decimal): Description
-            order_side (str): Description
-            post_only (bool): Description
-            max_transactions (int): Description
-            transaction_percent_funds_mean (float): Description
-            transaction_price_mean (float): Description
-            transaction_price_sigma_cholesky_00 (float): Description
-            transaction_price_sigma_cholesky_10 (float): Description
-            transaction_price_sigma_cholesky_11 (float): Description
+            available_btc (Decimal): [description]
+            available_usd (Decimal): [description]
+            order_side (str): [description]
+            transaction_price (Decimal): [description]
+
+        Returns:
+            None: [description]
         """
+        transaction_price = fakebase_utils.round_to_currency_precision(
+            currency=c.QUOTE_CURRENCY,
+            value=c.MAX_PRICE * Decimal(str(transaction_price + 1e-10)))
 
-        sess = K.get_session()
+        transaction_size = (available_usd * (1 - c.BUY_RESERVE_FRACTION) / transaction_price if
+                            order_side == 'buy' else
+                            available_btc)
 
-        copula_mu = [transaction_price_mean, transaction_percent_funds_mean] #pylint: disable=C0103
-        copula_sigma_cholesky = [
-            [transaction_price_sigma_cholesky_00, 0.0],
-            [transaction_price_sigma_cholesky_10, transaction_price_sigma_cholesky_11]
-        ]
+        try:
+            self.auth_client.place_limit_order(
+                product_id=c.PRODUCT_ID,
+                price=transaction_price,
+                side=order_side,
+                size=transaction_size,
+                post_only=False,
+                time_to_live=c.ORDER_TIME_TO_LIVE)
 
-        total_percent_funds = Decimal(0.0)
-        num_transactions = 0
-        while (num_transactions < max_transactions and
-               total_percent_funds < c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP and
-               not self._made_illegal_transaction):
+        except fakebase_utils.IllegalTransactionException as exception:
+            if self.verbose:
+                LOGGER.exception(exception)
 
-            percent_price, _percent_funds = sess.run(
-                fetches=GAUSSIAN_COUPULA_SAMPLE_OPERATION,
-                feed_dict={GAUSSIAN_COUPULA_MU: copula_mu,
-                           GAUSSIAN_COUPULA_SIGMA_CHOLESKY: copula_sigma_cholesky})
-
-            _price = fakebase_utils.round_to_currency_precision(c.QUOTE_CURRENCY, percent_price * c.NORMALIZERS['PRICE']) #pylint: disable=C0301
-            price = clamp_to_range(
-                num=_price,
-                smallest=fakebase_utils.get_currency_min_value(c.QUOTE_CURRENCY),
-                largest=inf)
-            percent_funds = Decimal(_percent_funds * c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP)
-
-            total_percent_funds += percent_funds
-
-            if order_side == 'buy':
-                available_funds = available_usd
-                __size = percent_funds * available_funds / (price + Decimal(1e-10))
-            else:
-                available_funds = available_btc
-                __size = percent_funds * available_funds
-
-            _size = fakebase_utils.round_to_currency_precision(c.PRODUCT_CURRENCY, __size)
-            size = clamp_to_range(
-                num=_size,
-                smallest=fakebase_utils.get_currency_min_value(c.PRODUCT_CURRENCY),
-                largest=inf)
-
-            try:
-
-                self.auth_client.place_limit_order(
-                    product_id=c.PRODUCT_ID,
-                    price=price,
-                    side=order_side,
-                    size=size,
-                    post_only=post_only,
-                    time_to_live=c.ORDER_TIME_TO_LIVE)
-
-                num_transactions += 1
-
-            except fakebase_utils.IllegalTransactionException as exception:
-
-                if isinstance(exception, fakebase_utils.InsufficientFundsException):
-                    self._made_illegal_transaction = True
-
-                if self.verbose:
-                    LOGGER.exception(exception)
-
-        if self.verbose:
-            _sigma_cholesky = np.array(copula_sigma_cholesky)
-            sigma = _sigma_cholesky.dot(_sigma_cholesky.T)
-            LOGGER.info( #pylint: disable=W1203
-                f"{num_transactions} / {max_transactions} {'post_only' if post_only else ''} {order_side} orders have " #pylint: disable=C0301
-                f'been placed using {total_percent_funds} of {available_funds} funds. The orders '
-                f'were drawn from a 2D Gaussian distribution with price_mean = '
-                f"{c.NORMALIZERS['PRICE'] * copula_mu[0]} and percent_funds_mean = "
-                f'{c.MAX_PERCENT_OF_FUNDS_TRANSACTED_PER_STEP * copula_mu[1]} '
-                f'and covariance matrix {sigma}.')
 
     @property
     def _results_queue_is_empty(self) -> bool:
@@ -389,52 +319,26 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
         self._cancel_expired_orders()
 
-        (transaction_buy,
-         transaction_percent_funds_mean,
-         transaction_post_only,
-         transaction_price_mean,
-         transaction_price_sigma_cholesky_00,
-         transaction_price_sigma_cholesky_10,
-         transaction_price_sigma_cholesky_11,
-         transaction_sell) = action[:c.NUM_ACTIONS]
+        transaction_buy, _transaction_none, _transaction_price, transaction_sell = action
 
-        max_transactions = np.argmax(action[c.NUM_ACTIONS:])
-
-        if self.verbose:
-            LOGGER.info(action)
-
-        transaction_percent_funds_mean = clamp_to_range(transaction_percent_funds_mean, 0.0, 1.0)
-        transaction_post_only = convert_to_bool(transaction_post_only)
-        transaction_price_mean = clamp_to_range(transaction_price_mean, 0.0, inf)
-        transaction_price_sigma_cholesky_00 = clamp_to_range(
-            transaction_price_sigma_cholesky_00, 0.0, inf)
-        transaction_price_sigma_cholesky_10 = transaction_price_sigma_cholesky_10
-        transaction_price_sigma_cholesky_11 = clamp_to_range(
-            transaction_price_sigma_cholesky_11, 0.0, inf)
+        transaction_price = abs(clamp_to_range(_transaction_price, 0.0, 1.0))
+        transaction_none = convert_to_bool(_transaction_none)
 
         available_usd = self.exchange.account.get_available_funds('USD')
         available_btc = self.exchange.account.get_available_funds('BTC')
 
-        if max_transactions > 0:
+        if self.verbose:
+            LOGGER.info(action)
+            LOGGER.info(  # pylint: disable=W1203
+                f'Available USD = {available_usd}. Available BTC = {available_btc}.')
 
+        if not transaction_none:
             order_side = 'buy' if (np.argmax([transaction_buy, transaction_sell]) == 0) else 'sell'
 
             self._make_transactions(available_btc,
                                     available_usd,
                                     order_side,
-                                    transaction_post_only,
-                                    max_transactions,
-                                    transaction_percent_funds_mean,
-                                    transaction_price_mean,
-                                    transaction_price_sigma_cholesky_00,
-                                    transaction_price_sigma_cholesky_10,
-                                    transaction_price_sigma_cholesky_11)
-
-        else:
-            if self.verbose:
-                LOGGER.info( #pylint: disable=W1203
-                    f'Placing no orders. Available USD = {available_usd}. '
-                    f'Available BTC = {available_btc}.')
+                                    transaction_price)
 
         self._exchange_step()
 
@@ -445,6 +349,8 @@ class MockEnvironment(Env): #pylint: disable=W0223
         state = self._get_state_from_buffer()
 
         reward = self._calculate_reward()
+
+        self._made_illegal_transaction = self._check_is_out_of_funds()
 
         if self.verbose:
             LOGGER.info(f'Shape of input = {[s.shape for s in state]}') #pylint: disable=W1203
