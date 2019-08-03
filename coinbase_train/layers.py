@@ -18,15 +18,15 @@ class AtrousConvolutionBlock:
         use_skip_connections (TYPE): Description
     """
     def __init__(
-            self, 
+            self,
             causal,
-            dilation_depth, 
-            nb_filters, 
-            nb_stacks, 
-            time_distributed, 
+            dilation_depth,
+            nb_filters,
+            nb_stacks,
+            time_distributed,
             use_skip_connections):
         """Summary
-        
+
         Args:
             causal (TYPE): Description
             dilation_depth (TYPE): Description
@@ -46,42 +46,42 @@ class AtrousConvolutionBlock:
 
     def __call__(self, input_tensor):
         """Summary
-        
+
         Args:
             input_tensor (tensorflow.Tensor): Description
-        
+
         Returns:
             tensorflow.Tensor: Description
         """
         skip_connections = []
 
         _output = self.Conv1D(
-            dilation_rate=1, 
-            filters=self.nb_filters, 
-            kernel_size=2, 
+            dilation_rate=1,
+            filters=self.nb_filters,
+            kernel_size=2,
             padding=self.padding,
             use_bias=True)(input_tensor)
 
         for _ in range(self.nb_stacks):
             for i in range(0, self.dilation_depth + 1):
-                
+
                 _output, skip_output = self._create_residual_block(
-                    dilation=2**i, 
-                    input_tensor=_output, 
+                    dilation=2**i,
+                    input_tensor=_output,
                     nb_filters=self.nb_filters)
-                
+
                 skip_connections.append(skip_output)
 
         return Add()(skip_connections) if self.use_skip_connections else _output
 
     def _create_residual_block(self, dilation, input_tensor, nb_filters):
         """Summary
-        
+
         Args:
             dilation (int): Description
             input_tensor (tf.Tensor): Description
             nb_filters (int): Description
-        
+
         Returns:
             Tuple[tf.Tensor, tf.Tensor]: Description
         """
@@ -89,31 +89,31 @@ class AtrousConvolutionBlock:
 
         tanh_out = self.Conv1D(
             activation='tanh',
-            dilation_rate=dilation, 
-            filters=nb_filters, 
-            kernel_size=2, 
+            dilation_rate=dilation,
+            filters=nb_filters,
+            kernel_size=2,
             padding=self.padding,
             use_bias=True)(input_tensor)
 
         sigmoid_out = self.Conv1D(
             activation='sigmoid',
-            dilation_rate=dilation, 
-            filters=nb_filters, 
-            kernel_size=2, 
+            dilation_rate=dilation,
+            filters=nb_filters,
+            kernel_size=2,
             padding=self.padding,
             use_bias=True)(input_tensor)
 
         gated_tensor = Multiply()([tanh_out, sigmoid_out])
 
         _resisudal = self.Conv1D(
-            filters=nb_filters, 
-            kernel_size=1, 
+            filters=nb_filters,
+            kernel_size=1,
             padding='same',
             use_bias=True)(gated_tensor)
 
         skip = self.Conv1D(
-            filters=nb_filters, 
-            kernel_size=1, 
+            filters=nb_filters,
+            kernel_size=1,
             padding='same',
             use_bias=True)(gated_tensor)
 
@@ -124,17 +124,17 @@ class AtrousConvolutionBlock:
 class Attention(Layer):
 
     """Summary
-    
+
     Attributes:
         attention_dim (int): Description
         b_w (tf.Tensor, optional): Description
         u_w (tf.Tensor, optional): Description
         W_w (tf.Tensor, optional): Description
     """
-    
+
     def __init__(self, attention_dim):
         """Summary
-        
+
         Args:
             attention_dim (int): Description
         """
@@ -148,11 +148,11 @@ class Attention(Layer):
     @staticmethod
     def _matmul(W, h): #pylint: disable=C0103
         """Summary
-        
+
         Args:
             W (tf.Tensor): Description
             h (tf.Tensor): Description
-        
+
         Returns:
             TYPE: Description
         """
@@ -160,24 +160,24 @@ class Attention(Layer):
 
     def build(self, input_shape):
         """Summary
-        
+
         Args:
             input_shape (Tuple[int]): Description
         """
         self.W_w = self.add_weight(
-            name='W_w', 
+            name='W_w',
             shape=(self.attention_dim, input_shape[-1]),
             initializer=tf.random_normal,
             trainable=True).value()
 
         self.b_w = self.add_weight(
-            name='b_w', 
+            name='b_w',
             shape=(self.attention_dim,),
             initializer=tf.random_normal,
             trainable=True).value()
 
         self.u_w = self.add_weight(
-            name='u_w', 
+            name='u_w',
             shape=(self.attention_dim, ),
             initializer=tf.random_normal,
             trainable=True).value()
@@ -186,10 +186,10 @@ class Attention(Layer):
 
     def call(self, h): #pylint: disable=W0221
         """Summary
-        
+
         Args:
             h (tf.Tensor): Description
-        
+
         Returns:
             tf.Tensor: Description
         """
@@ -197,7 +197,7 @@ class Attention(Layer):
 
         numerator = tf.reduce_sum(self.u_w * u, axis=-1)
 
-        denominator = tf.reduce_sum(tf.exp(numerator), axis=-1) 
+        denominator = tf.reduce_sum(tf.exp(numerator), axis=-1)
 
         alpha = tf.exp(numerator) / tf.expand_dims(denominator, axis=-1)
 
@@ -207,10 +207,10 @@ class Attention(Layer):
 
     def compute_output_shape(self, input_shape):
         """Summary
-        
+
         Args:
             input_shape (Tuple[int]): Description
-        
+
         Returns:
             Tuple[int]: Description
         """
@@ -218,7 +218,7 @@ class Attention(Layer):
 
     def get_config(self):
         """Summary
-        
+
         Returns:
             dict[str, int]: Description
         """
@@ -227,17 +227,17 @@ class Attention(Layer):
 class DenseBlock:
 
     """Summary
-    
+
     Attributes:
         Dense (TYPE): Description
         depth (int): Description
         time_distributed (bool): Description
         units (int): Description
     """
-    
+
     def __init__(self, depth, units, time_distributed=False):
         """Summary
-        
+
         Args:
             depth (int): Description
             units (int): Description
@@ -250,10 +250,10 @@ class DenseBlock:
 
     def __call__(self, input_tensor):
         """Summary
-        
+
         Args:
             input_tensor (tf.Tensor): Description
-        
+
         Returns:
             Union[tf.Tensor, TimeDistributed]: Description
         """
@@ -262,23 +262,23 @@ class DenseBlock:
         return compose(*layers)(input_tensor)
 
 class FullConvolutionBlock:
-    """Summary    
-    
+    """Summary
+
     Attributes:
         args (TYPE): Description
         depth (int): Description
         kwargs (TYPE): Description
         time_distributed (bool): Description
     """
-    
+
     def __init__(
             self,
-            depth: int,  
+            depth: int,
             time_distributed: bool = False,
             *args,
             **kwargs):
         """__init__ [summary]
-        
+
         Args:
             depth (int): [description]
             time_distributed (bool, optional): [description]
@@ -292,10 +292,10 @@ class FullConvolutionBlock:
 
     def __call__(self, input_tensor: tf.Tensor) -> Union[tf.Tensor, TimeDistributed]:
         """Summary
-        
+
         Args:
             input_tensor (tf.Tensor): Description
-        
+
         Returns:
             Union[tf.Tensor, TimeDistributed]: Description
         """
@@ -306,23 +306,23 @@ class FullConvolutionBlock:
         return compose(*layers)(input_tensor)
 
 class FullConvolutionBlock1D:
-    """Summary    
-    
+    """Summary
+
     Attributes:
         args (TYPE): Description
         depth (int): Description
         kwargs (TYPE): Description
         time_distributed (bool): Description
     """
-    
+
     def __init__(
             self,
-            depth: int,  
+            depth: int,
             time_distributed: bool = False,
             *args,
             **kwargs):
         """__init__ [summary]
-        
+
         Args:
             depth (int): [description]
             time_distributed (bool, optional): [description]
@@ -336,10 +336,10 @@ class FullConvolutionBlock1D:
 
     def __call__(self, input_tensor: tf.Tensor) -> Union[tf.Tensor, TimeDistributed]:
         """Summary
-        
+
         Args:
             input_tensor (tf.Tensor): Description
-        
+
         Returns:
             Union[tf.Tensor, TimeDistributed]: Description
         """
@@ -353,25 +353,28 @@ class InceptionModule:
     """Summary
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, leaky_relu_slope: float, *args, **kwargs):
         """
         __init__ [summary]
-        """        
+
+        Args:
+            leaky_relu_slope (float): [description]
+        """
         self._towers = [
             compose(
-                LeakyReLU(0.01),
+                LeakyReLU(leaky_relu_slope),
                 Conv1D(kernel_size=3, *args, **kwargs, padding='same'),
-                LeakyReLU(0.01),
+                LeakyReLU(leaky_relu_slope),
                 Conv1D(kernel_size=1, *args, **kwargs, padding='same')
             ),
             compose(
-                LeakyReLU(0.01),
+                LeakyReLU(leaky_relu_slope),
                 Conv1D(kernel_size=5, *args, **kwargs, padding='same'),
-                LeakyReLU(0.01),
+                LeakyReLU(leaky_relu_slope),
                 Conv1D(kernel_size=1, *args, **kwargs, padding='same')
             ),
             compose(
-                LeakyReLU(0.01),
+                LeakyReLU(leaky_relu_slope),
                 Conv1D(kernel_size=5, *args, **kwargs, padding='same'),
                 MaxPool1D(pool_size=1, padding='same'))]
 
@@ -389,11 +392,11 @@ class InceptionModule:
 
 def TDConv1D(*args, **kwargs): #pylint: disable=C0103
     """Summary
-    
+
     Args:
         *args: Description
         **kwargs: Description
-    
+
     Returns:
         TimeDistributed: Description
     """
@@ -401,11 +404,11 @@ def TDConv1D(*args, **kwargs): #pylint: disable=C0103
 
 def TDConv2D(*args, **kwargs): #pylint: disable=C0103
     """Summary
-    
+
     Args:
         *args: Description
         **kwargs: Description
-    
+
     Returns:
         TimeDistributed: Description
     """
@@ -413,11 +416,11 @@ def TDConv2D(*args, **kwargs): #pylint: disable=C0103
 
 def TDDense(*args, **kwargs):
     """Summary
-    
+
     Args:
         *args: Description
         **kwargs: Description
-    
+
     Returns:
         TimeDistributed: Description
     """

@@ -16,6 +16,7 @@ import tensorflow as tf
 
 from coinbase_train import constants as c
 from coinbase_train import layers as l
+from coinbase_train.utils import HyperParameters
 
 class ActorCriticModel:
     """
@@ -26,35 +27,27 @@ class ActorCriticModel:
         order_book (tf.Tensor): Description
         time_series (tf.Tensor): Description
     """
-    def __init__(self,
-                 attention_dim: int,
-                 depth: int,
-                 num_filters: int,
-                 num_stacks: int,
-                 num_time_steps: int, ):
-        """__init__ [summary]
+    def __init__(self, hyper_params: HyperParameters):
+        """
+        __init__ [summary]
 
         Args:
-            attention_dim (int): [description]
-            depth (int): [description]
-            num_filters (int): [description]
-            num_stacks (int): [description]
-            num_time_steps (int): [description]
+            hyper_params (HyperParameters): [description]
         """
         self.account_funds = Input(
             batch_shape=(None, 1, 4),
             name='account_funds')
 
         self.order_book = Input(
-            batch_shape=(None, num_time_steps, 4*c.ORDER_BOOK_DEPTH),
+            batch_shape=(None, hyper_params.num_time_steps, 4*c.ORDER_BOOK_DEPTH),
             name='order_book')
 
         self.time_series = Input(
-            batch_shape=(None, num_time_steps, c.NUM_CHANNELS_IN_TIME_SERIES),
+            batch_shape=(None, hyper_params.num_time_steps, c.NUM_CHANNELS_IN_TIME_SERIES),
             name='time_series')
 
-        self.actor = self._build_actor(attention_dim, depth, num_filters, num_stacks)
-        self.critic = self._build_critic(attention_dim, depth, num_filters, num_stacks)
+        self.actor = self._build_actor(hyper_params)
+        self.critic = self._build_critic(hyper_params)
 
     @staticmethod
     def _actor_output_activation(input_tensor: tf.Tensor) -> tf.Tensor:
@@ -88,42 +81,41 @@ class ActorCriticModel:
                               transaction_price,
                               transaction_sell])
 
-    def _build_actor(self,
-                     attention_dim: int,
-                     depth: int,
-                     num_filters: int,
-                     num_stacks: int) -> Model:
-        """Summary
+    def _build_actor(self, hyper_params: HyperParameters) -> Model:
+        """
+        _build_actor [summary]
 
         Args:
-            attention_dim (int): Description
-            depth (int): Description
-            num_filters (int): Description
-            num_stacks (int): Description
+            hyper_params (HyperParameters): [description]
 
         Returns:
-            Model: Description
+            Model: [description]
         """
         account_funds_branch = self._build_account_funds_tower(
-            depth=depth,
-            num_units=num_filters)(self.account_funds)
+            depth=hyper_params.account_funds_tower_depth,
+            num_units=hyper_params.account_funds_num_units
+        )(self.account_funds)
 
-        deep_lob_branch = self._build_deep_lob_tower(attention_dim=attention_dim
-            )(self.order_book)
+        deep_lob_branch = self._build_deep_lob_tower(
+            attention_dim=hyper_params.deep_lob_tower_attention_dim,
+            conv_block_num_filters=hyper_params.deep_lob_tower_conv_block_num_filters,
+            leaky_relu_slope=hyper_params.deep_lob_tower_leaky_relu_slope
+        )(self.order_book)
 
-        time_series_branch = self._build_time_series_tower(attention_dim=attention_dim,
-                                                           depth=depth,
-                                                           num_filters=num_filters,
-                                                           num_stacks=num_stacks
-                                                           )([deep_lob_branch, self.time_series])
+        time_series_branch = self._build_time_series_tower(
+            attention_dim=hyper_params.time_series_tower_attention_dim,
+            depth=hyper_params.time_series_tower_depth,
+            num_filters=hyper_params.time_series_tower_num_filters,
+            num_stacks=hyper_params.time_series_tower_num_stacks
+        )([deep_lob_branch, self.time_series])
 
         merged_output_branch = Concatenate(axis=-1)([account_funds_branch,
                                                      time_series_branch])
 
         output = compose(Lambda(self._actor_output_activation),
                          Dense(c.ACTOR_OUTPUT_DIMENSION),
-                         l.DenseBlock(depth=depth,
-                                      units=num_filters)
+                         l.DenseBlock(depth=hyper_params.output_tower_depth,
+                                      units=hyper_params.output_tower_num_units)
                         )(merged_output_branch)
 
         actor = Model(
@@ -133,36 +125,37 @@ class ActorCriticModel:
 
         return actor
 
-    def _build_critic(self,
-                      attention_dim: int,
-                      depth: int,
-                      num_filters: int,
-                      num_stacks: int) -> Model:
-        """Summary
+    def _build_critic(self, hyper_params: HyperParameters) -> Model:
+        """
+        _build_critic [summary]
 
         Args:
-            attention_dim (int): Description
-            depth (int): Description
-            num_filters (int): Description
-            num_stacks (int): Description
+            hyper_params (HyperParameters): [description]
 
         Returns:
-            Model: Description
+            Model: [description]
         """
         action_input = Input(
             batch_shape=(None, c.ACTOR_OUTPUT_DIMENSION),
             name='critic_action_input')
 
-        account_funds_branch = self._build_account_funds_tower(depth=depth,
-                                                               num_units=num_filters)(self.account_funds)
+        account_funds_branch = self._build_account_funds_tower(
+            depth=hyper_params.account_funds_tower_depth,
+            num_units=hyper_params.account_funds_num_units
+            )(self.account_funds)
 
-        deep_lob_branch = self._build_deep_lob_tower(attention_dim=attention_dim)(self.order_book)
+        deep_lob_branch = self._build_deep_lob_tower(
+            attention_dim=hyper_params.deep_lob_tower_attention_dim,
+            conv_block_num_filters=hyper_params.deep_lob_tower_conv_block_num_filters,
+            leaky_relu_slope=hyper_params.deep_lob_tower_leaky_relu_slope
+            )(self.order_book)
 
-        time_series_branch = self._build_time_series_tower(attention_dim=attention_dim,
-                                                           depth=depth,
-                                                           num_filters=num_filters,
-                                                           num_stacks=num_stacks
-                                                           )([deep_lob_branch, self.time_series])
+        time_series_branch = self._build_time_series_tower(
+            attention_dim=hyper_params.time_series_tower_attention_dim,
+            depth=hyper_params.time_series_tower_depth,
+            num_filters=hyper_params.time_series_tower_num_filters,
+            num_stacks=hyper_params.time_series_tower_num_stacks
+        )([deep_lob_branch, self.time_series])
 
         merged_output_branch = Concatenate(axis=-1)([action_input,
                                                      account_funds_branch,
@@ -170,8 +163,8 @@ class ActorCriticModel:
 
         output = compose(
             Dense(1),
-            l.DenseBlock(depth=depth,
-                         units=num_filters)
+            l.DenseBlock(depth=hyper_params.output_tower_depth,
+                         units=hyper_params.output_tower_num_units)
             )(merged_output_branch)
 
         critic = Model(
@@ -201,45 +194,54 @@ class ActorCriticModel:
                 units=num_units),
             Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1)))
 
-    def _build_deep_lob_tower(self, attention_dim: int) -> Callable[[tf.Tensor], tf.Tensor]:
+    def _build_deep_lob_tower(
+            self,
+            attention_dim: int,
+            conv_block_num_filters: int,
+            leaky_relu_slope: float
+            ) -> Callable[[tf.Tensor], tf.Tensor]:
         """
-        _build_deep_lob_branch [summary]
+        _build_deep_lob_tower [summary]
 
         Args:
             attention_dim (int): [description]
+            conv_block_num_filters (int): [description]
+            leaky_relu_slope (float): [description]
 
         Returns:
             Callable[[tf.Tensor], tf.Tensor]: [description]
         """
-        return compose(l.InceptionModule(filters=32),
-                       LeakyReLU(0.01),
+        return compose(l.InceptionModule(
+                           filters=32,
+                           leaky_relu_slope=leaky_relu_slope),
+                       LeakyReLU(leaky_relu_slope),
                        l.FullConvolutionBlock1D(
                            depth=2,
-                           filters=16,
+                           filters=conv_block_num_filters,
                            kernel_size=4,
                            padding='same'),
                        l.Attention(attention_dim=attention_dim),
-                       LeakyReLU(0.01),
+                       LeakyReLU(leaky_relu_slope),
                        l.FullConvolutionBlock(
                            depth=2,
-                           filters=16,
+                           filters=conv_block_num_filters,
                            kernel_size=(4, 1),
                            padding='same'),
-                       LeakyReLU(0.01),
+                       LeakyReLU(leaky_relu_slope),
                        Conv2D(
-                           filters=16,
+                           filters=conv_block_num_filters,
                            kernel_size=(1, 2),
                            padding='same',
                            strides=(1, 2)),
-                       LeakyReLU(0.01),
+                       LeakyReLU(leaky_relu_slope),
                        l.FullConvolutionBlock(
                            depth=2,
-                           filters=16,
+                           filters=conv_block_num_filters,
                            kernel_size=(4, 1),
                            padding='same'),
-                       LeakyReLU(0.01),
+                       LeakyReLU(leaky_relu_slope),
                        Conv2D(
-                           filters=16,
+                           filters=conv_block_num_filters,
                            kernel_size=(1, 2),
                            padding='same',
                            strides=(1, 2)),
