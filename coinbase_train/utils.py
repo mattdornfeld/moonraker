@@ -166,6 +166,7 @@ class EnvironmentConfigs(NamedTuple):
     initial_btc: Decimal
     num_episodes: int
     num_warmup_time_steps: int
+    reward_strategy_name: str
     start_dt: datetime
     time_delta: timedelta
 

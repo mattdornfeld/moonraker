@@ -13,7 +13,7 @@ variables:
 
 # YAML Anchors
 .create_credentials_ini_file: &create_credentials_ini_file |
-  cat << EOF > gitlab_credentials.ini 
+  cat << EOF > gitlab_credentials.ini
   [CREDENTIALS]
   GITLAB_PASSWORD = $CI_TOKEN
   GITLAB_USERNAME = $CI_USERNAME
@@ -31,10 +31,10 @@ increment_version:increment_version:
 
 build:build_gpu_image:
   extends: .build_image
-      
+
   before_script:
     - *create_credentials_ini_file
-  
+
   stage: build
 
   variables:
@@ -44,10 +44,10 @@ build:build_gpu_image:
 
 build:build_cpu_image:
   extends: .build_image
-      
+
   before_script:
     - *create_credentials_ini_file
-  
+
   stage: build
 
   variables:
@@ -80,4 +80,3 @@ deploy:delete_coinbase_train_from_staging:
     action: stop
 
   extends: .delete_helm_release
-  

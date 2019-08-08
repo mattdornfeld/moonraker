@@ -1,15 +1,13 @@
 # syntax=docker/dockerfile:1.0.0-experimental
-FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04 
+FROM registry.gitlab.com/moonraker/base_images/python_gpu:0.1.0-b48168abce54ba7faf1b0b5ddbb745078f916e34
 
-ENV LANG=C.UTF-8 PYTHONPATH=/app
+ENV PYTHONPATH=/app
 
-RUN apt-get update && \
-	apt-get install python3-pip git libgomp1 -y && \
-	mkdir app /var/log/sacred_tensorboard /var/moonraker_models
+RUN mkdir /var/log/sacred_tensorboard /var/moonraker_models
 
 ADD ./ /app
 
 WORKDIR /app
 
-RUN --mount=type=secret,id=gitlab_credentials.ini \ 
+RUN --mount=type=secret,id=gitlab_credentials.ini \
 	python3 setup.py install --gpu
