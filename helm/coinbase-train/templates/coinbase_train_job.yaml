@@ -25,7 +25,11 @@ spec:
       containers:
       - name: coinbase-train
 
-        command: ['python3', 'coinbase_train/train.py']
+        command: 
+          - 'python3'
+          - 'coinbase_train/train.py'
+          - 'with'
+          - 'staging'
 
         env:
           - name: MONGO_INITDB_ROOT_PASSWORD
