@@ -13,9 +13,9 @@ from rl.random import OrnsteinUhlenbeckProcess
 from sacred.run import Run
 
 from coinbase_train import constants as c
-from coinbase_train import utils
+from coinbase_train import reward, utils
 from coinbase_train.callbacks import TrainLogger
-from coinbase_train.environment import MockEnvironment
+from coinbase_train.environment import Environment
 from coinbase_train.experiment import ex
 from coinbase_train.layers import Attention
 from coinbase_train.model import ActorCriticModel
@@ -83,13 +83,16 @@ def build_and_train(
     """
     model = ActorCriticModel(hyper_params)
 
-    train_environment = MockEnvironment(
+    RewardStrategy = reward.__dict__[train_environment_configs.reward_strategy_name]
+
+    train_environment = Environment(
         end_dt=train_environment_configs.end_dt,
         initial_usd=train_environment_configs.initial_usd,
         initial_btc=train_environment_configs.initial_btc,
         num_workers=c.NUM_DATABASE_WORKERS,
         num_time_steps=hyper_params.num_time_steps,
         num_warmup_time_steps=train_environment_configs.num_warmup_time_steps,
+        reward_strategy=RewardStrategy(),
         start_dt=train_environment_configs.start_dt,
         time_delta=train_environment_configs.time_delta,
         verbose=c.VERBOSE)
@@ -110,10 +113,10 @@ def build_and_train(
     history = agent.fit(
         callbacks=callbacks,
         env=train_environment,
-        log_interval=10,
+        log_interval=1,
         nb_max_episode_steps=nb_max_episode_steps,
         nb_steps=train_environment_configs.num_episodes * nb_max_episode_steps,
-        verbose=2)
+        verbose=1)
 
     callbacks.append(history)
 
@@ -133,13 +136,16 @@ def evaluate_agent(
     Returns:
         Callback: Description
     """
-    test_environment = MockEnvironment(
+    RewardStrategy = reward.__dict__[test_environment_configs.reward_strategy_name]
+
+    test_environment = Environment(
         end_dt=test_environment_configs.end_dt,
         initial_btc=test_environment_configs.initial_btc,
         initial_usd=test_environment_configs.initial_usd,
         num_time_steps=hyper_params.num_time_steps,
         num_warmup_time_steps=test_environment_configs.num_warmup_time_steps,
         num_workers=c.NUM_DATABASE_WORKERS,
+        reward_strategy=RewardStrategy(),
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta,
         verbose=c.VERBOSE)

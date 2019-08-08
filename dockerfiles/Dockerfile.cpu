@@ -1,15 +1,13 @@
 # syntax=docker/dockerfile:1.0.0-experimental
-FROM python:3.6
-
-RUN apt-get update && \
-	apt-get install git -y && \
-	mkdir app /var/log/sacred_tensorboard /var/moonraker_models
+FROM registry.gitlab.com/moonraker/base_images/python_cpu:0.1.0-b48168abce54ba7faf1b0b5ddbb745078f916e34
 
 ENV PYTHONPATH=/app
+
+RUN mkdir /var/log/sacred_tensorboard /var/moonraker_models
 
 ADD ./ /app
 
 WORKDIR /app
 
-RUN --mount=type=secret,id=gitlab_credentials.ini \ 
+RUN --mount=type=secret,id=gitlab_credentials.ini \
 	python3 setup.py install

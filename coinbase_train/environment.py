@@ -14,12 +14,13 @@ from fakebase.mock_auth_client import MockAuthenticatedClient
 
 from coinbase_train import constants as c
 from coinbase_train.exchange import Exchange
+from coinbase_train.reward import BaseRewardStrategy
 from coinbase_train.utils import (clamp_to_range, convert_to_bool, pad_to_length,
                                   EnvironmentFinishedException)
 
 LOGGER = logging.getLogger(__name__)
 
-class MockEnvironment(Env): #pylint: disable=W0223
+class Environment(Env): #pylint: disable=W0223
 
     """Summary
 
@@ -40,6 +41,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
                  initial_btc: Decimal,
                  num_time_steps: int,
                  num_workers: int,
+                 reward_strategy: BaseRewardStrategy,
                  start_dt: datetime,
                  time_delta: timedelta,
                  verbose: bool = False,
@@ -52,6 +54,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
             initial_btc (Decimal): Description
             num_time_steps (int): Description
             num_workers (int): Description
+            reward_strategy (BaseRewardStrategy): Description
             start_dt (datetime): Description
             time_delta (timedelta): Description
             verbose (bool, optional): Description
@@ -61,6 +64,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
         self._closing_price = 0.0
         self._made_illegal_transaction = False
         self._num_warmup_time_steps = num_warmup_time_steps
+        self._reward_strategy = reward_strategy
         self.auth_client: Optional[MockAuthenticatedClient] = None
         self.end_dt = end_dt
         self.exchange: Optional[Exchange] = None
@@ -72,33 +76,6 @@ class MockEnvironment(Env): #pylint: disable=W0223
         self.verbose = verbose
 
         self.reset()
-
-    def _calculate_reward(self) -> float:
-        """Change in total value of walllet in USD
-
-        Returns:
-            float: reward
-        """
-        funds = self._buffer[-1]['account_funds']
-        old_funds = self._buffer[-2]['account_funds']
-
-        usd = funds[0, 0] + funds[0, 1]
-        old_usd = old_funds[0, 0] + old_funds[0, 1]
-        delta_usd = usd - old_usd
-
-        old_closing_price = self._closing_price
-
-        self._update_closing_price()
-
-        btc = funds[0, 2] + funds[0, 3]
-        old_btc = old_funds[0, 2] + old_funds[0, 3]
-        delta_btc_value = self._closing_price * btc - old_closing_price * old_btc
-
-        delta_value = delta_usd + delta_btc_value
-
-        return (-c.ILLEGAL_TRANSACTION_PENALTY if
-                self._made_illegal_transaction else
-                delta_value)
 
     def _cancel_expired_orders(self) -> None:
         """
@@ -166,12 +143,6 @@ class MockEnvironment(Env): #pylint: disable=W0223
                 _order_book[-1] += [ps, vs, pb, vb]
 
         return np.array(_order_book)
-
-    def _update_closing_price(self) -> None:
-        """Summary
-        """
-        if self._buffer[-1]['closing_price'] is not None:
-            self._closing_price = float(self._buffer[-1]['closing_price'])
 
     def _get_state_from_buffer(self) -> List[np.ndarray]:
         """Summary
@@ -291,7 +262,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
         state = self._get_state_from_buffer()
 
-        self._update_closing_price()
+        self._reward_strategy.reset()
 
         if self.verbose:
             LOGGER.info('Environment reset.')
@@ -347,7 +318,7 @@ class MockEnvironment(Env): #pylint: disable=W0223
 
         state = self._get_state_from_buffer()
 
-        reward = self._calculate_reward()
+        reward = self._reward_strategy.calculate_reward(self._buffer)
 
         self._made_illegal_transaction = self._check_is_out_of_funds()
 

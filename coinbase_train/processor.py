@@ -27,7 +27,7 @@ class CoinbaseEnvironmentProcessor(Processor):
 
         batched_order_books = np.vstack([np.expand_dims(a[0][1], axis=0) for a in batch])
 
-        batched_time_series = np.vstack([np.expand_dims(array, axis=0) for 
+        batched_time_series = np.vstack([np.expand_dims(array, axis=0) for
                                          array in [a[0][2] for a in batch]])
 
         return [batched_account_funds,

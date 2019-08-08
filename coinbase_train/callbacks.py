@@ -4,11 +4,10 @@ from keras import backend as K
 from rl.callbacks import Callback
 import tensorflow as tf
 
-
 class TrainLogger(Callback):
 
     """Summary
-    
+
     Attributes:
         episode_metrics (List[Dict[str, float]]): Description
         episode_rewards (List[float]): Description
@@ -19,10 +18,10 @@ class TrainLogger(Callback):
         sess (tensorflow.python.client.session.Session): Description
         tensorboard_dir (pathlib.Path): Description
     """
-    
+
     def __init__(self, sacred_experiment, tensorboard_dir):
         """Summary
-        
+
         Args:
             sacred_experiment (sacred.Experiment): Description
             tensorboard_dir (pathlib.Path): Description
@@ -34,11 +33,11 @@ class TrainLogger(Callback):
     @staticmethod
     def _create_tensorboard_summary(name, value):
         """Summary
-        
+
         Args:
             name (str): Description
             value (float): Description
-        
+
         Returns:
             tf.Summary: Description
         """
@@ -51,7 +50,7 @@ class TrainLogger(Callback):
 
     def on_train_begin(self, logs={}): #pylint: disable=W0102
         """Summary
-        
+
         Args:
             logs (dict, optional): Description
         """
@@ -64,7 +63,7 @@ class TrainLogger(Callback):
 
     def on_step_end(self, step, logs={}): #pylint: disable=W0102
         """Summary
-        
+
         Args:
             step (int): Description
             logs (dict, optional): Description
@@ -73,7 +72,7 @@ class TrainLogger(Callback):
 
     def on_episode_end(self, episode, logs={}): #pylint: disable=W0102
         """Summary
-        
+
         Args:
             episode (int): Description
             logs (dict, optional): Description
@@ -85,25 +84,25 @@ class TrainLogger(Callback):
             _metric_name = f'train_{metric_name}'
 
             metric = self.episode_metrics[-1][i]
-            
+
             self.sacred_experiment.log_scalar(_metric_name, float(metric))
-            
+
             summary = self._create_tensorboard_summary(name=metric_name, value=metric)
-            
+
             self.file_writer.add_summary(summary, episode)
 
         self.sacred_experiment.log_scalar('train_reward', self.episode_rewards[-1])
-        
+
         summary = self._create_tensorboard_summary(
             name='train_reward', value=self.episode_rewards[-1])
-        
+
         self.file_writer.add_summary(summary, episode)
-        
+
         self.file_writer.flush()
 
     def on_train_end(self, logs={}): #pylint: disable=W0102
         """Summary
-        
+
         Args:
             logs (dict, optional): Description
         """

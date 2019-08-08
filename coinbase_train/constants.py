@@ -34,7 +34,7 @@ ORDER_BOOK_DEPTH = 10
 ORDER_TIME_TO_LIVE = timedelta(minutes=0.5)
 PRODUCT_ID = 'BTC-USD'
 PRODUCT_CURRENCY, QUOTE_CURRENCY = PRODUCT_ID.split('-')
-VERBOSE = True
+VERBOSE = False
 
 #logging configs
 SAVED_MODELS_ROOT_DIR = '/var/moonraker_models'
