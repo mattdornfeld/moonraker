@@ -36,9 +36,9 @@ def config():
         time_series_tower_num_filters=16,
         time_series_tower_num_stacks=1)
 
-    reward_strategy_name = 'CalmarRewardStrategy'  # pylint: disable=W0612
-    initial_btc = 1.0
-    initial_usd = 1000.0
+    reward_strategy_name = 'ProfitRewardStrategy'  # pylint: disable=W0612
+    initial_btc = '1.000000'
+    initial_usd = '1000.00'
     num_warmup_time_steps = 3
     time_delta = timedelta(seconds=30)
 
@@ -87,8 +87,8 @@ def staging():
         time_series_tower_num_stacks=1)
 
     reward_strategy_name = 'ProfitRewardStrategy'  # pylint: disable=W0612
-    initial_btc = 1.0
-    initial_usd = 1000.0
+    initial_btc = '1.000000'
+    initial_usd = '1000.00'
     num_warmup_time_steps = 100
     time_delta = timedelta(seconds=30)
 

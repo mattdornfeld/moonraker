@@ -1,6 +1,7 @@
 """Summary
 """
-from collections import deque
+from collections import deque as Deque
+from copy import deepcopy
 from datetime import datetime, timedelta
 from decimal import Decimal
 from funcy import compose, partial, rpartial
@@ -62,11 +63,12 @@ class Environment(Env): #pylint: disable=W0223
             verbose (bool, optional): Description
             num_warmup_time_steps (Optional[int], optional): defaults to num_time_steps
         """
-        self._buffer: deque = deque(maxlen=num_time_steps) #pylint: disable=C0301
+        self._buffer: Deque = Deque(maxlen=num_time_steps) #pylint: disable=C0301
         self._closing_price = 0.0
         self._made_illegal_transaction = False
         self._num_warmup_time_steps = num_warmup_time_steps
         self._reward_strategy = reward_strategy
+        self._warmed_up_buffer: Deque = Deque(maxlen=num_time_steps) #pylint: disable=C0301
         self.auth_client: Optional[MockAuthenticatedClient] = None
         self.end_dt = end_dt
         self.exchange: Optional[Exchange] = None
@@ -260,6 +262,8 @@ class Environment(Env): #pylint: disable=W0223
 
             self._buffer.append(state)
 
+        self._warmed_up_buffer = deepcopy(self._buffer)
+
     def close(self) -> None:
         """Summary
         """
@@ -299,6 +303,7 @@ class Environment(Env): #pylint: disable=W0223
             self.exchange.stop_database_workers()
             self.exchange = self._exchange_checkpoint.restore()
             self.auth_client = MockAuthenticatedClient(self.exchange)
+            self._buffer = deepcopy(self._warmed_up_buffer)
 
         self._made_illegal_transaction = False
 
@@ -326,6 +331,7 @@ class Environment(Env): #pylint: disable=W0223
         if self.episode_finished:
             raise EnvironmentFinishedException
 
+        print(self.exchange.account.__dict__['funds'])
         self._cancel_expired_orders()
 
         transaction_buy, transaction_none, normalized_price, _ = action
