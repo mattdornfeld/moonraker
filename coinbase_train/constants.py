@@ -24,7 +24,7 @@ import os
 
 ACTOR_OUTPUT_DIMENSION = 4
 ILLEGAL_TRANSACTION_PENALTY = 1e3 #should be positive
-MAX_PRICE = Decimal('13000.00')
+MAX_PRICE = 13000.00
 NORMALIZERS = dict(BTC_FUNDS=1e1, PRICE=10e3, SIZE=1e2, USD_FUNDS=100e3)
 BUY_RESERVE_FRACTION = Decimal('0.005') # Whenever a buy order is placed leave this amount of funds in reserve
 NUM_DATABASE_WORKERS = 3

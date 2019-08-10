@@ -3,7 +3,9 @@
 from collections import deque
 from datetime import datetime, timedelta
 from decimal import Decimal
+from funcy import compose, partial, rpartial
 import logging
+from math import inf
 from typing import Dict, List, Tuple, Optional
 
 import numpy as np
@@ -76,6 +78,52 @@ class Environment(Env): #pylint: disable=W0223
         self.verbose = verbose
 
         self.reset()
+
+    @staticmethod
+    def _calc_transaction_price(normalized_transaction_price: float) -> Decimal:
+        """
+        _calc_transaction_price [summary]
+
+        Args:
+            normalized_transaction_price (float): [description]
+
+        Returns:
+            Decimal: [description]
+        """
+        min_value = fakebase_utils.get_currency_min_value(c.QUOTE_CURRENCY)
+
+        return compose(
+            partial(fakebase_utils.round_to_currency_precision, c.QUOTE_CURRENCY),
+            Decimal,
+            str,
+            rpartial(clamp_to_range, min_value, inf),
+            lambda price: c.MAX_PRICE * price,
+            rpartial(clamp_to_range, 0.0, 1.0)
+        )(normalized_transaction_price)
+
+    @staticmethod
+    def _calc_transaction_size(
+            available_btc: Decimal,
+            available_usd: Decimal,
+            is_buy: bool,
+            transaction_price: Decimal) -> Decimal:
+        """
+        _calc_transaction_size [summary]
+
+        Args:
+            available_btc (Decimal): [description]
+            available_usd (Decimal): [description]
+            is_buy (bool): [description]
+            transaction_price (Decimal): [description]
+
+        Returns:
+            Decimal: [description]
+        """
+        transaction_size = (available_usd * (1 - c.BUY_RESERVE_FRACTION) / transaction_price if
+                            is_buy else
+                            available_btc)
+
+        return fakebase_utils.round_to_currency_precision(c.PRODUCT_CURRENCY, transaction_size)
 
     def _cancel_expired_orders(self) -> None:
         """
@@ -162,26 +210,20 @@ class Environment(Env): #pylint: disable=W0223
         return [account_funds, order_book, time_series]
 
     def _make_transactions(self,
-                           available_btc: Decimal,
-                           available_usd: Decimal,
                            order_side: str,
-                           transaction_price: Decimal) -> None:
+                           transaction_price: Decimal,
+                           transaction_size: Decimal) -> None:
         """
         _make_transactions [summary]
 
         Args:
-            available_btc (Decimal): [description]
-            available_usd (Decimal): [description]
             order_side (str): [description]
             transaction_price (Decimal): [description]
+            transaction_size (Decimal): [description]
 
         Returns:
             None: [description]
         """
-        transaction_size = (available_usd * (1 - c.BUY_RESERVE_FRACTION) / transaction_price if
-                            order_side == 'buy' else
-                            available_btc)
-
         try:
             self.auth_client.place_limit_order(
                 product_id=c.PRODUCT_ID,
@@ -194,7 +236,6 @@ class Environment(Env): #pylint: disable=W0223
         except fakebase_utils.IllegalTransactionException as exception:
             if self.verbose:
                 LOGGER.exception(exception)
-
 
     @property
     def _results_queue_is_empty(self) -> bool:
@@ -286,13 +327,7 @@ class Environment(Env): #pylint: disable=W0223
 
         self._cancel_expired_orders()
 
-        transaction_buy, _transaction_none, __transaction_price, transaction_sell = action
-
-        _transaction_price = abs(clamp_to_range(__transaction_price, 0.0, 1.0))
-        transaction_price = fakebase_utils.round_to_currency_precision(
-            currency=c.QUOTE_CURRENCY,
-            value=c.MAX_PRICE * Decimal(str(_transaction_price + 1e-10)))
-        transaction_none = convert_to_bool(_transaction_none)
+        transaction_buy, transaction_none, normalized_price, _ = action
 
         available_usd = self.exchange.account.get_available_funds('USD')
         available_btc = self.exchange.account.get_available_funds('BTC')
@@ -302,13 +337,24 @@ class Environment(Env): #pylint: disable=W0223
             LOGGER.info(  # pylint: disable=W1203
                 f'Available USD = {available_usd}. Available BTC = {available_btc}.')
 
-        if not transaction_none:
-            order_side = 'buy' if (np.argmax([transaction_buy, transaction_sell]) == 0) else 'sell'
+        no_transaction = convert_to_bool(transaction_none)
 
-            self._make_transactions(available_btc,
-                                    available_usd,
-                                    order_side,
-                                    transaction_price)
+        if not no_transaction:
+            is_buy = convert_to_bool(transaction_buy)
+
+            order_side = 'buy' if is_buy else 'sell'
+
+            transaction_price = self._calc_transaction_price(normalized_price)
+
+            transaction_size = self._calc_transaction_size(
+                available_btc,
+                available_usd,
+                is_buy,
+                transaction_price)
+
+            self._make_transactions(order_side,
+                                    transaction_price,
+                                    transaction_size)
 
         self._exchange_step()
 
