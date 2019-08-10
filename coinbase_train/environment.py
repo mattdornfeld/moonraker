@@ -288,16 +288,17 @@ class Environment(Env): #pylint: disable=W0223
                                      start_dt=self.start_dt,
                                      time_delta=self.time_delta)
 
+            self.auth_client = MockAuthenticatedClient(self.exchange)
+            self.auth_client.deposit(currency=c.QUOTE_CURRENCY, amount=self.initial_usd)
+            self.auth_client.deposit(currency=c.PRODUCT_CURRENCY, amount=self.initial_btc)
+
             self._warmup()
             self._exchange_checkpoint = self.exchange.create_checkpoint()
 
         else:
             self.exchange.stop_database_workers()
             self.exchange = self._exchange_checkpoint.restore()
-
-        self.auth_client = MockAuthenticatedClient(self.exchange)
-        self.auth_client.deposit(currency='USD', amount=self.initial_usd)
-        self.auth_client.deposit(currency='BTC', amount=self.initial_btc)
+            self.auth_client = MockAuthenticatedClient(self.exchange)
 
         self._made_illegal_transaction = False
 
