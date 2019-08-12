@@ -147,7 +147,7 @@ def evaluate_agent(
         num_time_steps=hyper_params.num_time_steps,
         num_warmup_time_steps=test_environment_configs.num_warmup_time_steps,
         num_workers=c.NUM_DATABASE_WORKERS,
-        reward_strategy=RewardStrategy(),
+        reward_strategy=RewardStrategy,
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta,
         verbose=c.VERBOSE)
