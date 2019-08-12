@@ -1,9 +1,6 @@
 """Summary
 """
 import logging
-from numpy.random import seed
-
-seed(353523591)
 
 logging.basicConfig(
     level=logging.INFO,
