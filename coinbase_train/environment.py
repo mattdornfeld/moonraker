@@ -4,11 +4,11 @@ from collections import deque as Deque
 from copy import deepcopy
 from datetime import datetime, timedelta
 from decimal import Decimal
-from funcy import compose, partial, rpartial
 import logging
 from math import inf
 from typing import Dict, List, Tuple, Optional
 
+from funcy import compose, partial, rpartial
 import numpy as np
 from rl.core import Env
 
@@ -63,11 +63,11 @@ class Environment(Env): #pylint: disable=W0223
             verbose (bool, optional): Description
             num_warmup_time_steps (Optional[int], optional): defaults to num_time_steps
         """
-        self._buffer: Deque = Deque(maxlen=num_time_steps) #pylint: disable=C0301
+        self._state_buffer: Deque = Deque(maxlen=num_time_steps) #pylint: disable=C0301
         self._closing_price = 0.0
         self._made_illegal_transaction = False
         self._num_warmup_time_steps = num_warmup_time_steps
-        self._reward_strategy = reward_strategy
+        self._reward_strategy = reward_strategy()
         self._warmed_up_buffer: Deque = Deque(maxlen=num_time_steps) #pylint: disable=C0301
         self.auth_client: Optional[MockAuthenticatedClient] = None
         self.end_dt = end_dt
@@ -178,7 +178,7 @@ class Environment(Env): #pylint: disable=W0223
             np.ndarray: Description
         """
         _order_book: List[List[float]] = []
-        for state in self._buffer:
+        for state in self._state_buffer:
             buy_order_book = (pad_to_length(state['buy_order_book'], order_book_depth)
                               if len(state['buy_order_book']) < order_book_depth else
                               state['buy_order_book'])
@@ -200,14 +200,14 @@ class Environment(Env): #pylint: disable=W0223
         Returns:
             List[np.ndarray]: Description
         """
-        account_funds = self._buffer[-1]['account_funds']
+        account_funds = self._state_buffer[-1]['account_funds']
 
         order_book = self._form_order_book_array(c.ORDER_BOOK_DEPTH)
 
         time_series = np.array([np.hstack((state_at_time['cancellation_statistics'],
                                            state_at_time['order_statistics'],
                                            state_at_time['match_statistics']))
-                                for state_at_time in self._buffer]).astype(float)
+                                for state_at_time in self._state_buffer]).astype(float)
 
         return [account_funds, order_book, time_series]
 
@@ -251,8 +251,8 @@ class Environment(Env): #pylint: disable=W0223
     def _warmup(self) -> None:
         """Summary
         """
-        while len(self._buffer) > 0:
-            self._buffer.pop()
+        while len(self._state_buffer) > 0:
+            self._state_buffer.pop()
 
         for _ in range(self._num_warmup_time_steps):
 
@@ -260,9 +260,9 @@ class Environment(Env): #pylint: disable=W0223
 
             state = self.exchange.get_exchange_state_as_arrays()
 
-            self._buffer.append(state)
+            self._state_buffer.append(state)
 
-        self._warmed_up_buffer = deepcopy(self._buffer)
+        self._warmed_up_buffer = deepcopy(self._state_buffer)
 
     def close(self) -> None:
         """Summary
@@ -303,7 +303,7 @@ class Environment(Env): #pylint: disable=W0223
             self.exchange.stop_database_workers()
             self.exchange = self._exchange_checkpoint.restore()
             self.auth_client = MockAuthenticatedClient(self.exchange)
-            self._buffer = deepcopy(self._warmed_up_buffer)
+            self._state_buffer = deepcopy(self._warmed_up_buffer)
 
         self._made_illegal_transaction = False
 
@@ -331,7 +331,6 @@ class Environment(Env): #pylint: disable=W0223
         if self.episode_finished:
             raise EnvironmentFinishedException
 
-        print(self.exchange.account.__dict__['funds'])
         self._cancel_expired_orders()
 
         transaction_buy, transaction_none, normalized_price, _ = action
@@ -367,11 +366,11 @@ class Environment(Env): #pylint: disable=W0223
 
         exchange_state = self.exchange.get_exchange_state_as_arrays()
 
-        self._buffer.append(exchange_state)
+        self._state_buffer.append(exchange_state)
 
         state = self._get_state_from_buffer()
 
-        reward = self._reward_strategy.calculate_reward(self._buffer)
+        reward = self._reward_strategy.calculate_reward(self._state_buffer)
 
         self._made_illegal_transaction = self._check_is_out_of_funds()
 

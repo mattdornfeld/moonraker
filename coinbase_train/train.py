@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from keras import Model
-from keras.optimizers import Adam as Optimizer
+from keras import optimizers
 from rl.agents import DDPGAgent
 from rl.callbacks import Callback
 from rl.memory import SequentialMemory
@@ -63,7 +63,9 @@ def create_agent(actor: Model,
         processor=processor,
         random_process=random_process)
 
-    agent.compile(Optimizer(lr=hyper_params.learning_rate, clipnorm=0.1))
+    optimizer = optimizers.__dict__[hyper_params.optimizer_name]
+
+    agent.compile(optimizer(lr=hyper_params.learning_rate, clipnorm=0.1))
 
     return agent
 
@@ -92,7 +94,7 @@ def build_and_train(
         num_workers=c.NUM_DATABASE_WORKERS,
         num_time_steps=hyper_params.num_time_steps,
         num_warmup_time_steps=train_environment_configs.num_warmup_time_steps,
-        reward_strategy=RewardStrategy(),
+        reward_strategy=RewardStrategy,
         start_dt=train_environment_configs.start_dt,
         time_delta=train_environment_configs.time_delta,
         verbose=c.VERBOSE)

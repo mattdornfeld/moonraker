@@ -204,6 +204,7 @@ class HyperParameters(NamedTuple):
     discount_factor: float
     learning_rate: float
     num_time_steps: int
+    optimizer_name: str
     output_tower_depth: int
     output_tower_num_units: int
     time_series_tower_attention_dim: int

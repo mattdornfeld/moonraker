@@ -9,7 +9,7 @@ stages:
   - deploy
 
 variables:
-  RELEASE_NAME: coinbase-train
+  RELEASE_NAME: coinbase-btc-usd
 
 # YAML Anchors
 .create_credentials_ini_file: &create_credentials_ini_file |

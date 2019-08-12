@@ -9,22 +9,22 @@ class BaseRewardStrategy:
     """
     [summary]
     """
-
     @staticmethod
-    def _calc_mid_price(state_buffer: Deque, time_steps_in_the_past: int) -> float:
+    def _calc_mid_price(state_buffer: Deque, time_index: int) -> float:
         """
-        _get_mid_price calculates average of best and best bid price
+        _calc_mid_price [summary]
 
         Args:
-            time_steps_in_the_past (int): [description]
+            state_buffer (Deque): [description]
+            time_index (int): [description]
 
         Returns:
             float: [description]
         """
         best_ask_price = c.NORMALIZERS['PRICE'] * \
-            state_buffer[-time_steps_in_the_past]['sell_order_book'][0][0]
+            state_buffer[time_index]['sell_order_book'][0][0]
         best_bid_price = c.NORMALIZERS['PRICE'] * \
-            state_buffer[-time_steps_in_the_past]['buy_order_book'][-1][0]
+            state_buffer[time_index]['buy_order_book'][-1][0]
 
         return (best_ask_price + best_bid_price) / 2
 
@@ -64,7 +64,7 @@ class BaseRewardStrategy:
 
     def calculate_reward(self, state_buffer: Deque) -> float:
         """
-        __call__ [summary]
+        calculate_reward [summary]
 
         Args:
             state_buffer (Deque): [description]
@@ -101,7 +101,7 @@ class CalmarRewardStrategy(BaseRewardStrategy):
 
     def calculate_reward(self, state_buffer: Deque) -> float:
         """
-        __call__ [summary]
+        calculate_reward [summary]
 
         Args:
             state_buffer (Deque): [description]
@@ -128,7 +128,7 @@ class ProfitRewardStrategy(BaseRewardStrategy):
     This strategy purely incentivizes profit. Every step returns a reward equal to the change in
     the USD value of the portfolio.
     """
-    def calculate_reward(self, state_buffer: Deque) -> float:
+    def calculate_reward(self, state_buffer) -> float:
         """
         __call__ [summary]
 
