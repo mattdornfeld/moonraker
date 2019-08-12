@@ -99,7 +99,7 @@ def staging():
         end_dt=parser.parse('2019-01-28 17:00:00.00'),
         initial_btc=initial_btc,
         initial_usd=initial_usd,
-        num_episodes=5,
+        num_episodes=10,
         num_warmup_time_steps=num_warmup_time_steps,
         reward_strategy_name=reward_strategy_name,
         start_dt=parser.parse('2019-01-28 09:00:00.00'),
