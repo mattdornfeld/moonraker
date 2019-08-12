@@ -14,11 +14,17 @@ from coinbase_train import constants as c
 ex = Experiment()
 ex.observers.append(MongoObserver.create(url=c.MONGO_DB_URL))
 
-
 @ex.config
 def config():
     """This is the default configuration. It's used for local testing.
     """
+    initial_btc = '1.000000'
+    initial_usd = '10000.00'
+    num_warmup_time_steps = 3
+    optimizer_name = 'Adam'
+    reward_strategy_name = 'ProfitRewardStrategy'  # pylint: disable=W0612
+    time_delta = timedelta(seconds=30)
+
     hyper_params = dict(  # pylint: disable=W0612
         account_funds_num_units=100,
         account_funds_tower_depth=2,
@@ -29,18 +35,13 @@ def config():
         discount_factor=0.99,
         learning_rate=0.001,
         num_time_steps=3,
+        optimizer_name=optimizer_name,
         output_tower_depth=3,
         output_tower_num_units=100,
         time_series_tower_attention_dim=100,
         time_series_tower_depth=3,
         time_series_tower_num_filters=16,
         time_series_tower_num_stacks=1)
-
-    reward_strategy_name = 'ProfitRewardStrategy'  # pylint: disable=W0612
-    initial_btc = '1.000000'
-    initial_usd = '1000.00'
-    num_warmup_time_steps = 3
-    time_delta = timedelta(seconds=30)
 
     train_environment_configs = dict(  # pylint: disable=W0612
         end_dt=parser.parse('2019-01-28 17:00:00.00'),
@@ -67,8 +68,15 @@ def config():
 
 @ex.named_config
 def staging():
-    """This configuration will be deployed to staging
+    """This configuration will be deployed on merge to master
     """
+    initial_btc = '1.000000'
+    initial_usd = '10000.00'
+    num_warmup_time_steps = 100
+    optimizer_name = 'Adam'
+    reward_strategy_name = 'ProfitRewardStrategy'  # pylint: disable=W0612
+    time_delta = timedelta(seconds=30)
+
     hyper_params = dict(  # pylint: disable=W0612
         account_funds_num_units=100,
         account_funds_tower_depth=2,
@@ -79,18 +87,13 @@ def staging():
         discount_factor=0.99,
         learning_rate=0.001,
         num_time_steps=100,
+        optimizer_name=optimizer_name,
         output_tower_depth=3,
         output_tower_num_units=100,
         time_series_tower_attention_dim=100,
         time_series_tower_depth=3,
         time_series_tower_num_filters=16,
         time_series_tower_num_stacks=1)
-
-    reward_strategy_name = 'ProfitRewardStrategy'  # pylint: disable=W0612
-    initial_btc = '1.000000'
-    initial_usd = '1000.00'
-    num_warmup_time_steps = 100
-    time_delta = timedelta(seconds=30)
 
     train_environment_configs = dict(  # pylint: disable=W0612
         end_dt=parser.parse('2019-01-28 17:00:00.00'),

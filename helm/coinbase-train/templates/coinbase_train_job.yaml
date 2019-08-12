@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-coinbase-train
+  name: {{.Release.Name}}-train-{{.Chart.Version}}
   labels:
     app: coinbase-train
 spec:
@@ -25,7 +25,7 @@ spec:
       containers:
       - name: coinbase-train
 
-        command: 
+        command:
           - 'python3'
           - 'coinbase_train/train.py'
           - 'with'
