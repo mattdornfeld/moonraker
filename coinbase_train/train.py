@@ -2,10 +2,12 @@
 """
 import os
 from pathlib import Path
+import random
 from typing import List, Tuple
 
-from keras import Model
-from keras import optimizers
+import numpy as np
+import tensorflow as tf
+from keras import Model, optimizers
 from rl.agents import DDPGAgent
 from rl.callbacks import Callback
 from rl.memory import SequentialMemory
@@ -20,6 +22,7 @@ from coinbase_train.experiment import ex
 from coinbase_train.layers import Attention
 from coinbase_train.model import ActorCriticModel
 from coinbase_train.processor import CoinbaseEnvironmentProcessor
+
 
 def create_agent(actor: Model,
                  critic: Model,
@@ -85,8 +88,6 @@ def build_and_train(
     """
     model = ActorCriticModel(hyper_params)
 
-    RewardStrategy = reward.__dict__[train_environment_configs.reward_strategy_name]
-
     train_environment = Environment(
         end_dt=train_environment_configs.end_dt,
         initial_usd=train_environment_configs.initial_usd,
@@ -94,7 +95,7 @@ def build_and_train(
         num_workers=c.NUM_DATABASE_WORKERS,
         num_time_steps=hyper_params.num_time_steps,
         num_warmup_time_steps=train_environment_configs.num_warmup_time_steps,
-        reward_strategy=RewardStrategy,
+        reward_strategy=reward.__dict__[train_environment_configs.reward_strategy_name],
         start_dt=train_environment_configs.start_dt,
         time_delta=train_environment_configs.time_delta,
         verbose=c.VERBOSE)
@@ -138,8 +139,6 @@ def evaluate_agent(
     Returns:
         Callback: Description
     """
-    RewardStrategy = reward.__dict__[test_environment_configs.reward_strategy_name]
-
     test_environment = Environment(
         end_dt=test_environment_configs.end_dt,
         initial_btc=test_environment_configs.initial_btc,
@@ -147,7 +146,7 @@ def evaluate_agent(
         num_time_steps=hyper_params.num_time_steps,
         num_warmup_time_steps=test_environment_configs.num_warmup_time_steps,
         num_workers=c.NUM_DATABASE_WORKERS,
-        reward_strategy=RewardStrategy,
+        reward_strategy=reward.__dict__[test_environment_configs.reward_strategy_name],
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta,
         verbose=c.VERBOSE)
@@ -165,9 +164,24 @@ def evaluate_agent(
 
     return history
 
+def set_seed(seed: int) -> None:
+    """
+    set_seed [summary]
+
+    Args:
+        seed (int): [description]
+
+    Returns:
+        None: [description]
+    """
+    np.random.seed(seed)
+    random.seed(seed)
+    tf.set_random_seed(seed)
+
 @ex.automain
 def main(_run: Run,
          hyper_params: dict,
+         seed: int,
          test_environment_configs: dict,
          train_environment_configs: dict) -> float:
     """Builds a DDPG agent, trains on the train environment, evaluates on the test
@@ -177,12 +191,15 @@ def main(_run: Run,
     Args:
         _run (Run): Description
         hyper_params (dict): Description
+        seed (int): Description
         test_environment_configs (dict): Description
         train_environment_configs (dict): Description
 
     Returns:
         float: Reward from running a single episode on the testing environment
     """
+    set_seed(seed)
+
     _hyper_params = utils.HyperParameters(**hyper_params)
     _test_environment_configs = utils.EnvironmentConfigs(**test_environment_configs)
     _train_environment_configs = utils.EnvironmentConfigs(**train_environment_configs)
