@@ -13,4 +13,4 @@ coinbase-train*.tgz
 .mypy_cache
 build/
 dist/
-
+account.json

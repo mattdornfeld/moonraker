@@ -9,9 +9,9 @@ stages:
   - deploy
 
 variables:
+  NEXT_RELEASE_TYPE: minor
   RELEASE_NAME: coinbase-btc-usd
 
-# YAML Anchors
 .create_credentials_ini_file: &create_credentials_ini_file |
   cat << EOF > gitlab_credentials.ini
   [CREDENTIALS]
@@ -20,11 +20,10 @@ variables:
   EOF
 
 .helm_deploy_args: &helm_deploy_args |
+  $HELM_DEPLOY_ARGS
   --force
   --set moonraker-common.registry.username=$CI_USERNAME
   --set moonraker-common.registry.password=$CI_TOKEN
-
-# CI Jobs
 
 increment_version:increment_version:
   extends: .increment_version
@@ -73,6 +72,8 @@ deploy:deploy_coinbase_train_to_staging:
     CHART_NAME: coinbase-train
     HELM_ARGS: *helm_deploy_args
     K8S_NAMESPACE: moonraker
+
+  when: manual
 
 deploy:delete_coinbase_train_from_staging:
   environment:

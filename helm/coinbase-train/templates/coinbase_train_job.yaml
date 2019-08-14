@@ -1,24 +1,24 @@
 ---
-{{ if .Values.job.enabled }}
+{{if gt .Values.job.num_cpus 0.0}}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{.Release.Name}}-train-{{.Chart.Version | trunc 12}}
   labels:
-    app: coinbase-train
+    app: train
 spec:
   template:
     spec:
 
-      {{ if gt .Values.job.num_gpus 0.0}}
+      {{if gt .Values.job.num_gpus 0.0}}
       tolerations:
       - key: "gpu"
         operator: "Exists"
         effect: "NoSchedule"
-      {{ end }}
+      {{end}}
 
       imagePullSecrets:
-      - name: {{ .Release.Name }}-registry-credentials
+      - name: {{.Release.Name}}-registry-credentials
 
       restartPolicy: OnFailure
 
@@ -44,16 +44,25 @@ spec:
                 name: postgres-secret
                 key: password
 
-        {{ if gt .Values.job.num_gpus 0.0}}
+        {{if gt .Values.job.num_gpus 0.0}}
         image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{ .Chart.Version }}"
-        {{ else }}
+        {{else}}
         image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{ .Chart.Version }}"
-        {{ end }}
+        {{end}}
 
         resources:
           limits:
-            cpu: {{ .Values.job.num_cpus }}
-            nvidia.com/gpu: {{ .Values.job.num_gpus }}
+            cpu: {{.Values.job.num_cpus}}
+            nvidia.com/gpu: {{.Values.job.num_gpus}}
 
+        volumeMounts:
+          - mountPath: /secrets
+            name: service-account-json
+            readOnly: true
 
-{{ end }}
+      volumes:
+      - name: service-account-json
+        secret:
+          secretName: {{.Release.Name}}-service-account-json
+
+{{end}}
