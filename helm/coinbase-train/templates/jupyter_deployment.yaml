@@ -1,37 +1,37 @@
 ---
-{{ if .Values.notebook.enabled }}
+{{if gt .Values.notebook.num_cpus 0.0}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-coinbase-train
+  name: {{.Release.Name}}-notebook-train
   labels:
-    app: coinbase-train
+    app: train
 spec:
   podManagementPolicy: Parallel
   replicas: 1
   selector:
     matchLabels:
-      pod-selector: {{ .Release.Name }}-coinbase-train
+      pod-selector: {{.Release.Name}}-notebook-train
   template:
     metadata:
       labels:
-        pod-selector: {{ .Release.Name }}-coinbase-train
+        pod-selector: {{.Release.Name}}-notebook-train
     spec:
 
-      {{ if gt .Values.notebook.num_gpus 0.0}}
+      {{if gt .Values.notebook.num_gpus 0.0}}
       tolerations:
       - key: "gpu"
         operator: "Exists"
         effect: "NoSchedule"
-      {{ end }}
+      {{end}}
 
       imagePullSecrets:
-      - name: {{ .Release.Name }}-registry-credentials
-      
+      - name: {{.Release.Name}}-registry-credentials
+
       containers:
-      
+
       - name: jupyter
-      
+
         command: ["jupyter"]
         args: ["lab", "--ip=0.0.0.0", "--allow-root", "--core"]
 
@@ -51,18 +51,28 @@ spec:
                 key: password
 
         imagePullPolicy: Always
-        {{ if gt .Values.notebook.num_gpus 0.0}}
+        {{if gt .Values.notebook.num_gpus 0.0}}
         image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{ .Chart.Version }}"
-        {{ else }}
+        {{else}}
         image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{ .Chart.Version }}"
-        {{ end }}
+        {{end}}
 
         ports:
         - containerPort: 8888
-          name: jupyter-port
+          name: notebook-port
 
         resources:
           limits:
-            cpu: {{ .Values.notebook.num_cpus }}
-            nvidia.com/gpu: {{ .Values.notebook.num_gpus }}
-{{ end }}
+            cpu: {{.Values.notebook.num_cpus}}
+            nvidia.com/gpu: {{.Values.notebook.num_gpus}}
+
+        volumeMounts:
+          - mountPath: /secrets
+            name: service-account-json
+            readOnly: true
+
+      volumes:
+      - name: service-account-json
+        secret:
+          secretName: {{.Release.Name}}-service-account-json
+{{end}}

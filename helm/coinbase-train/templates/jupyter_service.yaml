@@ -1,18 +1,33 @@
 ---
-{{ if .Values.notebook.enabled }}
+{{if .Values.notebook.enabled}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-coinbase-train
+  name: {{.Release.Name}}-notebook-train
   labels:
-    app: coinbase-train
+    app: train
 spec:
-  type: LoadBalancer
   ports:
   - port: 8888
     targetPort: 8888
-    name: jupyter-port
+    name: notebook-port
   selector:
-    pod-selector: {{ .Release.Name }}-coinbase-train
+    pod-selector: {{.Release.Name}}-notebook-train
+  type: NodePort
 
-{{ end }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{.Release.Name}}-notebook-train
+  app: train
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /*
+        backend:
+          serviceName: {{.Release.Name}}-notebook-train
+          servicePort: 8888
+{{end}}
+
