@@ -35,8 +35,8 @@ INSTALL_REQUIRES = [
     'keras>=2.2.4,<3.0.0',
     'fakebase',
     'funcy>=1.11.0,<2.0.0',
-    'google-cloud-storage>=1.15.0,<2.0.0'
-    'jupyterlab',
+    'google-cloud-storage>=1.15.0,<2.0.0',
+    'jupyterlab>=0.35.4,<0.36.0',
     'pymongo>=3.5.0,<4.0.0',
     'python-dateutil>=2.6.0,<3.0.0',
     'keras-rl',
