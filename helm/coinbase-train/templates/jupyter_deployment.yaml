@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{.Release.Name}}-notebook-train
+  name: {{.Release.Name}}-notebook
   labels:
     app: train
 spec:
