@@ -74,8 +74,6 @@ deploy:deploy_coinbase_train_to_staging:
     HELM_ARGS: *helm_deploy_args
     K8S_NAMESPACE: moonraker
 
-  when: manual
-
 deploy:delete_coinbase_train_from_staging:
   environment:
     name: staging
