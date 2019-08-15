@@ -13,20 +13,20 @@ spec:
     name: notebook-port
   selector:
     pod-selector: {{.Release.Name}}-notebook-train
-  type: NodePort
+  type: LoadBalancer
 
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: {{.Release.Name}}-notebook-train
-  app: train
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /*
-        backend:
-          serviceName: {{.Release.Name}}-notebook-train
-          servicePort: 8888
+# ---
+# apiVersion: extensions/v1beta1
+# kind: Ingress
+# metadata:
+#   name: {{.Release.Name}}-notebook-train
+#   app: train
+# spec:
+#   rules:
+#   - http:
+#       paths:
+#       - path: /*
+#         backend:
+#           serviceName: {{.Release.Name}}-notebook-train
+#           servicePort: 8888
 {{end}}
