@@ -12,7 +12,7 @@ from sacred.observers import MongoObserver
 
 from coinbase_train import constants as c
 
-ex = Experiment()
+ex = Experiment(name=c.EXPERIMENT_NAME)
 ex.observers.append(MongoObserver.create(url=c.MONGO_DB_URL))
 ex.logger = logging.getLogger(__name__)
 
@@ -26,11 +26,11 @@ def config():
     optimizer_name = 'Adam'
     reward_strategy_name = 'ProfitRewardStrategy'  # pylint: disable=W0612
     seed = 353523591  # pylint: disable=W0612
-    test_end_dt = '2019-01-28 19:00:00.00'
+    test_end_dt = '2019-01-28 17:04:00.00'
     test_start_dt = '2019-01-28 17:00:00.00'
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)  # pylint: disable=W0612
-    train_end_dt = '2019-01-28 17:00:00.00'
+    train_end_dt = '2019-01-28 09:04:00.00'
     train_start_dt = '2019-01-28 09:00:00.00'
 
     hyper_params = dict(  # pylint: disable=W0612

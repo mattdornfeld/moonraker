@@ -5,11 +5,15 @@ Attributes:
 """
 from datetime import datetime, timedelta
 from decimal import Decimal
+import logging
 from math import sqrt
+import os
 from pathlib import Path
 from statistics import stdev as base_stdev
 from typing import Any, Callable, List, NamedTuple, Union
 
+from google.cloud import storage
+from google.oauth2.service_account import Credentials
 import numpy as np
 import tensorflow as tf
 from sacred import Experiment
@@ -18,6 +22,7 @@ from sacred.run import Run
 
 from coinbase_train import constants as c
 
+LOGGER = logging.getLogger(__name__)
 Number = Union[Decimal, float, int]
 
 def add_tensorboard_dir_to_sacred(sacred_experiment: Experiment,
@@ -157,6 +162,35 @@ def stdev(data: List[Number]) -> Number:
     _data = 2 * data if len(data) == 1 else data
 
     return base_stdev(_data)
+
+def upload_dir_to_gcs(
+        bucket_name: str,
+        credentials_path: Path,
+        gcp_project_name: str,
+        path: Path) -> None:
+    """
+    upload_dir_to_gcs [summary]
+
+    Args:
+        bucket_name (str): [description]
+        credentials_path (Path): [description]
+        gcp_project_name (str): [description]
+        path (Path): [description]
+
+    Returns:
+        None: [description]
+    """
+    credentials = Credentials.from_service_account_file(credentials_path)
+    client = storage.Client(project=gcp_project_name, credentials=credentials)
+    bucket = client.bucket(bucket_name)
+
+    for _, _, filenames in os.walk(path):
+        for filename in filenames:
+            full_path = str(path / filename)
+            LOGGER.info(  # pylint: disable=W1203
+                f'uploading {full_path} to {bucket_name}...')
+            blob = bucket.blob(f'{path.name}/{filename}')
+            blob.upload_from_filename(full_path)
 
 class EnvironmentConfigs(NamedTuple):
     """Summary

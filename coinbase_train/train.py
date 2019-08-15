@@ -128,7 +128,8 @@ def build_and_train(
 def evaluate_agent(
         agent: DDPGAgent,
         hyper_params: utils.HyperParameters,
-        test_environment_configs: utils.EnvironmentConfigs) -> Callback:
+        test_environment_configs: utils.EnvironmentConfigs
+        ) -> Tuple[Environment, Callback]:
     """Summary
 
     Args:
@@ -157,12 +158,12 @@ def evaluate_agent(
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta)
 
-    history = agent.test(
+    test_history = agent.test(
         env=test_environment,
         nb_max_episode_steps=nb_max_episode_steps,
         visualize=False)
 
-    return history
+    return test_environment, test_history
 
 def set_seed(seed: int) -> None:
     """
@@ -228,8 +229,13 @@ def main(_run: Run,
     _run.add_artifact(str(actor_save_path))
     _run.add_artifact(str(critic_save_path))
 
-    test_history = evaluate_agent(agent, _hyper_params, _test_environment_configs)
+    _, test_history = evaluate_agent(agent, _hyper_params, _test_environment_configs)
 
     test_reward = test_history.history['episode_reward'][-1]
+
+    utils.upload_dir_to_gcs(bucket_name=c.MODEL_BUCKET_NAME,
+                            credentials_path=c.SERVICE_ACCOUNT_JSON,
+                            gcp_project_name=c.GCP_PROJECT_NAME,
+                            path=model_dir)
 
     return test_reward
