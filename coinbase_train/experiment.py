@@ -5,6 +5,7 @@ Attributes:
 """
 from datetime import timedelta
 import logging
+from random import randint
 
 from dateutil import parser
 from sacred import Experiment
@@ -82,6 +83,7 @@ def staging():
     num_warmup_time_steps = 100
     optimizer_name = 'Adam'
     reward_strategy_name = 'ProfitRewardStrategy'  # pylint: disable=W0612
+    seed = randint(int(1e8),int(1e9))
     test_end_dt = '2019-01-28 19:00:00.00'
     test_start_dt = '2019-01-28 17:00:00.00'
     time_delta = timedelta(seconds=30)
