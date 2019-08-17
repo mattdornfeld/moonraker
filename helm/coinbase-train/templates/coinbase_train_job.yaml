@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{.Release.Name}}-{{.Chart.Version | trunc 12}}
+  name: {{.Release.Name}}-{{randAlphaNum 10}}
   labels:
     app: train
 spec:

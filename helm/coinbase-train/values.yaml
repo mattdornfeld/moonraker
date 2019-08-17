@@ -1,7 +1,7 @@
 job:
-  num_cpus: 3.5
+  num_cpus: 0.0
   num_gpus: 1
 
 notebook:
-  num_cpus: 0.0
+  num_cpus: 3.5
   num_gpus: 1
