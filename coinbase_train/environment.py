@@ -13,7 +13,6 @@ import numpy as np
 from rl.core import Env
 
 from fakebase import utils as fakebase_utils
-from fakebase.mock_auth_client import MockAuthenticatedClient
 
 from coinbase_train import constants as c
 from coinbase_train.exchange import Exchange
@@ -28,7 +27,6 @@ class Environment(Env): #pylint: disable=W0223
     """Summary
 
     Attributes:
-        auth_client (MockAuthenticatedClient): Description
         end_dt (datetime): Description
         exchange (Exchange): Description
         initial_btc (float): Description
@@ -67,9 +65,8 @@ class Environment(Env): #pylint: disable=W0223
         self._closing_price = 0.0
         self._made_illegal_transaction = False
         self._num_warmup_time_steps = num_warmup_time_steps
-        self._reward_strategy = reward_strategy()
+        self._reward_strategy = reward_strategy
         self._warmed_up_buffer: Deque = Deque(maxlen=num_time_steps) #pylint: disable=C0301
-        self.auth_client: Optional[MockAuthenticatedClient] = None
         self.end_dt = end_dt
         self.exchange: Optional[Exchange] = None
         self.initial_btc = initial_btc
@@ -227,7 +224,7 @@ class Environment(Env): #pylint: disable=W0223
             None: [description]
         """
         try:
-            self.auth_client.place_limit_order(
+            self.exchange.place_limit_order(
                 product_id=c.PRODUCT_ID,
                 price=transaction_price,
                 side=order_side,
@@ -292,9 +289,8 @@ class Environment(Env): #pylint: disable=W0223
                                      start_dt=self.start_dt,
                                      time_delta=self.time_delta)
 
-            self.auth_client = MockAuthenticatedClient(self.exchange)
-            self.auth_client.deposit(currency=c.QUOTE_CURRENCY, amount=self.initial_usd)
-            self.auth_client.deposit(currency=c.PRODUCT_CURRENCY, amount=self.initial_btc)
+            self.exchange.account.add_funds(currency=c.QUOTE_CURRENCY, amount=self.initial_usd)
+            self.exchange.account.add_funds(currency=c.PRODUCT_CURRENCY, amount=self.initial_btc)
 
             self._warmup()
             self._exchange_checkpoint = self.exchange.create_checkpoint()
@@ -302,7 +298,6 @@ class Environment(Env): #pylint: disable=W0223
         else:
             self.exchange.stop_database_workers()
             self.exchange = self._exchange_checkpoint.restore()
-            self.auth_client = MockAuthenticatedClient(self.exchange)
             self._state_buffer = deepcopy(self._warmed_up_buffer)
 
         self._made_illegal_transaction = False
