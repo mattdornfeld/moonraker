@@ -95,7 +95,7 @@ def build_and_train(
         num_workers=c.NUM_DATABASE_WORKERS,
         num_time_steps=hyper_params.num_time_steps,
         num_warmup_time_steps=train_environment_configs.num_warmup_time_steps,
-        reward_strategy=reward.__dict__[train_environment_configs.reward_strategy_name],
+        reward_strategy=reward.__dict__[train_environment_configs.reward_strategy_name](),
         start_dt=train_environment_configs.start_dt,
         time_delta=train_environment_configs.time_delta,
         verbose=c.VERBOSE)
@@ -147,7 +147,7 @@ def evaluate_agent(
         num_time_steps=hyper_params.num_time_steps,
         num_warmup_time_steps=test_environment_configs.num_warmup_time_steps,
         num_workers=c.NUM_DATABASE_WORKERS,
-        reward_strategy=reward.__dict__[test_environment_configs.reward_strategy_name],
+        reward_strategy=reward.__dict__[test_environment_configs.reward_strategy_name](),
         start_dt=test_environment_configs.start_dt,
         time_delta=test_environment_configs.time_delta,
         verbose=c.VERBOSE)
