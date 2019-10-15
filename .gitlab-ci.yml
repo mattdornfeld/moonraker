@@ -9,8 +9,10 @@ stages:
   - deploy
 
 variables:
+  CHART_NAME: coinbase-train
+  K8S_NAMESPACE: moonraker
   NEXT_RELEASE_TYPE: minor
-  RELEASE_NAME: coinbase-btc-usd-train
+  RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
 
 .create_credentials_ini_file: &create_credentials_ini_file |
   cat << EOF > gitlab_credentials.ini
@@ -22,6 +24,7 @@ variables:
 .helm_deploy_args: &helm_deploy_args |
   $HELM_DEPLOY_ARGS
   --force
+  --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
   --set moonraker-common.registry.username=$CI_USERNAME
   --set moonraker-common.registry.password=$CI_TOKEN
   --set service_account_json=$SERVICE_ACCOUNT_JSON
@@ -35,8 +38,6 @@ build:build_gpu_image:
   before_script:
     - *create_credentials_ini_file
 
-  stage: build
-
   variables:
    DOCKER_ARGS: '--secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.gpu'
    DOCKER_BUILDKIT: 1
@@ -47,8 +48,6 @@ build:build_cpu_image:
 
   before_script:
     - *create_credentials_ini_file
-
-  stage: build
 
   variables:
    DOCKER_ARGS: '--secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.cpu'
@@ -62,21 +61,26 @@ build:package_helm_chart:
     HELM_ARGS: "--dependency-update"
     CHART_NAME: coinbase-train
 
-deploy:deploy_coinbase_train_to_staging:
+build:deploy_helm_chart_dry_run:
+  extends: .deploy_helm_chart_dry_run
+
+  variables:
+    CHART_PATH: helm/coinbase-train
+    HELM_ARGS: *helm_deploy_args
+
+deploy:deploy_coinbase_train:
   environment:
-    name: staging
-    on_stop: deploy:delete_coinbase_train_from_staging
+    name: staging/$CI_COMMIT_REF_NAME
+    on_stop: deploy:delete_coinbase_train
 
   extends: .deploy_helm_chart
 
   variables:
-    CHART_NAME: coinbase-train
     HELM_ARGS: *helm_deploy_args
-    K8S_NAMESPACE: moonraker
 
-deploy:delete_coinbase_train_from_staging:
+deploy:delete_coinbase_train:
   environment:
-    name: staging
+    name: staging/$CI_COMMIT_REF_NAME
     action: stop
 
   extends: .delete_helm_release

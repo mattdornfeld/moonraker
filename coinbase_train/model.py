@@ -65,9 +65,11 @@ class ActorCriticModel:
             Returns:
                 List[tf.Tensor]: [description]
             """
+            import tensorflow as tf
+
             _input_tensors = [K.expand_dims(t, axis=-1) for t in input_tensors]
             _soft_max = K.softmax(K.concatenate(_input_tensors))
-            _output_tensors = K.tf.unstack(_soft_max, axis=-1)
+            _output_tensors = tf.unstack(_soft_max, axis=-1)
 
             return [K.expand_dims(t, axis=-1) for t in _output_tensors]
 

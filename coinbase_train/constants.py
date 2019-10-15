@@ -48,8 +48,4 @@ SAVED_MODELS_ROOT_DIR = '/var/moonraker_models'
 TENSORBOARD_ROOT_DIR = '/var/log/sacred_tensorboard'
 
 #mongodb configs
-MONGO_DB_HOST = os.environ.get('MONGO_DB_HOST', 'sacred-mongodb')
-MONGO_DB_PASSWORD = os.environ.get('MONGO_INITDB_ROOT_PASSWORD', 'password')
-MONGO_DB_PORT = os.environ.get('MONGO_DB_PORT', 27017)
-MONGO_DB_USERNAME = os.environ.get('MONGO_DB_USERNAME', 'root')
-MONGO_DB_URL = f'mongodb://{MONGO_DB_USERNAME}:{MONGO_DB_PASSWORD}@{MONGO_DB_HOST}:{MONGO_DB_PORT}' #pylint: disable=C0301
+MONGO_DB_URL = os.environ.get("MONGO_DB_URL", "mongodb://root:password@mongo:27017")

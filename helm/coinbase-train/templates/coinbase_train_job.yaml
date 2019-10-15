@@ -1,9 +1,10 @@
 ---
+{{$release_name := .Release.Name | trunc 14}}
 {{if gt .Values.job.num_cpus 0.0}}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{.Release.Name}}-{{randAlphaNum 10 | lower}}
+  name: {{$release_name}}-{{randAlphaNum 10 | lower}}
   labels:
     app: train
 spec:
@@ -32,11 +33,11 @@ spec:
           - 'staging'
 
         env:
-          - name: MONGO_INITDB_ROOT_PASSWORD
+          - name: MONGO_DB_URL
             valueFrom:
               secretKeyRef:
-                name: sacred-mongodb
-                key: mongodb-root-password
+                name: {{$release_name}}-mongodb-credentials
+                key: mongodb-url
 
           - name: POSTGRES_PASSWORD
             valueFrom:
@@ -45,9 +46,9 @@ spec:
                 key: password
 
         {{if gt .Values.job.num_gpus 0.0}}
-        image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{ .Chart.Version }}"
+        image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{.Chart.Version}}"
         {{else}}
-        image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{ .Chart.Version }}"
+        image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{.Chart.Version}}"
         {{end}}
 
         resources:
@@ -63,6 +64,5 @@ spec:
       volumes:
       - name: service-account-json
         secret:
-          secretName: {{.Release.Name}}-service-account-json
-
+          secretName: {{$release_name}}-service-account-json
 {{end}}
