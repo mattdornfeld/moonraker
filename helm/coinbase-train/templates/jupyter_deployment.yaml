@@ -1,9 +1,10 @@
 ---
+{{$release_name := .Release.Name | trunc 14}}
 {{if gt .Values.notebook.num_cpus 0.0}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{.Release.Name}}-notebook
+  name: {{$release_name}}-notebook
   labels:
     app: train
 spec:
@@ -11,11 +12,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      pod-selector: {{.Release.Name}}-notebook-train
+      pod-selector: {{$release_name}}-notebook-train
   template:
     metadata:
       labels:
-        pod-selector: {{.Release.Name}}-notebook-train
+        pod-selector: {{$release_name}}-notebook-train
     spec:
 
       {{if gt .Values.notebook.num_gpus 0.0}}
@@ -38,11 +39,11 @@ spec:
         workingDir: /
 
         env:
-          - name: MONGO_INITDB_ROOT_PASSWORD
+          - name: MONGO_DB_URL
             valueFrom:
               secretKeyRef:
-                name: sacred-mongodb
-                key: mongodb-root-password
+                name: {{$release_name}}-mongodb-credentials
+                key: mongodb-url
 
           - name: POSTGRES_PASSWORD
             valueFrom:
@@ -74,5 +75,5 @@ spec:
       volumes:
       - name: service-account-json
         secret:
-          secretName: {{.Release.Name}}-service-account-json
+          secretName: {{$release_name}}-service-account-json
 {{end}}

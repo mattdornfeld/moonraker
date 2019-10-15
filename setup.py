@@ -32,6 +32,7 @@ DEPENDENCY_LINKS = [
 
 INSTALL_REQUIRES = [
     'GitPython>=2.1.10,<3.0.0',
+    'dnspython>=1.16.0, <2.0.0',
     'keras>=2.2.4,<3.0.0',
     'fakebase',
     'funcy>=1.11.0,<2.0.0',

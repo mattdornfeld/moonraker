@@ -1,9 +1,10 @@
 ---
+{{$release_name := .Release.Name | trunc 14}}
 {{if gt .Values.notebook.num_cpus 0.0}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{.Release.Name}}-notebook-train
+  name: {{$release_name}}-notebook-train
   labels:
     app: train
 spec:
@@ -12,21 +13,6 @@ spec:
     targetPort: 8888
     name: notebook-port
   selector:
-    pod-selector: {{.Release.Name}}-notebook-train
+    pod-selector: {{$release_name}}-notebook-train
   type: LoadBalancer
-
-# ---
-# apiVersion: extensions/v1beta1
-# kind: Ingress
-# metadata:
-#   name: {{.Release.Name}}-notebook-train
-#   app: train
-# spec:
-#   rules:
-#   - http:
-#       paths:
-#       - path: /*
-#         backend:
-#           serviceName: {{.Release.Name}}-notebook-train
-#           servicePort: 8888
 {{end}}
