@@ -20,7 +20,7 @@ SACRED_EXPERIMENT.logger = logging.getLogger(__name__)
 
 
 @SACRED_EXPERIMENT.config
-def config() -> None:
+def config(): # type: ignore
     """This is the default configuration. It's used for local testing.
     """
     initial_btc = "1.000000"
@@ -28,7 +28,7 @@ def config() -> None:
     num_time_steps = 3
     num_warmup_time_steps = 1 * num_time_steps
     optimizer_name = "Adam"
-    return_value_type = "roi"  # pylint: disable=W0612
+    return_value_key = "roi"  # pylint: disable=W0612
     reward_strategy_name = "ProfitRewardStrategy"  # pylint: disable=W0612
     seed = 353523591  # pylint: disable=W0612
     test_end_dt = "2019-01-28 10:10:00.00"
@@ -88,7 +88,7 @@ def config() -> None:
 
 
 @SACRED_EXPERIMENT.named_config
-def staging() -> None:
+def staging(): # type: ignore
     """This configuration will be deployed on merge to master
     """
     initial_btc = "1.000000"
@@ -96,7 +96,7 @@ def staging() -> None:
     num_time_steps = 100
     num_warmup_time_steps = 100
     optimizer_name = "Adam"
-    return_value_type = "roi"  # pylint: disable=W0612
+    return_value_key = "roi"  # pylint: disable=W0612
     reward_strategy_name = "ProfitRewardStrategy"  # pylint: disable=W0612
     # seed = randint(int(1e8),int(1e9))
     # seed = 521905088  # pylint: disable=W0612
