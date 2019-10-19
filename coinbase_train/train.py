@@ -3,6 +3,7 @@
 import io
 import logging
 import random
+from math import isnan
 from tempfile import TemporaryDirectory
 from typing import Any, Dict
 
@@ -63,7 +64,7 @@ def log_metrics_to_sacred(metrics: Dict[str, float], prefix: str) -> None:
     """
     for metric_name, metric in metrics.items():
         _metric_name = f"{prefix}_{metric_name}"
-        SACRED_EXPERIMENT.log_scalar(_metric_name, metric if metric else 0.0)
+        SACRED_EXPERIMENT.log_scalar(_metric_name, 0.0 if isnan(metric) else metric)
 
 
 def set_seed(seed: int) -> None:
