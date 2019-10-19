@@ -66,12 +66,15 @@ class ObservationSpace(TupleSpace):
         return self._flattened_space
 
     @flattened_space.setter
-    def flattened_space(self, value: Box):
+    def flattened_space(self, value: Box) -> None:
         """
         flattened_space [summary]
 
         Args:
             value (Box): [description]
+
+        Returns:
+            None: [description]
         """
         self._flattened_space = value
 

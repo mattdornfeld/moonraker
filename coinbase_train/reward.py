@@ -104,7 +104,7 @@ class CalmarRewardStrategy(BaseRewardStrategy):
     episode.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._peak_portfolio_value = 0.0
         self._max_drawdown = 1e-10
 
@@ -139,7 +139,7 @@ class ProfitRewardStrategy(BaseRewardStrategy):
     the USD value of the portfolio.
     """
 
-    def calculate_reward(self, state_buffer) -> float:
+    def calculate_reward(self, state_buffer: Deque) -> float:
         """
         __call__ [summary]
 

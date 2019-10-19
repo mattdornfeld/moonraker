@@ -20,7 +20,7 @@ SACRED_EXPERIMENT.logger = logging.getLogger(__name__)
 
 
 @SACRED_EXPERIMENT.config
-def config():
+def config() -> None:
     """This is the default configuration. It's used for local testing.
     """
     initial_btc = "1.000000"
@@ -88,7 +88,7 @@ def config():
 
 
 @SACRED_EXPERIMENT.named_config
-def staging():
+def staging() -> None:
     """This configuration will be deployed on merge to master
     """
     initial_btc = "1.000000"
@@ -100,12 +100,12 @@ def staging():
     reward_strategy_name = "ProfitRewardStrategy"  # pylint: disable=W0612
     # seed = randint(int(1e8),int(1e9))
     # seed = 521905088  # pylint: disable=W0612
-    test_end_dt = "2019-01-28 19:00:00.00"
-    test_start_dt = "2019-01-28 17:00:00.00"
+    test_end_dt = "2019-10-19 19:00:00.00"
+    test_start_dt = "2019-10-19 17:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)  # pylint: disable=W0612
-    train_end_dt = "2019-01-28 17:00:00.00"
-    train_start_dt = "2019-01-28 09:00:00.00"
+    train_end_dt = "2019-10-19 17:00:00.00"
+    train_start_dt = "2019-10-19 09:00:00.00"
 
     hyper_params = dict(  # pylint: disable=W0612
         account_funds_num_units=100,

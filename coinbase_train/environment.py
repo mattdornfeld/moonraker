@@ -355,8 +355,8 @@ class Environment(Env):  # pylint: disable=W0223
 
         if c.VERBOSE:
             LOGGER.info(action)
-            LOGGER.info(  # pylint: disable=W1203
-                f"Available USD = {available_usd}. Available BTC = {available_btc}."
+            LOGGER.info(
+                "Available USD = %s. Available BTC = %s.", available_usd, available_btc
             )
 
         no_transaction = convert_to_bool(transaction_none)
@@ -387,7 +387,7 @@ class Environment(Env):  # pylint: disable=W0223
         self._made_illegal_transaction = self._check_is_out_of_funds()
 
         if c.VERBOSE:
-            LOGGER.info(f"reward = {reward}")  # pylint: disable=W1203
+            LOGGER.info("reward = %s", reward)
 
         portfolio_value = BaseRewardStrategy.calc_portfolio_value_at_time_index(
             state_buffer=self._state_buffer, time_index=-1
