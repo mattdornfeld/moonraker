@@ -20,7 +20,7 @@ SACRED_EXPERIMENT.logger = logging.getLogger(__name__)
 
 
 @SACRED_EXPERIMENT.config
-def config(): # type: ignore
+def config():
     """This is the default configuration. It's used for local testing.
     """
     initial_btc = "1.000000"
@@ -88,7 +88,7 @@ def config(): # type: ignore
 
 
 @SACRED_EXPERIMENT.named_config
-def staging(): # type: ignore
+def staging():
     """This configuration will be deployed on merge to master
     """
     initial_btc = "1.000000"
