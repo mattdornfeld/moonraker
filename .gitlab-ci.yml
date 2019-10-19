@@ -31,6 +31,21 @@ variables:
 increment_version:increment_version:
   extends: .increment_version
 
+build:run_tests:
+  extends: .base_test
+
+  image: python:3.6
+
+  script:
+    - make install
+    - make test
+
+  stage: build
+
+  variables:
+    GITLAB_PASSWORD: $CI_TOKEN
+    GITLAB_USERNAME: $CI_USERNAME
+
 build:build_gpu_image:
   extends: .build_image
 

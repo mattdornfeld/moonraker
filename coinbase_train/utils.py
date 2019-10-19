@@ -4,8 +4,10 @@ Attributes:
     Number (typing.TypeVar): Description
 """
 import logging
+from collections.abc import ItemsView
 from datetime import datetime, timedelta
 from decimal import Decimal
+from fractions import Fraction
 from functools import reduce
 from math import sqrt
 from operator import mul
@@ -21,18 +23,19 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
-    Union,
+    TypeVar,
 )
 
 import numpy as np
 from google.cloud import storage
 from google.oauth2.service_account import Credentials
+from sacred.run import Run
 
 from coinbase_train import constants as c
 from coinbase_train.reward import BaseRewardStrategy
 
 LOGGER = logging.getLogger(__name__)
-Number = Union[Decimal, float, int]
+_Number = TypeVar("_Number", float, Decimal, Fraction)
 
 
 class EnvironmentConfigs(NamedTuple):
@@ -51,12 +54,12 @@ class EnvironmentConfigs(NamedTuple):
     time_delta: timedelta
     is_test_environment: bool = False
 
-    def items(self) -> Generator:
+    def items(self) -> ItemsView:
         """
         items [summary]
 
         Returns:
-            Generator: [description]
+            ItemsView[str, Any]: [description]
         """
         return self._asdict().items()  # pylint: disable=E1101
 
@@ -65,7 +68,7 @@ class EnvironmentFinishedException(Exception):
     """Summary
     """
 
-    def __init__(self, msg=None):
+    def __init__(self, msg: str = None) -> None:
         """Summary
 
         Args:
@@ -261,7 +264,7 @@ def convert_to_bool(num: float) -> bool:
     return bool(round(clamp_to_range(num, 0, 1)))
 
 
-def get_gcs_base_path(_run):
+def get_gcs_base_path(_run: Run) -> str:
     """
     get_gcs_base_path [summary]
 
@@ -273,7 +276,7 @@ def get_gcs_base_path(_run):
     """
     ex_name = _run.experiment_info["name"]
     ex_id = _run._id  # pylint: disable=W0212
-    environment = c.ENVIRONMENT.replace('/', '-')
+    environment = c.ENVIRONMENT.replace("/", "-")
     return f"{environment}-{ex_name}-{ex_id}"
 
 
@@ -323,7 +326,7 @@ def prod(factors: Sequence[float]) -> float:
     return reduce(mul, factors, 1)
 
 
-def stdev(data: List[Number]) -> Number:
+def stdev(data: List[_Number]) -> _Number:
     """Basically statistics.stdev but does not throw an
     error for list of length 1. For lists of length 1 will
     return 0. Otherwise returns statistics.stdev of list.
@@ -332,9 +335,9 @@ def stdev(data: List[Number]) -> Number:
         data (List[Number]): Description
 
     Returns:
-        Number: stdev
+        _Number: stdev
     """
-    _data = 2 * data if len(data) == 1 else data
+    _data = data.__mul__(2) if len(data) == 1 else data
 
     return base_stdev(_data)
 
@@ -364,7 +367,7 @@ def upload_file_to_gcs(
     credentials = Credentials.from_service_account_file(credentials_path)
     client = storage.Client(project=gcp_project_name, credentials=credentials)
     bucket = client.bucket(bucket_name)
-    LOGGER.info(f"uploading {key} to {bucket_name}...")  # pylint: disable=W1203
+    LOGGER.info("uploading %s to %s...", key, bucket_name)
     blob = bucket.blob(key)
 
     if file:

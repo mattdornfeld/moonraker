@@ -28,21 +28,21 @@ LOGGER = logging.getLogger(__name__)
 
 
 def calc_return_value(
-    evaluation_metrics: Dict[str, float], return_value_type: str
+    evaluation_metrics: Dict[str, float], return_value_key: str
 ) -> float:
     """
     calc_return_value [summary]
 
     Args:
         evaluation_metrics (Dict[str, float]): [description]
-        return_value_type (str): [description]
+        return_value_key (str): [description]
 
     Returns:
         float: [description]
     """
-    if return_value_type == "reward":
+    if return_value_key == "reward":
         return_value = evaluation_metrics["episode_reward_mean"]
-    elif return_value_type == "roi":
+    elif return_value_key == "roi":
         return_value = evaluation_metrics["roi_mean"]
     else:
         raise ValueError
@@ -100,7 +100,7 @@ def on_episode_end(info: Dict[str, Any]) -> None:
 def main(
     _run: Run,
     hyper_params: dict,
-    return_value_type: str,
+    return_value_key: str,
     seed: int,
     test_environment_configs: dict,
     train_environment_configs: dict,
@@ -112,7 +112,7 @@ def main(
     Args:
         _run (Run): [description]
         hyper_params (dict): [description]
-        return_value_type (str): [description]
+        return_value_key (str): [description]
         seed (int): [description]
         test_environment_configs (dict): [description]
         train_environment_configs (dict): [description]
@@ -241,5 +241,5 @@ def main(
     checkpoint_dir.cleanup()
 
     return calc_return_value(
-        best_results["evaluation"]["custom_metrics"], return_value_type
+        best_results["evaluation"]["custom_metrics"], return_value_key
     )

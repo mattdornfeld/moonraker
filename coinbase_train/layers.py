@@ -1,7 +1,7 @@
 """Summary
 """
 from itertools import product
-from typing import Tuple, Union
+from typing import Any, Dict, Tuple, Sequence, Union
 
 from funcy import compose
 import tensorflow as tf
@@ -172,7 +172,7 @@ class Attention(Layer):
         W_w (tf.Tensor, optional): Description
     """
 
-    def __init__(self, attention_dim):
+    def __init__(self, attention_dim: int) -> None:
         """Summary
 
         Args:
@@ -186,7 +186,7 @@ class Attention(Layer):
         super().__init__()
 
     @staticmethod
-    def _matmul(W, h):  # pylint: disable=C0103
+    def _matmul(W: tf.Tensor, h: tf.Tensor) -> tf.Tensor:  # pylint: disable=C0103
         """Summary
 
         Args:
@@ -194,15 +194,15 @@ class Attention(Layer):
             h (tf.Tensor): Description
 
         Returns:
-            TYPE: Description
+            tf.Tensor: Description
         """
         return tf.reduce_sum(tf.expand_dims(h, axis=-2) * W, axis=-1)
 
-    def build(self, input_shape):
+    def build(self, input_shape: Sequence[int]) -> None:
         """Summary
 
         Args:
-            input_shape (Tuple[int]): Description
+            input_shape (Sequence[int]): Description
         """
         self.W_w = self.add_weight(
             name="W_w",
@@ -227,7 +227,7 @@ class Attention(Layer):
 
         super().build(input_shape)
 
-    def call(self, h):  # pylint: disable=W0221
+    def call(self, h: tf.Tensor) -> tf.Tensor:  # pylint: disable=W0221
         """Summary
 
         Args:
@@ -250,22 +250,24 @@ class Attention(Layer):
 
         return s
 
-    def compute_output_shape(self, input_shape):  # pylint: disable=R0201
+    def compute_output_shape(  # pylint: disable=R0201
+        self, input_shape: Sequence[int]
+    ) -> Sequence[int]:
         """Summary
 
         Args:
-            input_shape (Tuple[int]): Description
+            input_shape (Sequence[int]): Description
 
         Returns:
-            Tuple[int]: Description
+            Sequence[int]: Description
         """
         return (*input_shape[0:-2], input_shape[-1])
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         """Summary
 
         Returns:
-            dict[str, int]: Description
+            Dict[str, Any]: Description
         """
         return {"attention_dim": self.attention_dim}
 
@@ -281,20 +283,24 @@ class DenseBlock:
         units (int): Description
     """
 
-    def __init__(self, depth, units, time_distributed=False):
-        """Summary
+    def __init__(self, depth: int, units: int, time_distributed: bool = False) -> None:
+        """
+        __init__ [summary]
 
         Args:
-            depth (int): Description
-            units (int): Description
-            time_distributed (bool): Description
+            depth (int): [description]
+            units (int): [description]
+            time_distributed (bool, optional): [description]. Defaults to False.
+
+        Returns:
+            None: [description]
         """
         self.depth = depth
         self.units = units
         self.time_distributed = time_distributed
         self.Dense = TDDense if time_distributed else Dense  # pylint: disable=C0103
 
-    def __call__(self, input_tensor):
+    def __call__(self, input_tensor: tf.Tensor) -> tf.Tensor:
         """Summary
 
         Args:
@@ -318,14 +324,18 @@ class FullConvolutionBlock:
         time_distributed (bool): Description
     """
 
-    def __init__(self, depth: int, *args, time_distributed: bool = False, **kwargs):
-        """__init__ [summary]
+    def __init__(
+        self, depth: int, *args: Any, time_distributed: bool = False, **kwargs: Any
+    ) -> None:
+        """
+        __init__ [summary]
 
         Args:
             depth (int): [description]
-            time_distributed (bool, optional): [description]
-            *args: Description
-            **kwargs: Description
+            time_distributed (bool, optional): [description]. Defaults to False.
+
+        Returns:
+            None: [description]
         """
         self.args = args
         self.depth = depth
@@ -362,14 +372,18 @@ class FullConvolutionBlock1D:
         time_distributed (bool): Description
     """
 
-    def __init__(self, depth: int, *args, time_distributed: bool = False, **kwargs):
-        """__init__ [summary]
+    def __init__(
+        self, depth: int, *args: Any, time_distributed: bool = False, **kwargs: Any
+    ) -> None:
+        """
+        __init__ [summary]
 
         Args:
             depth (int): [description]
-            time_distributed (bool, optional): [description]
-            *args: Description
-            **kwargs: Description
+            time_distributed (bool, optional): [description]. Defaults to False.
+
+        Returns:
+            None: [description]
         """
         self.args = args
         self.depth = depth
@@ -400,7 +414,7 @@ class InceptionModule:
     """Summary
     """
 
-    def __init__(self, leaky_relu_slope: float, *args, **kwargs):
+    def __init__(self, leaky_relu_slope: float, *args: Any, **kwargs: Any) -> None:
         """
         __init__ [summary]
 
@@ -440,33 +454,27 @@ class InceptionModule:
         return Concatenate()([tower(input_tensor) for tower in self._towers])
 
 
-def TDConv1D(*args, **kwargs):  # pylint: disable=C0103
-    """Summary
-
-    Args:
-        *args: Description
-        **kwargs: Description
+def TDConv1D(*args: Any, **kwargs: Any) -> TimeDistributed:  # pylint: disable=C0103
+    """
+    TDConv1D [summary]
 
     Returns:
-        TimeDistributed: Description
+        [TimeDistributed]: [description]
     """
     return TimeDistributed(Conv1D(*args, **kwargs))
 
 
-def TDConv2D(*args, **kwargs):  # pylint: disable=C0103
-    """Summary
-
-    Args:
-        *args: Description
-        **kwargs: Description
+def TDConv2D(*args: Any, **kwargs: Any) -> TimeDistributed:  # pylint: disable=C0103
+    """
+    TDConv2D [summary]
 
     Returns:
-        TimeDistributed: Description
+        [TimeDistributed]: [description]
     """
     return TimeDistributed(Conv2D(*args, **kwargs))
 
 
-def TDDense(*args, **kwargs):  # pylint: disable=C0103
+def TDDense(*args: Any, **kwargs: Any) -> TimeDistributed:  # pylint: disable=C0103
     """Summary
 
     Args:
