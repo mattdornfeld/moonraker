@@ -5,10 +5,12 @@ from collections import deque as Deque
 
 from coinbase_train import constants as c
 
+
 class BaseRewardStrategy:
     """
     [summary]
     """
+
     @staticmethod
     def _calc_mid_price(state_buffer: Deque, time_index: int) -> float:
         """
@@ -21,17 +23,21 @@ class BaseRewardStrategy:
         Returns:
             float: [description]
         """
-        best_ask_price = c.NORMALIZERS['PRICE'] * \
-            state_buffer[time_index]['sell_order_book'][0][0]
-        best_bid_price = c.NORMALIZERS['PRICE'] * \
-            state_buffer[time_index]['buy_order_book'][-1][0]
+        best_ask_price = (
+            c.NORMALIZERS["PRICE"] * state_buffer[time_index]["sell_order_book"][0][0]
+        )
+        best_bid_price = (
+            c.NORMALIZERS["PRICE"] * state_buffer[time_index]["buy_order_book"][-1][0]
+        )
 
         return (best_ask_price + best_bid_price) / 2
 
     @staticmethod
-    def _calc_portfolio_value_at_time_index(state_buffer: Deque, time_index: int) -> float:
+    def calc_portfolio_value_at_time_index(
+        state_buffer: Deque, time_index: int
+    ) -> float:
         """
-        _calc_portfolio_value_at_time_index [summary]
+        calc_portfolio_value_at_time_index [summary]
 
         Args:
             state_buffer (Deque): [description]
@@ -40,7 +46,7 @@ class BaseRewardStrategy:
         Returns:
             float: [description]
         """
-        funds = state_buffer[time_index]['account_funds']
+        funds = state_buffer[time_index]["account_funds"]
 
         usd = funds[0, 0]
         btc = funds[0, 2]
@@ -59,8 +65,9 @@ class BaseRewardStrategy:
         Returns:
             float: [description]
         """
-        return (BaseRewardStrategy._calc_portfolio_value_at_time_index(state_buffer, -1) -
-                BaseRewardStrategy._calc_portfolio_value_at_time_index(state_buffer, -2))
+        return BaseRewardStrategy.calc_portfolio_value_at_time_index(
+            state_buffer, -1
+        ) - BaseRewardStrategy.calc_portfolio_value_at_time_index(state_buffer, -2)
 
     def calculate_reward(self, state_buffer: Deque) -> float:
         """
@@ -89,12 +96,14 @@ class BaseRewardStrategy:
         """
         raise NotImplementedError
 
+
 class CalmarRewardStrategy(BaseRewardStrategy):
     """
     This strategy incentivizes profit and disincentivizes drawdown. Each step will return the ratio
     of the change in USD value of the portfolio divded by the maximum drawdown incurred during the
     episode.
     """
+
     def __init__(self):
         self._peak_portfolio_value = 0.0
         self._max_drawdown = 1e-10
@@ -110,7 +119,7 @@ class CalmarRewardStrategy(BaseRewardStrategy):
             float: [description]
         """
         latest_return = self._calc_latest_return(state_buffer)
-        portfolio_value = self._calc_portfolio_value_at_time_index(state_buffer, -1)
+        portfolio_value = self.calc_portfolio_value_at_time_index(state_buffer, -1)
 
         if portfolio_value - self._peak_portfolio_value > 0:
             self._peak_portfolio_value = portfolio_value
@@ -123,11 +132,13 @@ class CalmarRewardStrategy(BaseRewardStrategy):
         self._peak_portfolio_value = 0.0
         self._max_drawdown = 1e-10
 
+
 class ProfitRewardStrategy(BaseRewardStrategy):
     """
     This strategy purely incentivizes profit. Every step returns a reward equal to the change in
     the USD value of the portfolio.
     """
+
     def calculate_reward(self, state_buffer) -> float:
         """
         __call__ [summary]

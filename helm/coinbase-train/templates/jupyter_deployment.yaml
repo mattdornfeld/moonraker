@@ -39,11 +39,17 @@ spec:
         workingDir: /
 
         env:
+          - name: ENVIRONMENT
+            value: {{.Values.ENVIRONMENT}}
+
           - name: MONGO_DB_URL
             valueFrom:
               secretKeyRef:
                 name: {{$release_name}}-mongodb-credentials
                 key: mongodb-url
+
+          - name: NUM_GPUS
+            value: {{.Values.notebook.num_gpus | quote}}
 
           - name: POSTGRES_PASSWORD
             valueFrom:
@@ -68,11 +74,19 @@ spec:
             nvidia.com/gpu: {{.Values.notebook.num_gpus}}
 
         volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+
           - mountPath: /secrets
             name: service-account-json
             readOnly: true
 
+
       volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+
       - name: service-account-json
         secret:
           secretName: {{$release_name}}-service-account-json

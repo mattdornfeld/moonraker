@@ -1,80 +1,66 @@
 """Summary
 """
+import logging
 from collections import deque as Deque
 from copy import deepcopy
 from datetime import datetime, timedelta
 from decimal import Decimal
-import logging
 from math import inf
-from typing import Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from funcy import compose, partial, rpartial
 import numpy as np
-from rl.core import Env
+from funcy import compose, partial, rpartial
+from gym import Env
+from gym.spaces import Box
 
 from fakebase import utils as fakebase_utils
 
 from coinbase_train import constants as c
 from coinbase_train.exchange import Exchange
+from coinbase_train.observations import (
+    Observation,
+    ObservationSpace,
+    ObservationSpaceShape,
+)
 from coinbase_train.reward import BaseRewardStrategy
-from coinbase_train.utils import (clamp_to_range, convert_to_bool, pad_to_length,
-                                  EnvironmentFinishedException)
+from coinbase_train.utils import (
+    EnvironmentConfigs,
+    EnvironmentFinishedException,
+    clamp_to_range,
+    convert_to_bool,
+    pad_to_length,
+)
 
 LOGGER = logging.getLogger(__name__)
 
-class Environment(Env): #pylint: disable=W0223
 
-    """Summary
-
-    Attributes:
-        end_dt (datetime): Description
-        exchange (Exchange): Description
-        initial_btc (float): Description
-        initial_usd (float): Description
-        num_workers (int): Description
-        start_dt (datetime): Description
-        time_delta (timedelta): Description
-        verbose (bool): Description
+class Environment(Env):  # pylint: disable=W0223
     """
-    def __init__(self,
-                 end_dt: datetime,
-                 initial_usd: Decimal,
-                 initial_btc: Decimal,
-                 num_time_steps: int,
-                 num_workers: int,
-                 reward_strategy: BaseRewardStrategy,
-                 start_dt: datetime,
-                 time_delta: timedelta,
-                 verbose: bool = False,
-                 num_warmup_time_steps: Optional[int] = None):
-        """Summary
+    Environment [summary]
+    """
 
-        Args:
-            end_dt (datetime): Description
-            initial_usd (Decimal): Description
-            initial_btc (Decimal): Description
-            num_time_steps (int): Description
-            num_workers (int): Description
-            reward_strategy (BaseRewardStrategy): Description
-            start_dt (datetime): Description
-            time_delta (timedelta): Description
-            verbose (bool, optional): Description
-            num_warmup_time_steps (Optional[int], optional): defaults to num_time_steps
-        """
-        self._state_buffer: Deque = Deque(maxlen=num_time_steps) #pylint: disable=C0301
+    def __init__(self, config: Dict[str, Any]) -> None:
+        _config = EnvironmentConfigs(**config)
+        self._initial_portfolio_value = 0.0
+        self._state_buffer: Deque = Deque(
+            maxlen=_config.num_time_steps
+        )  # pylint: disable=C0301
         self._closing_price = 0.0
         self._made_illegal_transaction = False
-        self._num_warmup_time_steps = num_warmup_time_steps
-        self._reward_strategy = reward_strategy
-        self._warmed_up_buffer: Deque = Deque(maxlen=num_time_steps) #pylint: disable=C0301
-        self.end_dt = end_dt
+        self._warmed_up_buffer: Deque = Deque(
+            maxlen=_config.num_time_steps
+        )  # pylint: disable=C0301
+        self.action_space = Box(low=0.0, high=1.0, shape=(c.ACTOR_OUTPUT_DIMENSION,))
+        self.config = _config
         self.exchange: Optional[Exchange] = None
-        self.initial_btc = initial_btc
-        self.initial_usd = initial_usd
-        self.num_workers = num_workers
-        self.start_dt = start_dt
-        self.time_delta = time_delta
-        self.verbose = verbose
+        self.observation_space = ObservationSpace(
+            shape=ObservationSpaceShape(
+                account_funds=(1, 4),
+                order_book=(_config.num_time_steps, 4 * c.ORDER_BOOK_DEPTH),
+                time_series=(_config.num_time_steps, c.NUM_CHANNELS_IN_TIME_SERIES),
+            )
+        )
+        self.is_test_environment = _config.is_test_environment
 
         self.reset()
 
@@ -97,15 +83,16 @@ class Environment(Env): #pylint: disable=W0223
             str,
             rpartial(clamp_to_range, min_value, inf),
             lambda price: c.MAX_PRICE * price,
-            rpartial(clamp_to_range, 0.0, 1.0)
+            rpartial(clamp_to_range, 0.0, 1.0),
         )(normalized_transaction_price)
 
     @staticmethod
     def _calc_transaction_size(
-            available_btc: Decimal,
-            available_usd: Decimal,
-            is_buy: bool,
-            transaction_price: Decimal) -> Decimal:
+        available_btc: Decimal,
+        available_usd: Decimal,
+        is_buy: bool,
+        transaction_price: Decimal,
+    ) -> Decimal:
         """
         _calc_transaction_size [summary]
 
@@ -118,11 +105,15 @@ class Environment(Env): #pylint: disable=W0223
         Returns:
             Decimal: [description]
         """
-        transaction_size = (available_usd * (1 - c.BUY_RESERVE_FRACTION) / transaction_price if
-                            is_buy else
-                            available_btc)
+        transaction_size = (
+            available_usd * (1 - c.BUY_RESERVE_FRACTION) / transaction_price
+            if is_buy
+            else available_btc
+        )
 
-        return fakebase_utils.round_to_currency_precision(c.PRODUCT_CURRENCY, transaction_size)
+        return fakebase_utils.round_to_currency_precision(
+            c.PRODUCT_CURRENCY, transaction_size
+        )
 
     def _cancel_expired_orders(self) -> None:
         """
@@ -132,11 +123,14 @@ class Environment(Env): #pylint: disable=W0223
             None: [description]
         """
         for order in list(self.exchange.account.orders.values()):
-            if order.order_status != 'open':
+            if order.order_status != "open":
                 continue
 
-            deadline = (datetime.max if order.time_to_live == timedelta.max else
-                        order.time + order.time_to_live)
+            deadline = (
+                datetime.max
+                if order.time_to_live == timedelta.max
+                else order.time + order.time_to_live
+            )
 
             if self.exchange.interval_start_dt >= deadline:
                 self.exchange.cancel_order(order.order_id)
@@ -148,22 +142,24 @@ class Environment(Env): #pylint: disable=W0223
             bool: Description
         """
         return (
-            self.exchange.account.funds[c.PRODUCT_CURRENCY]['balance'] +
-            self.exchange.account.funds[c.QUOTE_CURRENCY]['balance']
-            ) <= 0.0
+            self.exchange.account.funds[c.PRODUCT_CURRENCY]["balance"]
+            + self.exchange.account.funds[c.QUOTE_CURRENCY]["balance"]
+        ) <= 0.0
 
     def _exchange_step(self) -> None:
         """Summary
         """
-        if self.verbose and self._results_queue_is_empty:
-            LOGGER.info('Data queue is empty. Waiting for next entry.')
+        if c.VERBOSE and self._results_queue_is_empty:
+            LOGGER.info("Data queue is empty. Waiting for next entry.")
 
         self.exchange.step()
 
-        if self.verbose:
+        if c.VERBOSE:
             interval_end_dt = self.exchange.interval_end_dt
             interval_start_dt = self.exchange.interval_start_dt
-            LOGGER.info(f'Exchange stepped to {interval_start_dt}-{interval_end_dt}.') #pylint: disable=W1203
+            LOGGER.info(
+                "Exchange stepped to %s-%s.", interval_start_dt, interval_end_dt
+            )
 
     def _form_order_book_array(self, order_book_depth: int) -> np.ndarray:
         """Summary
@@ -176,42 +172,55 @@ class Environment(Env): #pylint: disable=W0223
         """
         _order_book: List[List[float]] = []
         for state in self._state_buffer:
-            buy_order_book = (pad_to_length(state['buy_order_book'], order_book_depth)
-                              if len(state['buy_order_book']) < order_book_depth else
-                              state['buy_order_book'])
+            buy_order_book = (
+                pad_to_length(state["buy_order_book"], order_book_depth)
+                if len(state["buy_order_book"]) < order_book_depth
+                else state["buy_order_book"]
+            )
 
-            sell_order_book = (pad_to_length(state['sell_order_book'], order_book_depth)
-                               if len(state['sell_order_book']) < order_book_depth else
-                               state['sell_order_book'])
+            sell_order_book = (
+                pad_to_length(state["sell_order_book"], order_book_depth)
+                if len(state["sell_order_book"]) < order_book_depth
+                else state["sell_order_book"]
+            )
 
             _order_book.append([])
-            for (ps, vs), (pb, vb) in zip(sell_order_book[:order_book_depth],  #pylint: disable=C0103
-                                          buy_order_book[-order_book_depth:][::-1]):
+            for (ps, vs), (pb, vb) in zip(
+                sell_order_book[:order_book_depth],  # pylint: disable=C0103
+                buy_order_book[-order_book_depth:][::-1],
+            ):
                 _order_book[-1] += [ps, vs, pb, vb]
 
         return np.array(_order_book)
 
-    def _get_state_from_buffer(self) -> List[np.ndarray]:
+    def _get_observation_from_buffer(self) -> Observation:
         """Summary
 
         Returns:
-            List[np.ndarray]: Description
+            Observation: Description
         """
-        account_funds = self._state_buffer[-1]['account_funds']
+        account_funds = self._state_buffer[-1]["normalized_account_funds"]
 
         order_book = self._form_order_book_array(c.ORDER_BOOK_DEPTH)
 
-        time_series = np.array([np.hstack((state_at_time['cancellation_statistics'],
-                                           state_at_time['order_statistics'],
-                                           state_at_time['match_statistics']))
-                                for state_at_time in self._state_buffer]).astype(float)
+        time_series = np.array(
+            [
+                np.hstack(
+                    (
+                        state_at_time["cancellation_statistics"],
+                        state_at_time["order_statistics"],
+                        state_at_time["match_statistics"],
+                    )
+                )
+                for state_at_time in self._state_buffer
+            ]
+        ).astype(float)
 
-        return [account_funds, order_book, time_series]
+        return Observation(account_funds, order_book, time_series)
 
-    def _make_transactions(self,
-                           order_side: str,
-                           transaction_price: Decimal,
-                           transaction_size: Decimal) -> None:
+    def _make_transactions(
+        self, order_side: str, transaction_price: Decimal, transaction_size: Decimal
+    ) -> None:
         """
         _make_transactions [summary]
 
@@ -230,10 +239,11 @@ class Environment(Env): #pylint: disable=W0223
                 side=order_side,
                 size=transaction_size,
                 post_only=False,
-                time_to_live=c.ORDER_TIME_TO_LIVE)
+                time_to_live=c.ORDER_TIME_TO_LIVE,
+            )
 
         except fakebase_utils.IllegalTransactionException as exception:
-            if self.verbose:
+            if c.VERBOSE:
                 LOGGER.exception(exception)
 
     @property
@@ -248,10 +258,10 @@ class Environment(Env): #pylint: disable=W0223
     def _warmup(self) -> None:
         """Summary
         """
-        while len(self._state_buffer) > 0:
+        while self._state_buffer:
             self._state_buffer.pop()
 
-        for _ in range(self._num_warmup_time_steps):
+        for _ in range(self.config.num_warmup_time_steps):
 
             self._exchange_step()
 
@@ -274,23 +284,29 @@ class Environment(Env): #pylint: disable=W0223
         """
         return self.exchange.finished or self._made_illegal_transaction
 
-    def reset(self) -> List[np.ndarray]:
+    def reset(self) -> Observation:
         """Summary
 
         Returns:
-            List[np.ndarray]: Description
+            Observation: Description
         """
-        if self.verbose:
-            LOGGER.info('Resetting the environment.')
+        if c.VERBOSE:
+            LOGGER.info("Resetting the environment.")
 
         if self.exchange is None:
-            self.exchange = Exchange(end_dt=self.end_dt,
-                                     num_workers=self.num_workers,
-                                     start_dt=self.start_dt,
-                                     time_delta=self.time_delta)
+            self.exchange = Exchange(
+                end_dt=self.config.end_dt,
+                num_workers=self.config.num_workers,
+                start_dt=self.config.start_dt,
+                time_delta=self.config.time_delta,
+            )
 
-            self.exchange.account.add_funds(currency=c.QUOTE_CURRENCY, amount=self.initial_usd)
-            self.exchange.account.add_funds(currency=c.PRODUCT_CURRENCY, amount=self.initial_btc)
+            self.exchange.account.add_funds(
+                currency=c.QUOTE_CURRENCY, amount=self.config.initial_usd
+            )
+            self.exchange.account.add_funds(
+                currency=c.PRODUCT_CURRENCY, amount=self.config.initial_btc
+            )
 
             self._warmup()
             self._exchange_checkpoint = self.exchange.create_checkpoint()
@@ -302,23 +318,27 @@ class Environment(Env): #pylint: disable=W0223
 
         self._made_illegal_transaction = False
 
-        state = self._get_state_from_buffer()
+        observation = self._get_observation_from_buffer()
 
-        self._reward_strategy.reset()
+        self.config.reward_strategy.reset()
 
-        if self.verbose:
-            LOGGER.info('Environment reset.')
+        if c.VERBOSE:
+            LOGGER.info("Environment reset.")
 
-        return state
+        self._initial_portfolio_value = BaseRewardStrategy.calc_portfolio_value_at_time_index(
+            state_buffer=self._state_buffer, time_index=-1
+        )
 
-    def step(self, action: np.ndarray) -> Tuple[List[np.ndarray], float, bool, Dict]:
+        return observation
+
+    def step(self, action: np.ndarray) -> Tuple[Observation, float, bool, Dict]:
         """Summary
 
         Args:
             action (np.ndarray): Description
 
         Returns:
-            Tuple[List[np.ndarray], float, bool, Dict]: Description
+            Tuple[Observation, float, bool, Dict]: Description
 
         Raises:
             EnvironmentFinishedException: Description
@@ -330,32 +350,29 @@ class Environment(Env): #pylint: disable=W0223
 
         transaction_buy, transaction_none, normalized_price, _ = action
 
-        available_usd = self.exchange.account.get_available_funds('USD')
-        available_btc = self.exchange.account.get_available_funds('BTC')
+        available_usd = self.exchange.account.get_available_funds("USD")
+        available_btc = self.exchange.account.get_available_funds("BTC")
 
-        if self.verbose:
+        if c.VERBOSE:
             LOGGER.info(action)
             LOGGER.info(  # pylint: disable=W1203
-                f'Available USD = {available_usd}. Available BTC = {available_btc}.')
+                f"Available USD = {available_usd}. Available BTC = {available_btc}."
+            )
 
         no_transaction = convert_to_bool(transaction_none)
 
         if not no_transaction:
             is_buy = convert_to_bool(transaction_buy)
 
-            order_side = 'buy' if is_buy else 'sell'
+            order_side = "buy" if is_buy else "sell"
 
             transaction_price = self._calc_transaction_price(normalized_price)
 
             transaction_size = self._calc_transaction_size(
-                available_btc,
-                available_usd,
-                is_buy,
-                transaction_price)
+                available_btc, available_usd, is_buy, transaction_price
+            )
 
-            self._make_transactions(order_side,
-                                    transaction_price,
-                                    transaction_size)
+            self._make_transactions(order_side, transaction_price, transaction_size)
 
         self._exchange_step()
 
@@ -363,14 +380,23 @@ class Environment(Env): #pylint: disable=W0223
 
         self._state_buffer.append(exchange_state)
 
-        state = self._get_state_from_buffer()
+        observation = self._get_observation_from_buffer()
 
-        reward = self._reward_strategy.calculate_reward(self._state_buffer)
+        reward = self.config.reward_strategy.calculate_reward(self._state_buffer)
 
         self._made_illegal_transaction = self._check_is_out_of_funds()
 
-        if self.verbose:
-            LOGGER.info(f'Shape of input = {[s.shape for s in state]}') #pylint: disable=W1203
-            LOGGER.info(f'reward = {reward}') #pylint: disable=W1203
+        if c.VERBOSE:
+            LOGGER.info(f"reward = {reward}")  # pylint: disable=W1203
 
-        return state, reward, self.episode_finished, {}
+        portfolio_value = BaseRewardStrategy.calc_portfolio_value_at_time_index(
+            state_buffer=self._state_buffer, time_index=-1
+        )
+
+        info_dict = {
+            "portfolio_value": portfolio_value,
+            "roi": (portfolio_value - self._initial_portfolio_value)
+            / self._initial_portfolio_value,
+        }
+
+        return observation, reward, self.episode_finished, info_dict

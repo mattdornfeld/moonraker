@@ -18,34 +18,56 @@ Attributes:
     TENSORBOARD_ROOT_DIR (str): Description
     VERBOSE (bool): Description
 """
+import os
 from datetime import timedelta
 from decimal import Decimal
-import os
 from pathlib import Path
+import platform
+from typing import Optional
+
+
+def int_or_none(string: Optional[str]) -> Optional[int]:
+    """
+    int_or_none [summary]
+
+    Args:
+        string (Optional[str]): [description]
+
+    Returns:
+        Optional[string]: [description]
+    """
+    return int(string) if string else None
+
 
 ACTOR_OUTPUT_DIMENSION = 4
-BUY_RESERVE_FRACTION = Decimal('0.005')
-ILLEGAL_TRANSACTION_PENALTY = 1e3 #should be positive
+BUY_RESERVE_FRACTION = Decimal("0.005")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", platform.node())
+ILLEGAL_TRANSACTION_PENALTY = 1e3  # should be positive
 MAX_PRICE = 13000.00
 NORMALIZERS = dict(BTC_FUNDS=1e1, PRICE=10e3, SIZE=1e2, USD_FUNDS=100e3)
 NUM_DATABASE_WORKERS = 3
 NUM_CHANNELS_IN_TIME_SERIES = 26
-ORDER_BOOK_BIN_SIZE = Decimal('0.01')
+ORDER_BOOK_BIN_SIZE = Decimal("0.01")
 ORDER_BOOK_DEPTH = 10
 ORDER_TIME_TO_LIVE = timedelta(minutes=0.5)
-PRODUCT_ID = 'BTC-USD'
+PRODUCT_ID = "BTC-USD"
 VERBOSE = False
-EXPERIMENT_NAME = PRODUCT_ID.lower() + '-train'
-PRODUCT_CURRENCY, QUOTE_CURRENCY = PRODUCT_ID.split('-')
 
-#gcp configs
-GCP_PROJECT_NAME = 'moonraker'
-MODEL_BUCKET_NAME = os.environ.get('MODEL_BUCKET_NAME', 'moonraker-trained-models')
-SERVICE_ACCOUNT_JSON = Path(os.environ.get('SERVICE_ACCOUNT_JSON', '/secrets/service-account.json'))
+EXPERIMENT_NAME = PRODUCT_ID.lower() + "-train"
+PRODUCT_CURRENCY, QUOTE_CURRENCY = PRODUCT_ID.split("-")
 
-#logging configs
-SAVED_MODELS_ROOT_DIR = '/var/moonraker_models'
-TENSORBOARD_ROOT_DIR = '/var/log/sacred_tensorboard'
+# gcp configs
+GCP_PROJECT_NAME = "moonraker"
+MODEL_BUCKET_NAME = os.environ.get("MODEL_BUCKET_NAME", "moonraker-trained-models")
+SERVICE_ACCOUNT_JSON = Path(
+    os.environ.get("SERVICE_ACCOUNT_JSON", "/secrets/service-account.json")
+)
 
-#mongodb configs
+# mongodb configs
 MONGO_DB_URL = os.environ.get("MONGO_DB_URL", "mongodb://root:password@mongo:27017")
+
+# ray configs
+NUM_CPUS = int_or_none(os.environ.get("NUM_CPUS"))
+NUM_GPUS = int_or_none(os.environ.get("NUM_GPUS"))
+OBJECT_STORE_MEMORY = os.environ.get("OBJECT_STORE_MEMORY")
+REDIS_ADDRESS = os.environ.get("REDIS_ADDRESS")

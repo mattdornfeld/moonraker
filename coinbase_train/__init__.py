@@ -1,8 +1,9 @@
 """Summary
 """
 import logging
+import warnings
 
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s')
-    # datefmt='%H:%M:%S')
+    format="[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+)
