@@ -273,7 +273,8 @@ def get_gcs_base_path(_run):
     """
     ex_name = _run.experiment_info["name"]
     ex_id = _run._id  # pylint: disable=W0212
-    return f"{c.ENVIRONMENT}-{ex_name}-{ex_id}"
+    environment = c.ENVIRONMENT.replace('/', '-')
+    return f"{environment}-{ex_name}-{ex_id}"
 
 
 def min_max_normalization(max_value: float, min_value: float, num: float) -> float:
