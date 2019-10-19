@@ -22,12 +22,11 @@ variables:
   EOF
 
 .helm_deploy_args: &helm_deploy_args |
-  $HELM_DEPLOY_ARGS
-  --force
   --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
   --set moonraker-common.registry.username=$CI_USERNAME
   --set moonraker-common.registry.password=$CI_TOKEN
   --set service_account_json=$SERVICE_ACCOUNT_JSON
+  --set ENVIRONMENT=staging/$CI_COMMIT_REF_NAME
 
 increment_version:increment_version:
   extends: .increment_version

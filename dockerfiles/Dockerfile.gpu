@@ -3,8 +3,6 @@ FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04
 
 ENV PYTHONPATH=/app LANG=C.UTF-8
 
-RUN mkdir /var/log/sacred_tensorboard /var/moonraker_models
-
 ADD ./ /app
 
 WORKDIR /app
@@ -12,4 +10,5 @@ WORKDIR /app
 RUN --mount=type=secret,id=gitlab_credentials.ini \
 	apt-get update && \
 	apt-get install -y python3-pip git libgomp1 && \
-	python3 setup.py install --gpu
+	python3 setup.py install --gpu && \
+	chmod -R o+rx /usr/local/lib/python3.6/dist-packages/ray*

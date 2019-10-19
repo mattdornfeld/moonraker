@@ -6,19 +6,31 @@ Attributes:
     ORDER_BOOK (tf.Tensor): Description
     ORDERS (tf.Tensor): Description
 """
-from typing import Callable, List
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from funcy import compose
-from keras.layers import Concatenate, Conv2D, Dense, Input, Lambda, LeakyReLU
-from keras.models import Model
-from keras import backend as K
+from gym.spaces import Box
 import tensorflow as tf
+from tensorflow.keras import backend as K  # pylint: disable=E0401
+from tensorflow.keras.layers import (  # pylint: disable=E0401
+    Concatenate,
+    Conv2D,
+    Dense,
+    Input,
+    Lambda,
+    LeakyReLU,
+    Reshape,
+)
+from tensorflow.keras.models import Model  # pylint: disable=E0401
 
-from coinbase_train import constants as c
+from ray.rllib.models.tf.tf_modelv2 import TFModelV2
+
 from coinbase_train import layers as l
-from coinbase_train.utils import HyperParameters
+from coinbase_train.observations import ObservationSpace
+from coinbase_train.utils import HyperParameters, prod
 
-class ActorCriticModel:
+
+class ActorCriticModel(TFModelV2):
     """
     Attributes:
         account_funds (tf.Tensor): Description
@@ -27,159 +39,151 @@ class ActorCriticModel:
         order_book (tf.Tensor): Description
         time_series (tf.Tensor): Description
     """
-    def __init__(self, hyper_params: HyperParameters):
+
+    def __init__(
+        self,
+        obs_space: Box,
+        action_space: Box,
+        num_outputs: int,
+        model_config: Dict[str, Any],
+        name: str,
+    ):
         """
         __init__ [summary]
 
         Args:
-            hyper_params (HyperParameters): [description]
+            obs_space (Box): [description]
+            action_space (Box): [description]
+            num_outputs (int): [description]
+            model_config (Dict[str, Any]): [description]
+            name (str): [description]
         """
-        self.account_funds = Input(
-            batch_shape=(None, 1, 4),
-            name='account_funds')
+        super().__init__(obs_space, action_space, num_outputs, model_config, name)
 
-        self.order_book = Input(
-            batch_shape=(None, hyper_params.num_time_steps, 4*c.ORDER_BOOK_DEPTH),
-            name='order_book')
+        self.value: Optional[tf.Tensor] = None
 
-        self.time_series = Input(
-            batch_shape=(None, hyper_params.num_time_steps, c.NUM_CHANNELS_IN_TIME_SERIES),
-            name='time_series')
+        self._obs_space: ObservationSpace = obs_space.original_space
+        self._account_funds_input_size = int(
+            prod(self._obs_space.account_funds_space.shape)
+        )
+        self._order_book_input_size = int(prod(self._obs_space.order_book_space.shape))
+        self._time_series_input_size = int(
+            prod(self._obs_space.time_series_space.shape)
+        )
 
-        self.actor = self._build_actor(hyper_params)
-        self.critic = self._build_critic(hyper_params)
+        input_shape = (
+            self._account_funds_input_size
+            + self._order_book_input_size
+            + self._time_series_input_size
+        )
 
-    @staticmethod
-    def _actor_output_activation(input_tensor: tf.Tensor) -> tf.Tensor:
-        """actor_output_activation [summary]
+        self.input_tensor: tf.Tensor = Input(shape=(input_shape,), name="observations")
 
-        Args:
-            input_tensor (tf.Tensor): [description]
+        def split(t: tf.Tensor, start: int, end: int) -> tf.Tensor:
+            """
+            split [summary]
 
-        Returns:
-            tf.Tensor: [description]
-        """
-        def softmax_and_unpack(*input_tensors):
-            """softmax_and_unpack [summary]
+            Args:
+                t (tf.Tensor): [description]
+                start (int): [description]
+                end (int): [description]
 
             Returns:
-                List[tf.Tensor]: [description]
+                tf.Tensor: [description]
             """
-            import tensorflow as tf
+            return Lambda(lambda t: t[:, start:end])(t)
 
-            _input_tensors = [K.expand_dims(t, axis=-1) for t in input_tensors]
-            _soft_max = K.softmax(K.concatenate(_input_tensors))
-            _output_tensors = tf.unstack(_soft_max, axis=-1)
+        account_funds = split(
+            t=self.input_tensor, start=0, end=self._account_funds_input_size
+        )
 
-            return [K.expand_dims(t, axis=-1) for t in _output_tensors]
+        order_book = split(
+            t=self.input_tensor,
+            start=self._account_funds_input_size,
+            end=self._account_funds_input_size + self._order_book_input_size,
+        )
 
-        transaction_buy, transaction_none, transaction_sell = softmax_and_unpack(input_tensor[:, 0],
-                                                                                 input_tensor[:, 1],
-                                                                                 input_tensor[:, 3])
-        transaction_price = K.expand_dims(K.sigmoid(input_tensor[:, 2]), axis=-1)
+        time_series = split(
+            t=self.input_tensor,
+            start=self._account_funds_input_size + self._order_book_input_size,
+            end=input_shape,
+        )
 
-        return K.concatenate([transaction_buy,
-                              transaction_none,
-                              transaction_price,
-                              transaction_sell])
+        self.account_funds = Reshape(self._obs_space.account_funds_space.shape)(
+            account_funds
+        )
+        self.order_book = Reshape(self._obs_space.order_book_space.shape)(order_book)
+        self.time_series = Reshape(self._obs_space.time_series_space.shape)(time_series)
 
-    def _build_actor(self, hyper_params: HyperParameters) -> Model:
+        vf_share_layers = model_config.get("vf_share_layers", True)
+        hyper_params: HyperParameters = model_config["custom_options"]["hyper_params"]
+        self.actor = self._build_actor(hyper_params, num_outputs, vf_share_layers)
+        self.register_variables(self.actor.variables)
+
+    def _build_actor(
+        self, hyper_params: HyperParameters, num_outputs: int, critic_share_layers: bool
+    ) -> Model:
         """
         _build_actor [summary]
 
         Args:
             hyper_params (HyperParameters): [description]
+            num_outputs (int): [description]
+            critic_share_layers (bool): [description]
 
         Returns:
             Model: [description]
         """
+
         account_funds_branch = self._build_account_funds_tower(
             depth=hyper_params.account_funds_tower_depth,
-            num_units=hyper_params.account_funds_num_units
+            num_units=hyper_params.account_funds_num_units,
         )(self.account_funds)
 
         deep_lob_branch = self._build_deep_lob_tower(
             attention_dim=hyper_params.deep_lob_tower_attention_dim,
             conv_block_num_filters=hyper_params.deep_lob_tower_conv_block_num_filters,
-            leaky_relu_slope=hyper_params.deep_lob_tower_leaky_relu_slope
+            leaky_relu_slope=hyper_params.deep_lob_tower_leaky_relu_slope,
         )(self.order_book)
 
         time_series_branch = self._build_time_series_tower(
             attention_dim=hyper_params.time_series_tower_attention_dim,
             depth=hyper_params.time_series_tower_depth,
             num_filters=hyper_params.time_series_tower_num_filters,
-            num_stacks=hyper_params.time_series_tower_num_stacks
+            num_stacks=hyper_params.time_series_tower_num_stacks,
         )([deep_lob_branch, self.time_series])
 
-        merged_output_branch = Concatenate(axis=-1)([account_funds_branch,
-                                                     time_series_branch])
-
-        output = compose(Lambda(self._actor_output_activation),
-                         Dense(c.ACTOR_OUTPUT_DIMENSION),
-                         l.DenseBlock(depth=hyper_params.output_tower_depth,
-                                      units=hyper_params.output_tower_num_units)
-                        )(merged_output_branch)
-
-        actor = Model(
-            inputs=[self.account_funds, self.order_book, self.time_series],
-            outputs=[output]
+        merged_output_branch = Concatenate(axis=-1)(
+            [account_funds_branch, time_series_branch]
         )
+
+        actions = compose(
+            Dense(num_outputs, activation="linear"),
+            l.DenseBlock(
+                depth=hyper_params.output_tower_depth,
+                units=hyper_params.output_tower_num_units,
+            ),
+        )(merged_output_branch)
+
+        if critic_share_layers:
+            value: tf.Tensor = compose(
+                Dense(1),
+                l.DenseBlock(
+                    depth=hyper_params.output_tower_depth,
+                    units=hyper_params.output_tower_num_units,
+                ),
+            )(merged_output_branch)
+
+        outputs = [actions, value] if critic_share_layers else [actions, None]
+
+        actor = Model(inputs=self.input_tensor, outputs=outputs)
 
         return actor
 
-    def _build_critic(self, hyper_params: HyperParameters) -> Model:
-        """
-        _build_critic [summary]
-
-        Args:
-            hyper_params (HyperParameters): [description]
-
-        Returns:
-            Model: [description]
-        """
-        action_input = Input(
-            batch_shape=(None, c.ACTOR_OUTPUT_DIMENSION),
-            name='critic_action_input')
-
-        account_funds_branch = self._build_account_funds_tower(
-            depth=hyper_params.account_funds_tower_depth,
-            num_units=hyper_params.account_funds_num_units
-            )(self.account_funds)
-
-        deep_lob_branch = self._build_deep_lob_tower(
-            attention_dim=hyper_params.deep_lob_tower_attention_dim,
-            conv_block_num_filters=hyper_params.deep_lob_tower_conv_block_num_filters,
-            leaky_relu_slope=hyper_params.deep_lob_tower_leaky_relu_slope
-            )(self.order_book)
-
-        time_series_branch = self._build_time_series_tower(
-            attention_dim=hyper_params.time_series_tower_attention_dim,
-            depth=hyper_params.time_series_tower_depth,
-            num_filters=hyper_params.time_series_tower_num_filters,
-            num_stacks=hyper_params.time_series_tower_num_stacks
-        )([deep_lob_branch, self.time_series])
-
-        merged_output_branch = Concatenate(axis=-1)([action_input,
-                                                     account_funds_branch,
-                                                     time_series_branch])
-
-        output = compose(
-            Dense(1),
-            l.DenseBlock(depth=hyper_params.output_tower_depth,
-                         units=hyper_params.output_tower_num_units)
-            )(merged_output_branch)
-
-        critic = Model(
-            inputs=[action_input, self.account_funds, self.order_book, self.time_series],
-            outputs=[output]
-            )
-
-        return critic
-
+    @staticmethod
     def _build_account_funds_tower(
-            self,
-            depth: int,
-            num_units: int) -> Callable[[tf.Tensor], tf.Tensor]:
+        depth: int, num_units: int
+    ) -> Callable[[tf.Tensor], tf.Tensor]:
         """
         _build_account_funds_tower [summary]
 
@@ -191,17 +195,14 @@ class ActorCriticModel:
             Callable[[tf.Tensor], tf.Tensor]: [description]
         """
         return compose(
-            l.DenseBlock(
-                depth=depth,
-                units=num_units),
-            Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1)))
+            l.DenseBlock(depth=depth, units=num_units),
+            Lambda(lambda input_tensor: K.squeeze(input_tensor, axis=1)),
+        )
 
+    @staticmethod
     def _build_deep_lob_tower(
-            self,
-            attention_dim: int,
-            conv_block_num_filters: int,
-            leaky_relu_slope: float
-            ) -> Callable[[tf.Tensor], tf.Tensor]:
+        attention_dim: int, conv_block_num_filters: int, leaky_relu_slope: float
+    ) -> Callable[[tf.Tensor], tf.Tensor]:
         """
         _build_deep_lob_tower [summary]
 
@@ -213,48 +214,48 @@ class ActorCriticModel:
         Returns:
             Callable[[tf.Tensor], tf.Tensor]: [description]
         """
-        return compose(l.InceptionModule(
-                           filters=32,
-                           leaky_relu_slope=leaky_relu_slope),
-                       LeakyReLU(leaky_relu_slope),
-                       l.FullConvolutionBlock1D(
-                           depth=2,
-                           filters=conv_block_num_filters,
-                           kernel_size=4,
-                           padding='same'),
-                       l.Attention(attention_dim=attention_dim),
-                       LeakyReLU(leaky_relu_slope),
-                       l.FullConvolutionBlock(
-                           depth=2,
-                           filters=conv_block_num_filters,
-                           kernel_size=(4, 1),
-                           padding='same'),
-                       LeakyReLU(leaky_relu_slope),
-                       Conv2D(
-                           filters=conv_block_num_filters,
-                           kernel_size=(1, 2),
-                           padding='same',
-                           strides=(1, 2)),
-                       LeakyReLU(leaky_relu_slope),
-                       l.FullConvolutionBlock(
-                           depth=2,
-                           filters=conv_block_num_filters,
-                           kernel_size=(4, 1),
-                           padding='same'),
-                       LeakyReLU(leaky_relu_slope),
-                       Conv2D(
-                           filters=conv_block_num_filters,
-                           kernel_size=(1, 2),
-                           padding='same',
-                           strides=(1, 2)),
-                       Lambda(lambda order_book: K.expand_dims(order_book, axis=-1)))
+        return compose(
+            l.InceptionModule(filters=32, leaky_relu_slope=leaky_relu_slope),
+            LeakyReLU(leaky_relu_slope),
+            l.FullConvolutionBlock1D(
+                depth=2, filters=conv_block_num_filters, kernel_size=4, padding="same"
+            ),
+            l.Attention(attention_dim=attention_dim),
+            LeakyReLU(leaky_relu_slope),
+            l.FullConvolutionBlock(
+                depth=2,
+                filters=conv_block_num_filters,
+                kernel_size=(4, 1),
+                padding="same",
+            ),
+            LeakyReLU(leaky_relu_slope),
+            Conv2D(
+                filters=conv_block_num_filters,
+                kernel_size=(1, 2),
+                padding="same",
+                strides=(1, 2),
+            ),
+            LeakyReLU(leaky_relu_slope),
+            l.FullConvolutionBlock(
+                depth=2,
+                filters=conv_block_num_filters,
+                kernel_size=(4, 1),
+                padding="same",
+            ),
+            LeakyReLU(leaky_relu_slope),
+            Conv2D(
+                filters=conv_block_num_filters,
+                kernel_size=(1, 2),
+                padding="same",
+                strides=(1, 2),
+            ),
+            Lambda(lambda order_book: K.expand_dims(order_book, axis=-1)),
+        )
 
+    @staticmethod
     def _build_time_series_tower(
-            self,
-            attention_dim: int,
-            depth: int,
-            num_filters: int,
-            num_stacks: int) -> Callable[[List[tf.Tensor]], tf.Tensor]:
+        attention_dim: int, depth: int, num_filters: int, num_stacks: int
+    ) -> Callable[[List[tf.Tensor]], tf.Tensor]:
         """
         _build_time_series_tower [summary]
 
@@ -275,5 +276,34 @@ class ActorCriticModel:
                 nb_filters=num_filters,
                 nb_stacks=num_stacks,
                 time_distributed=False,
-                use_skip_connections=True),
-            Concatenate())
+                use_skip_connections=True,
+            ),
+            Concatenate(),
+        )
+
+    def forward(
+        self, input_dict: Dict[str, Any], state: List, seq_lens: tf.Tensor
+    ) -> Tuple[tf.Tensor, List]:
+        """
+        forward [summary]
+
+        Args:
+            input_dict (Dict[str, Any]): [description]
+            state (List): [description]
+            seq_lens (tf.Tensor): [description]
+
+        Returns:
+            Tuple[tf.Tensor, List]: [description]
+        """
+        action: tf.Tensor
+        action, self.value = self.actor(input_dict["obs_flat"])
+        return action, state
+
+    def value_function(self) -> tf.Tensor:
+        """
+        value_function [summary]
+
+        Returns:
+            tf.Tensor: [description]
+        """
+        return tf.reshape(self.value, [-1])
