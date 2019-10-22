@@ -1,20 +1,10 @@
 """Summary
 """
 import os
-import sys
+import subprocess
 from configparser import ConfigParser
 
 from setuptools import find_packages, setup
-
-GPU = False
-if "--gpu" in sys.argv:
-    GPU = True
-    sys.argv.remove("--gpu")
-
-DEV = False
-if "--dev" in sys.argv:
-    DEV = True
-    sys.argv.remove("--dev")
 
 CONFIG = ConfigParser()
 # The credentials secret will be mounted in the below directory
@@ -29,16 +19,15 @@ except KeyError:
     GITLAB_USERNAME = os.environ["GITLAB_USERNAME"]
 
 GITLAB_PREFIX = f"git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com/moonraker"
-
-DEPENDENCY_LINKS = [f"{GITLAB_PREFIX}/fakebase@v0.8.0#egg=fakebase-0.1"]
-
-DEV_INSTALL_REQUIRES = ["black>=19.3b0,<20.0"]
+DEPENDENCY_LINKS = [
+    f"{GITLAB_PREFIX}/fakebase@8a7c0ff67aefba7137993c5585ac85ee3801c428#egg=fakebase-0.1"
+]
 
 INSTALL_REQUIRES = [
     "GitPython>=2.1.10,<3.0.0",
     "dnspython>=1.16.0, <2.0.0",
     "keras>=2.2.4,<3.0.0",
-    "fakebase",
+    f"fakebase @ {DEPENDENCY_LINKS[0]}",
     "funcy>=1.11.0,<2.0.0",
     "google-cloud-storage>=1.15.0,<2.0.0",
     "jupyterlab>=0.35.4,<0.36.0",
@@ -46,10 +35,11 @@ INSTALL_REQUIRES = [
     "python-dateutil>=2.6.0,<3.0.0",
     "sacred",
     "ray[rllib]>=0.7.4,<0.8.0",
-    f"tensorflow{'-gpu' if GPU else ''}>=1.14.0,<1.15.0",
+    f"tensorflow>=1.14.0,<1.15.0",
 ]
 
-INSTALL_REQUIRES += DEV_INSTALL_REQUIRES if DEV else []
+# bintrees needs cython installed first in order to use its cython compiled tree
+PRIORITY_INSTALL = ["cython"]
 
 SETUP_REQUIRES = ["cython", "pytest-runner>=5.1,<6.0"]
 
@@ -59,11 +49,15 @@ TESTS_REQUIRE = [
     "pytest-pylint>=0.14.1,<0.15",
 ]
 
+subprocess.run(["pip3", "install"] + PRIORITY_INSTALL, check=True)
+
 setup(
     author="Matthew Dornfeld",
     author_email="matt@firstorderlabs.co",
     dependency_links=DEPENDENCY_LINKS,
-    extras_require=dict(gpu=["tensorflow-gpu>=1.13.1,<1.14.0"]),
+    extras_require=dict(
+        dev=["black>=19.3b0,<20.0"], gpu=["tensorflow-gpu>=1.14.0,<1.15.0"]
+    ),
     install_requires=INSTALL_REQUIRES,
     name="coinbase_train",
     packages=find_packages(),

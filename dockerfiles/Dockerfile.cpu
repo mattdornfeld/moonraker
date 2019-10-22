@@ -10,5 +10,5 @@ WORKDIR /app
 RUN --mount=type=secret,id=gitlab_credentials.ini \
     apt-get update && \
 	apt-get install -y git && \
-	python3 setup.py install && \
+	make install && \
 	chmod -R o+rx /usr/local/lib/python3.6/site-packages/ray*
