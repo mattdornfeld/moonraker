@@ -10,5 +10,6 @@ WORKDIR /app
 RUN --mount=type=secret,id=gitlab_credentials.ini \
 	apt-get update && \
 	apt-get install -y python3-pip git libgomp1 && \
-	python3 setup.py install --gpu && \
+	pip3 install --upgrade pip && \
+	make install-gpu && \
 	chmod -R o+rx /usr/local/lib/python3.6/dist-packages/ray*

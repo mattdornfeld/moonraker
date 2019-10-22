@@ -1,13 +1,13 @@
 phony: install install-dev install-gpu test test-mypy test-pylint
 
 install:
-	python3 setup.py install
+	pip3 install -e .
 
 install-dev:
-	python3 setup.py install --dev && cp bin/pre-commit .git/hooks/ && chmod u+x .git/hooks/pre-commit
+	pip3 install -e .[dev] && cp bin/pre-commit .git/hooks/ && chmod u+x .git/hooks/pre-commit
 
 install-gpu:
-	python3 setup.py install --gpu
+	pip3 install -e .[gpu]
 
 test:
 	python3 setup.py test --addopts "-v --mypy --pylint --pylint-rcfile=setup.cfg"
