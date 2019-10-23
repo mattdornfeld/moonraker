@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.0.0-experimental
-FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04
+FROM registry.gitlab.com/moonraker/base_images/coinbase_train_gpu:0.1.0-3d4ab4cc5e3fe49f350e3eecda3b4b9935817db6
 
 ENV PYTHONPATH=/app LANG=C.UTF-8
 
@@ -8,8 +8,5 @@ ADD ./ /app
 WORKDIR /app
 
 RUN --mount=type=secret,id=gitlab_credentials.ini \
-	apt-get update && \
-	apt-get install -y python3-pip git libgomp1 && \
-	pip3 install --upgrade pip && \
 	make install-gpu && \
 	chmod -R o+rx /usr/local/lib/python3.6/dist-packages/ray*
