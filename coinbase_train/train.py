@@ -215,12 +215,23 @@ def main(
     LOGGER.info(best_results)
 
     checkpoint_gcs_key = f"{utils.get_gcs_base_path(_run)}/rllib_checkpoint"
+
+    # upload best checkpoint
     utils.upload_file_to_gcs(
         bucket_name=c.MODEL_BUCKET_NAME,
         credentials_path=c.SERVICE_ACCOUNT_JSON,
         filename=best_checkpoint,
         gcp_project_name=c.GCP_PROJECT_NAME,
         key=checkpoint_gcs_key,
+    )
+
+    # upload best checkpoint metadata
+    utils.upload_file_to_gcs(
+        bucket_name=c.MODEL_BUCKET_NAME,
+        credentials_path=c.SERVICE_ACCOUNT_JSON,
+        filename=best_checkpoint + ".tune_metadata",
+        gcp_project_name=c.GCP_PROJECT_NAME,
+        key=checkpoint_gcs_key + ".tune_metadata",
     )
 
     trainer.restore(best_checkpoint)

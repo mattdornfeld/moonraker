@@ -20,7 +20,7 @@ except KeyError:
 
 GITLAB_PREFIX = f"git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com/moonraker"
 DEPENDENCY_LINKS = [
-    f"{GITLAB_PREFIX}/fakebase@8a7c0ff67aefba7137993c5585ac85ee3801c428#egg=fakebase-0.1"
+    f"{GITLAB_PREFIX}/fakebase@51f35a04e60eb1f253fbac070ddfc07a7fa4009b#egg=fakebase-0.1"
 ]
 
 INSTALL_REQUIRES = [
