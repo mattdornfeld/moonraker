@@ -49,7 +49,7 @@ TESTS_REQUIRE = [
     "pytest-pylint>=0.14.1,<0.15",
 ]
 
-subprocess.run(["pip3", "install"] + PRIORITY_INSTALL, check=True)
+subprocess.run(["pip3", "install", "--user"] + PRIORITY_INSTALL, check=True)
 
 setup(
     author="Matthew Dornfeld",
