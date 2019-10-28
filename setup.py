@@ -34,7 +34,7 @@ INSTALL_REQUIRES = [
     "pymongo>=3.5.0,<4.0.0",
     "python-dateutil>=2.6.0,<3.0.0",
     "sacred",
-    "ray[rllib]>=0.7.4,<0.8.0",
+    "ray[rllib]==0.7.6",
     f"tensorflow>=1.14.0,<1.15.0",
 ]
 
