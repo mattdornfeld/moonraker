@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.0.0-experimental
-FROM registry.gitlab.com/moonraker/base_images/coinbase_train_gpu:0.1.0-3d4ab4cc5e3fe49f350e3eecda3b4b9935817db6
+FROM registry.gitlab.com/moonraker/base_images/coinbase_train_gpu:0.1.0-dc4e47249c91267b620cd656d04c273f4a9a8357
 
 ENV PYTHONPATH=/app LANG=C.UTF-8
 

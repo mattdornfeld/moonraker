@@ -9,7 +9,6 @@ from typing import Any, Dict
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import backend as K  # pylint: disable=E0401
 from sacred.run import Run
 
 import ray
@@ -17,7 +16,7 @@ from ray import tune
 from ray.rllib.agents import ppo
 from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.models import ModelCatalog
-from ray.rllib.policy.tf_policy import TFPolicy
+import ray.cloudpickle as cloudpickle
 
 from coinbase_train import constants as c
 from coinbase_train import reward, utils
@@ -234,20 +233,16 @@ def main(
         key=checkpoint_gcs_key + ".tune_metadata",
     )
 
-    trainer.restore(best_checkpoint)
-    policy: TFPolicy = trainer.get_policy()
-    model: ActorCriticModel = policy.model
-    with io.BytesIO() as keras_model_file:
-        K.set_session(policy._sess)  # pylint: disable=W0212
-        model.actor.save(keras_model_file)
-        keras_model_file.seek(0)
-        actor_gcs_key = f"{utils.get_gcs_base_path(_run)}/actor.hdf5"
+    # upload trainer config
+    with io.BytesIO() as config_pickle_file:
+        cloudpickle.dump(trainer.config, config_pickle_file)
+        config_pickle_file.seek(0)
         utils.upload_file_to_gcs(
             bucket_name=c.MODEL_BUCKET_NAME,
             credentials_path=c.SERVICE_ACCOUNT_JSON,
-            file=keras_model_file,
+            file=config_pickle_file,
             gcp_project_name=c.GCP_PROJECT_NAME,
-            key=actor_gcs_key,
+            key=checkpoint_gcs_key + "_config.pkl",
         )
 
     checkpoint_dir.cleanup()
