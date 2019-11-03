@@ -33,6 +33,7 @@ INSTALL_REQUIRES = [
     "jupyterlab>=0.35.4,<0.36.0",
     "pymongo>=3.5.0,<4.0.0",
     "python-dateutil>=2.6.0,<3.0.0",
+    "requests>=2.20.0,<3.0.0",
     "sacred",
     "ray[rllib]==0.7.6",
     f"tensorflow>=1.14.0,<1.15.0",
@@ -40,6 +41,13 @@ INSTALL_REQUIRES = [
 
 # bintrees needs cython installed first in order to use its cython compiled tree
 PRIORITY_INSTALL = ["cython"]
+
+SCRIPTS = [
+    "bin/connect_to_ray_cluster",
+    "bin/job_entrypoint",
+    "bin/notebook_entrypoint",
+    "bin/start_jupyter_lab",
+]
 
 SETUP_REQUIRES = ["cython", "pytest-runner>=5.1,<6.0"]
 
@@ -61,6 +69,7 @@ setup(
     install_requires=INSTALL_REQUIRES,
     name="coinbase_train",
     packages=find_packages(),
+    scripts=SCRIPTS,
     setup_requires=SETUP_REQUIRES,
     tests_require=TESTS_REQUIRE,
     version="0.1",

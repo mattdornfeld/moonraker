@@ -12,7 +12,6 @@ import tensorflow as tf
 from sacred.run import Run
 
 import ray
-from ray import tune
 from ray.rllib.agents import ppo
 from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.models import ModelCatalog
@@ -23,6 +22,7 @@ from coinbase_train import reward, utils
 from coinbase_train.environment import Environment
 from coinbase_train.experiment import SACRED_EXPERIMENT
 from coinbase_train.model import ActorCriticModel
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -152,17 +152,14 @@ def main(
     )
 
     ray.init(
-        object_store_memory=c.OBJECT_STORE_MEMORY,
-        num_cpus=c.NUM_CPUS,
-        num_gpus=c.NUM_GPUS,
-        redis_address=c.REDIS_ADDRESS,
+        object_store_memory=c.RAY_OBJECT_STORE_MEMORY, redis_address=c.RAY_REDIS_ADDRESS
     )
 
     ModelCatalog.register_custom_model("ActorCriticModel", ActorCriticModel)
     trainer = ppo.PPOTrainer(
         env=Environment,
         config={
-            "callbacks": {"on_episode_end": tune.function(on_episode_end)},
+            "callbacks": {"on_episode_end": on_episode_end},
             "env_config": _train_environment_configs,
             "evaluation_config": {
                 "env_config": _test_environment_configs,
@@ -176,13 +173,16 @@ def main(
                 "custom_options": {"hyper_params": _hyper_params},
                 "custom_model": "ActorCriticModel",
             },
+            "num_cpus_for_driver": 3,
+            "num_cpus_per_worker": 2,
             "num_gpus": c.NUM_GPUS,
             "num_workers": _hyper_params.num_actors,
             "num_sgd_iter": _hyper_params.num_epochs_per_iteration,
             "vf_share_layers": True,
             "train_batch_size": _train_environment_configs.num_episodes
-            * max_train_episode_steps,
-            "sample_batch_size": max_train_episode_steps,
+            * max_train_episode_steps
+            * _hyper_params.num_actors,
+            "sample_batch_size": max_train_episode_steps * _hyper_params.num_actors,
             "sgd_minibatch_size": _hyper_params.batch_size,
         },
     )

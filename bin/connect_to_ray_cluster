@@ -1,0 +1,2 @@
+#!/bin/bash
+ray start --address=$RAY_REDIS_ADDRESS --object-manager-port=12345

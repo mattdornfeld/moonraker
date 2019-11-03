@@ -11,7 +11,10 @@ spec:
   ports:
   - port: 8888
     targetPort: 8888
-    name: notebook-port
+    name: notebook-port1
+  - port: 8889
+    targetPort: 8889
+    name: notebook-port2
   selector:
     pod-selector: {{$release_name}}-notebook-train
   type: LoadBalancer

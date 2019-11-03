@@ -2,3 +2,7 @@ dependencies:
   - name: moonraker-common
     repository: gs://moonraker-helm-repo
     version: ~0.9.0
+
+  - name: ray
+    repository: gs://moonraker-helm-repo
+    version: 0.1.0-18b99aee9672fd6529d0db26c3f6983bf498bdfa

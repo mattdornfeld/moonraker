@@ -1,0 +1,3 @@
+#!/bin/bash
+connect_to_ray_cluster && \
+start_jupyter_lab
