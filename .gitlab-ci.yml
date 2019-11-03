@@ -21,11 +21,18 @@ variables:
   EOF
 
 .helm_deploy_args: &helm_deploy_args |
+  HELM_ARGS="--set CI_TOKEN=${CI_TOKEN}
+  --set ENVIRONMENT=staging/${CI_COMMIT_REF_NAME}
   --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
-  --set moonraker-common.registry.username=$CI_USERNAME
-  --set moonraker-common.registry.password=$CI_TOKEN
-  --set service_account_json=$SERVICE_ACCOUNT_JSON
-  --set ENVIRONMENT=staging/$CI_COMMIT_REF_NAME
+  --set moonraker-common.registry.username=${CI_USERNAME}
+  --set moonraker-common.registry.password=${CI_TOKEN}
+  --set ray.head_deployment.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
+  --set ray.worker_deployments.cpu-workers.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
+  --set service_account_json=${SERVICE_ACCOUNT_JSON}"
+
+.version_tag_script: &version_tag_script |
+  echo 'export VERSION_TAG environment variable' && set -o allexport && if [ -f "semantic_version.env" ]; then source semantic_version.env; else VERSION_TAG=0.1.0-${CI_COMMIT_SHA}; fi && set +o allexport
+  export VERSION_TAG
 
 build:run_tests:
   extends: .base_test
@@ -72,21 +79,27 @@ build:package_helm_chart:
     CHART_NAME: coinbase-train
 
 build:deploy_helm_chart_dry_run:
+  # We do this in the before_script here because Gitlab had trouble interpolating the VERSION_TAG variable
+  # passing helm_deploy_args in as an environment variable
+  before_script:
+    - *version_tag_script
+    - *helm_deploy_args
+
   extends: .deploy_helm_chart_dry_run
 
   variables:
     CHART_PATH: helm/coinbase-train
-    HELM_ARGS: *helm_deploy_args
 
 deploy:deploy_coinbase_train:
+  before_script:
+    - *version_tag_script
+    - *helm_deploy_args
+
   environment:
     name: staging/$CI_COMMIT_REF_NAME
     on_stop: deploy:delete_coinbase_train
 
   extends: .deploy_helm_chart
-
-  variables:
-    HELM_ARGS: *helm_deploy_args
 
 deploy:delete_coinbase_train:
   environment:

@@ -1,7 +1,27 @@
 job:
   num_cpus: 3.7
   num_gpus: 1
+  node_group: n1-standard-4-nvidia-tesla-p100
 
 notebook:
   num_cpus: 0.0
   num_gpus: 1
+  node_group: n1-standard-4-nvidia-tesla-p100
+
+ray:
+  deploy_ray_cluster: true
+
+  head_deployment:
+    num_cpus: 3.8
+    num_gpus: 0
+    node_group: c2-standard-4
+
+  worker_deployments:
+    cpu-workers:
+      num_cpus_per_replica: 3.8
+      num_gpus_per_replica: 0
+      num_replicas: 1
+      node_group: c2-standard-4
+
+
+

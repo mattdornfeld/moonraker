@@ -11,12 +11,18 @@ spec:
   template:
     spec:
 
-      {{if gt .Values.job.num_gpus 0.0}}
+      {{- if .Values.job.node_group}}
+      nodeSelector:
+        node-group: {{.Values.job.node_group}}
+      {{- end}}
+
+      {{- if .Values.job.node_group}}
       tolerations:
-      - key: "gpu"
-        operator: "Exists"
+      - key: node-group
+        operator: "Equal"
         effect: "NoSchedule"
-      {{end}}
+        value: {{.Values.job.node_group}}
+      {{- end}}
 
       imagePullSecrets:
       - name: {{.Release.Name}}-registry-credentials
@@ -26,13 +32,15 @@ spec:
       containers:
       - name: coinbase-train
 
-        command:
-          - 'python3'
-          - 'coinbase_train/train.py'
-          - 'with'
-          - 'staging'
+        command: ["job_entrypoint"]
 
         env:
+          - name: CI_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-gitlab-ci-token
+                key: CI_TOKEN
+
           - name: ENVIRONMENT
             value: {{.Values.ENVIRONMENT}}
 
@@ -50,6 +58,19 @@ spec:
               secretKeyRef:
                 name: postgres-secret
                 key: password
+
+          {{- if .Values.ray.deploy_ray_cluster}}
+          - name: RAY_REDIS_ADDRESS
+            value: {{.Release.Name}}-ray-head:6379
+          {{- end}}
+
+        {{- if .Values.ray.deploy_ray_cluster}}
+        ports:
+        - containerPort: 6379
+          name: redis
+        - containerPort: 12345
+          name: plasma
+        {{- end}}
 
         {{if gt .Values.job.num_gpus 0.0}}
         image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{.Chart.Version}}"
@@ -69,7 +90,6 @@ spec:
           - mountPath: /secrets
             name: service-account-json
             readOnly: true
-
 
       volumes:
       - name: dshm

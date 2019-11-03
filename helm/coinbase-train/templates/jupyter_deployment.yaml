@@ -19,12 +19,18 @@ spec:
         pod-selector: {{$release_name}}-notebook-train
     spec:
 
-      {{if gt .Values.notebook.num_gpus 0.0}}
+      {{- if .Values.notebook.node_group}}
+      nodeSelector:
+        node-group: {{.Values.notebook.node_group}}
+      {{- end}}
+
+      {{- if .Values.notebook.node_group}}
       tolerations:
-      - key: "gpu"
-        operator: "Exists"
+      - key: node-group
+        operator: "Equal"
         effect: "NoSchedule"
-      {{end}}
+        value: {{.Values.notebook.node_group}}
+      {{- end}}
 
       imagePullSecrets:
       - name: {{.Release.Name}}-registry-credentials
@@ -33,8 +39,8 @@ spec:
 
       - name: jupyter
 
-        command: ["jupyter"]
-        args: ["lab", "--ip=0.0.0.0", "--allow-root", "--core"]
+        command: ["/bin/bash"]
+        args: ["-c", "connect_to_ray_cluster && start_jupyter_lab"]
 
         workingDir: /
 
@@ -57,6 +63,11 @@ spec:
                 name: postgres-secret
                 key: password
 
+          {{- if .Values.ray.deploy_ray_cluster}}
+          - name: RAY_REDIS_ADDRESS
+            value: {{.Release.Name}}-ray-head:6379
+          {{- end}}
+
         imagePullPolicy: Always
         {{if gt .Values.notebook.num_gpus 0.0}}
         image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{ .Chart.Version }}"
@@ -66,7 +77,15 @@ spec:
 
         ports:
         - containerPort: 8888
-          name: notebook-port
+          name: notebook-port1
+        - containerPort: 8889
+          name: notebook-port2
+        {{- if .Values.ray.deploy_ray_cluster}}
+        - containerPort: 6379
+          name: redis
+        - containerPort: 12345
+          name: plasma
+        {{- end}}
 
         resources:
           limits:
