@@ -36,7 +36,7 @@ class ObservationSpace(TupleSpace):
 
     def __init__(self, shape: ObservationSpaceShape) -> None:
         self._flattened_space = None
-        self.account_funds_space = Box(low=0, high=inf, shape=shape.account_funds)
+        self.account_funds_space = Box(low=-inf, high=inf, shape=shape.account_funds)
         self.order_book_space = Box(low=0, high=inf, shape=shape.order_book)
         self.time_series_space = Box(low=-inf, high=inf, shape=shape.time_series)
         super().__init__(
