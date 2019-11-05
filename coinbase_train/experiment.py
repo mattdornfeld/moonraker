@@ -119,7 +119,7 @@ def staging():
         learning_rate=0.001,
         num_actors=5,
         num_epochs_per_iteration=40,
-        num_iterations=10,
+        num_iterations=20,
         optimizer_name=optimizer_name,
         output_tower_depth=3,
         output_tower_num_units=100,
