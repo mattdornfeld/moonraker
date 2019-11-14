@@ -9,8 +9,11 @@ metadata:
     app: train
 spec:
   template:
-    spec:
+    metadata:
+      labels:
+        pod-selector: {{$release_name}}-job-train
 
+    spec:
       {{- if .Values.job.node_group}}
       nodeSelector:
         node-group: {{.Values.job.node_group}}
@@ -68,6 +71,8 @@ spec:
         ports:
         - containerPort: 6379
           name: redis
+        - containerPort: 8080
+          name: ray-webui
         - containerPort: 12345
           name: plasma
         {{- end}}
@@ -81,6 +86,7 @@ spec:
         resources:
           limits:
             cpu: {{.Values.job.num_cpus}}
+            memory: {{.Values.job.memory}}
             nvidia.com/gpu: {{.Values.job.num_gpus}}
 
         volumeMounts:

@@ -1,7 +1,8 @@
 job:
-  num_cpus: 3.7
+  memory: 25000Mi
+  num_cpus: 7.7
   num_gpus: 1
-  node_group: n1-standard-4-nvidia-tesla-p100
+  node_group: n1-standard-8-nvidia-tesla-p100
 
 notebook:
   num_cpus: 0.0

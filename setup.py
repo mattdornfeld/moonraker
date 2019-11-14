@@ -20,7 +20,15 @@ except KeyError:
 
 GITLAB_PREFIX = f"git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com/moonraker"
 DEPENDENCY_LINKS = [
-    f"{GITLAB_PREFIX}/fakebase@51f35a04e60eb1f253fbac070ddfc07a7fa4009b#egg=fakebase-0.1"
+    f"{GITLAB_PREFIX}/fakebase@b7920abcfa9d1b3464f1e4ffc9f675bc75311ba6#egg=fakebase-0.1"
+]
+
+RAY_WEBUI_REQUIRES = [
+    "aiohttp",
+    "bokeh>=1.4.0,<2.0.0",
+    "ipywidgets>=7.5.0,<8.0.0",
+    "psutil",
+    "setproctitle",
 ]
 
 INSTALL_REQUIRES = [
@@ -66,7 +74,7 @@ setup(
     extras_require=dict(
         dev=["black>=19.3b0,<20.0"], gpu=["tensorflow-gpu>=1.14.0,<1.15.0"]
     ),
-    install_requires=INSTALL_REQUIRES,
+    install_requires=INSTALL_REQUIRES + RAY_WEBUI_REQUIRES,
     name="coinbase_train",
     packages=find_packages(),
     scripts=SCRIPTS,

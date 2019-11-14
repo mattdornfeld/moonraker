@@ -18,7 +18,8 @@ from ray.rllib.models import ModelCatalog
 import ray.cloudpickle as cloudpickle
 
 from coinbase_train import constants as c
-from coinbase_train import reward, utils
+from coinbase_train import reward
+from coinbase_train.utils import common as utils
 from coinbase_train.environment import Environment
 from coinbase_train.experiment import SACRED_EXPERIMENT
 from coinbase_train.model import ActorCriticModel
@@ -102,8 +103,8 @@ def main(
     hyper_params: dict,
     return_value_key: str,
     seed: int,
-    test_environment_configs: dict,
-    train_environment_configs: dict,
+    test_environment_configs: Dict[str, Any],
+    train_environment_configs: Dict[str, Any],
 ) -> float:
     """
     main builds an agent, trains on the train environment, evaluates on the test
@@ -114,8 +115,8 @@ def main(
         hyper_params (dict): [description]
         return_value_key (str): [description]
         seed (int): [description]
-        test_environment_configs (dict): [description]
-        train_environment_configs (dict): [description]
+        test_environment_configs (Dict[str, Any]): [description]
+        train_environment_configs (Dict[str, Any]): [description]
 
     Returns:
         float: [description]
@@ -138,21 +139,23 @@ def main(
     )
 
     max_train_episode_steps = utils.calc_nb_max_episode_steps(
-        end_dt=_train_environment_configs.end_dt,
+        end_dt=_train_environment_configs.environment_time_intervals[0].end_dt,
         num_warmup_time_steps=_train_environment_configs.num_warmup_time_steps,
-        start_dt=_train_environment_configs.start_dt,
+        start_dt=_train_environment_configs.environment_time_intervals[0].start_dt,
         time_delta=_train_environment_configs.time_delta,
     )
 
     max_test_episode_steps = utils.calc_nb_max_episode_steps(
-        end_dt=_test_environment_configs.end_dt,
+        end_dt=_test_environment_configs.environment_time_intervals[0].end_dt,
         num_warmup_time_steps=_test_environment_configs.num_warmup_time_steps,
-        start_dt=_test_environment_configs.start_dt,
+        start_dt=_test_environment_configs.environment_time_intervals[0].start_dt,
         time_delta=_test_environment_configs.time_delta,
     )
 
     ray.init(
-        object_store_memory=c.RAY_OBJECT_STORE_MEMORY, redis_address=c.RAY_REDIS_ADDRESS
+        include_webui=c.RAY_INCLUDE_WEBUI,
+        object_store_memory=c.RAY_OBJECT_STORE_MEMORY,
+        redis_address=c.RAY_REDIS_ADDRESS,
     )
 
     ModelCatalog.register_custom_model("ActorCriticModel", ActorCriticModel)
@@ -166,14 +169,14 @@ def main(
                 "sample_batch_size": max_test_episode_steps,
             },
             "evaluation_interval": 1,
-            "evaluation_num_episodes": 1,
+            "evaluation_num_episodes": 10,
             "grad_clip": _hyper_params.gradient_clip,
             "log_level": "INFO",
             "model": {
                 "custom_options": {"hyper_params": _hyper_params},
                 "custom_model": "ActorCriticModel",
             },
-            "num_cpus_for_driver": 3,
+            "num_cpus_for_driver": 4,
             "num_cpus_per_worker": 2,
             "num_gpus": c.NUM_GPUS,
             "num_workers": _hyper_params.num_actors,

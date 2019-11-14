@@ -27,7 +27,7 @@ from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 from coinbase_train import layers as l
 from coinbase_train.observations import ObservationSpace
-from coinbase_train.utils import HyperParameters, prod
+from coinbase_train.utils.common import HyperParameters, prod
 
 
 class ActorCriticModel(TFModelV2):

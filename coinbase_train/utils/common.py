@@ -33,6 +33,7 @@ from sacred.run import Run
 
 from coinbase_train import constants as c
 from coinbase_train.reward import BaseRewardStrategy
+from coinbase_train.utils.time_utils import TimeInterval
 
 LOGGER = logging.getLogger(__name__)
 _Number = TypeVar("_Number", float, Decimal, Fraction)
@@ -42,7 +43,7 @@ class EnvironmentConfigs(NamedTuple):
     """Summary
     """
 
-    end_dt: datetime
+    environment_time_intervals: List[TimeInterval]
     initial_usd: Decimal
     initial_btc: Decimal
     num_episodes: int
@@ -50,7 +51,6 @@ class EnvironmentConfigs(NamedTuple):
     num_warmup_time_steps: int
     num_workers: int
     reward_strategy: BaseRewardStrategy
-    start_dt: datetime
     time_delta: timedelta
     is_test_environment: bool = False
 
