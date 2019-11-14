@@ -1,10 +1,14 @@
 """Summary
 """
+import logging
 import os
 import subprocess
 from configparser import ConfigParser
 
 from setuptools import find_packages, setup
+
+logging.basicConfig()
+LOGGER = logging.getLogger(__name__)
 
 CONFIG = ConfigParser()
 # The credentials secret will be mounted in the below directory
@@ -65,7 +69,17 @@ TESTS_REQUIRE = [
     "pytest-pylint>=0.14.1,<0.15",
 ]
 
-subprocess.run(["pip3", "install", "--user"] + PRIORITY_INSTALL, check=True)
+try:
+    subprocess.run(["pip3", "install"] + PRIORITY_INSTALL, check=True)
+except subprocess.CalledProcessError:
+    try:
+        subprocess.run(["pip3", "install", "--user"] + PRIORITY_INSTALL, check=True)
+    except subprocess.CalledProcessError as exception:
+        LOGGER.warning(
+            "Received exception %s. The bintrees cython dependencies will not be installed.",
+            exception,
+        )
+
 
 setup(
     author="Matthew Dornfeld",
