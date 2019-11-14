@@ -11,6 +11,10 @@ from sacred import SETTINGS, Experiment
 from sacred.observers import MongoObserver
 
 from coinbase_train import constants as c
+from coinbase_train.utils.time_utils import (
+    TimeInterval,
+    generate_randomly_shifted_lookback_intervals,
+)
 
 SETTINGS["CONFIG"]["READ_ONLY_CONFIG"] = False
 
@@ -30,13 +34,22 @@ def config():
     optimizer_name = "Adam"
     return_value_key = "roi"  # pylint: disable=W0612
     reward_strategy_name = "ProfitRewardStrategy"  # pylint: disable=W0612
-    seed = 353523591  # pylint: disable=W0612
     test_end_dt = "2019-01-28 10:10:00.00"
     test_start_dt = "2019-01-28 10:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)  # pylint: disable=W0612
-    train_end_dt = "2019-01-28 08:20:00.00"
-    train_start_dt = "2019-01-28 08:00:00.00"
+
+    latest_train_end_dt = "2019-01-28 08:20:00.00"
+    latest_train_start_dt = "2019-01-28 08:00:00.00"
+    num_lookback_intervals = 0
+
+    train_time_intervals = generate_randomly_shifted_lookback_intervals(
+        latest_time_interval=TimeInterval(
+            end_dt=parser.parse(latest_train_end_dt),
+            start_dt=parser.parse(latest_train_start_dt),
+        ),
+        num_lookback_intervals=num_lookback_intervals,
+    )
 
     hyper_params = dict(  # pylint: disable=W0612
         account_funds_num_units=100,
@@ -48,7 +61,7 @@ def config():
         discount_factor=0.99,
         gradient_clip=0.1,
         learning_rate=0.001,
-        num_actors=1,
+        num_actors=len(train_time_intervals),
         num_epochs_per_iteration=10,
         num_iterations=1,
         optimizer_name=optimizer_name,
@@ -61,7 +74,7 @@ def config():
     )
 
     train_environment_configs = dict(  # pylint: disable=W0612
-        end_dt=parser.parse(train_end_dt),
+        environment_time_intervals=train_time_intervals,
         initial_btc=initial_btc,
         initial_usd=initial_usd,
         num_episodes=1,
@@ -69,12 +82,15 @@ def config():
         num_warmup_time_steps=num_warmup_time_steps,
         num_workers=3,
         reward_strategy_name=reward_strategy_name,
-        start_dt=parser.parse(train_start_dt),
         time_delta=time_delta,
     )
 
     test_environment_configs = dict(  # pylint: disable=W0612
-        end_dt=parser.parse(test_end_dt),
+        environment_time_intervals=[
+            TimeInterval(
+                end_dt=parser.parse(test_end_dt), start_dt=parser.parse(test_start_dt)
+            )
+        ],
         initial_btc=initial_btc,
         initial_usd=initial_usd,
         num_episodes=1,
@@ -82,7 +98,6 @@ def config():
         num_warmup_time_steps=num_warmup_time_steps,
         num_workers=3,
         reward_strategy_name=reward_strategy_name,
-        start_dt=parser.parse(test_start_dt),
         time_delta=time_delta,
     )
 
@@ -98,28 +113,36 @@ def staging():
     optimizer_name = "Adam"
     return_value_key = "roi"  # pylint: disable=W0612
     reward_strategy_name = "ProfitRewardStrategy"  # pylint: disable=W0612
-    # seed = randint(int(1e8),int(1e9))
-    # seed = 521905088  # pylint: disable=W0612
-    test_end_dt = "2019-10-19 19:00:00.00"
-    test_start_dt = "2019-10-19 17:00:00.00"
+    test_end_dt = "2019-10-20 19:00:00.00"
+    test_start_dt = "2019-10-20 17:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)  # pylint: disable=W0612
-    train_end_dt = "2019-10-19 17:00:00.00"
-    train_start_dt = "2019-10-19 09:00:00.00"
+
+    latest_train_end_dt = "2019-10-20 17:00:00.00"
+    latest_train_start_dt = "2019-10-20 09:00:00.00"
+    num_lookback_intervals = 5
+
+    train_time_intervals = generate_randomly_shifted_lookback_intervals(
+        latest_time_interval=TimeInterval(
+            end_dt=parser.parse(latest_train_end_dt),
+            start_dt=parser.parse(latest_train_start_dt),
+        ),
+        num_lookback_intervals=num_lookback_intervals,
+    )
 
     hyper_params = dict(  # pylint: disable=W0612
         account_funds_num_units=100,
         account_funds_tower_depth=2,
-        batch_size=32,
+        batch_size=2 ** 7,
         deep_lob_tower_attention_dim=100,
         deep_lob_tower_conv_block_num_filters=16,
         deep_lob_tower_leaky_relu_slope=0.01,
         discount_factor=0.99,
         gradient_clip=0.1,
         learning_rate=0.001,
-        num_actors=5,
-        num_epochs_per_iteration=40,
-        num_iterations=10,
+        num_actors=len(train_time_intervals),
+        num_epochs_per_iteration=10,
+        num_iterations=20,
         optimizer_name=optimizer_name,
         output_tower_depth=3,
         output_tower_num_units=100,
@@ -130,20 +153,23 @@ def staging():
     )
 
     train_environment_configs = dict(  # pylint: disable=W0612
-        end_dt=parser.parse(train_end_dt),
+        environment_time_intervals=train_time_intervals,
         initial_btc=initial_btc,
         initial_usd=initial_usd,
-        num_episodes=1,
+        num_episodes=10,
         num_time_steps=num_time_steps,
         num_warmup_time_steps=num_warmup_time_steps,
         num_workers=3,
         reward_strategy_name=reward_strategy_name,
-        start_dt=parser.parse(train_start_dt),
         time_delta=time_delta,
     )
 
     test_environment_configs = dict(  # pylint: disable=W0612
-        end_dt=parser.parse(test_end_dt),
+        environment_time_intervals=[
+            TimeInterval(
+                end_dt=parser.parse(test_end_dt), start_dt=parser.parse(test_start_dt)
+            )
+        ],
         initial_btc=initial_btc,
         initial_usd=initial_usd,
         num_episodes=1,
@@ -151,6 +177,5 @@ def staging():
         num_warmup_time_steps=num_warmup_time_steps,
         num_workers=3,
         reward_strategy_name=reward_strategy_name,
-        start_dt=parser.parse(test_start_dt),
         time_delta=time_delta,
     )

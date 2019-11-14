@@ -18,7 +18,7 @@ from tensorflow.keras.layers import (  # pylint: disable=E0401
     TimeDistributed,
 )
 
-from coinbase_train import utils
+from coinbase_train.utils import common as utils
 
 
 class AtrousConvolutionBlock:

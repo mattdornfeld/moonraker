@@ -6,12 +6,14 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from decimal import Decimal
 from math import inf
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from funcy import compose, partial, rpartial
 from gym import Env
 from gym.spaces import Box
+
+from ray.rllib.env.env_context import EnvContext
 
 from fakebase import utils as fakebase_utils
 
@@ -23,7 +25,7 @@ from coinbase_train.observations import (
     ObservationSpaceShape,
 )
 from coinbase_train.reward import BaseRewardStrategy
-from coinbase_train.utils import (
+from coinbase_train.utils.common import (
     EnvironmentConfigs,
     EnvironmentFinishedException,
     clamp_to_range,
@@ -39,14 +41,14 @@ class Environment(Env):  # pylint: disable=W0223
     Environment [summary]
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: EnvContext) -> None:
         _config = EnvironmentConfigs(**config)
+        self._closing_price = 0.0
         self._initial_portfolio_value = 0.0
+        self._made_illegal_transaction = False
         self._state_buffer: Deque = Deque(
             maxlen=_config.num_time_steps
         )  # pylint: disable=C0301
-        self._closing_price = 0.0
-        self._made_illegal_transaction = False
         self._warmed_up_buffer: Deque = Deque(
             maxlen=_config.num_time_steps
         )  # pylint: disable=C0301
@@ -62,7 +64,22 @@ class Environment(Env):  # pylint: disable=W0223
         )
         self.is_test_environment = _config.is_test_environment
 
-        self.reset()
+        # Ray does something weird where it creates a local copy of the environment with
+        # config.worker_index=0 but it doesn't seem to actually use it. This block of code
+        # takes care of that case.
+        if config.worker_index == 0 and not self.is_test_environment:
+            self._start_dt = None
+            self._end_dt = None
+        else:
+            worker_index = (
+                config.worker_index
+                if self.is_test_environment
+                else config.worker_index - 1
+            )
+            environment_time_interval = _config.environment_time_intervals[worker_index]
+            self._start_dt = environment_time_interval.start_dt
+            self._end_dt = environment_time_interval.end_dt
+            self.reset()
 
     @staticmethod
     def _calc_transaction_price(normalized_transaction_price: float) -> Decimal:
@@ -295,9 +312,9 @@ class Environment(Env):  # pylint: disable=W0223
 
         if self.exchange is None:
             self.exchange = Exchange(
-                end_dt=self.config.end_dt,
+                end_dt=self._end_dt,
                 num_workers=self.config.num_workers,
-                start_dt=self.config.start_dt,
+                start_dt=self._start_dt,
                 time_delta=self.config.time_delta,
             )
 

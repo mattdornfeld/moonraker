@@ -67,6 +67,7 @@ SERVICE_ACCOUNT_JSON = Path(
 MONGO_DB_URL = os.environ.get("MONGO_DB_URL", "mongodb://root:password@mongo:27017")
 
 # ray configs
+RAY_INCLUDE_WEBUI = True
 NUM_GPUS = int(os.environ.get("NUM_GPUS", 0))
 RAY_OBJECT_STORE_MEMORY = os.environ.get("RAY_OBJECT_STORE_MEMORY")
 RAY_REDIS_ADDRESS = os.environ.get("RAY_REDIS_ADDRESS")

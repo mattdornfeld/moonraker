@@ -1,0 +1,17 @@
+---
+{{$release_name := .Release.Name | trunc 14}}
+{{if gt .Values.job.num_cpus 0.0}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{$release_name}}-job-train
+  labels:
+    app: train
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: ray-webui
+  selector:
+    pod-selector: {{$release_name}}-job-train
+{{end}}
