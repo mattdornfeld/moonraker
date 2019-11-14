@@ -24,7 +24,7 @@ except KeyError:
 
 GITLAB_PREFIX = f"git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com/moonraker"
 DEPENDENCY_LINKS = [
-    f"{GITLAB_PREFIX}/fakebase@b7920abcfa9d1b3464f1e4ffc9f675bc75311ba6#egg=fakebase-0.1"
+    f"{GITLAB_PREFIX}/fakebase@6e6306292d322a7b75f324460a3d7293b5bec83a#egg=fakebase-0.1"
 ]
 
 RAY_WEBUI_REQUIRES = [
