@@ -19,8 +19,14 @@ try:
     GITLAB_PASSWORD = CONFIG["CREDENTIALS"]["GITLAB_PASSWORD"]
     GITLAB_USERNAME = CONFIG["CREDENTIALS"]["GITLAB_USERNAME"]
 except KeyError:
-    GITLAB_PASSWORD = os.environ["GITLAB_PASSWORD"]
-    GITLAB_USERNAME = os.environ["GITLAB_USERNAME"]
+    GITLAB_PASSWORD = os.environ.get("GITLAB_PASSWORD")
+    GITLAB_USERNAME = os.environ.get("GITLAB_USERNAME")
+
+GITLAB_PREFIX = (
+    f"git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com/moonraker"
+    if GITLAB_PASSWORD and GITLAB_USERNAME
+    else "git+ssh://gitlab.com/moonraker"
+)
 
 GITLAB_PREFIX = f"git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com/moonraker"
 DEPENDENCY_LINKS = [

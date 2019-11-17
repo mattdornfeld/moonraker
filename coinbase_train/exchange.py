@@ -14,10 +14,10 @@ from fakebase.exchange import Exchange as BaseExchange
 from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 
 from coinbase_train import constants as c
-from coinbase_train.utils.common import (
+from coinbase_train.utils.common import stdev
+from coinbase_train.utils.preprocessing_utils import (
     NormalizedOperation,
     min_max_normalization,
-    stdev,
 )
 
 Event = TypeVar("Event", CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder)
