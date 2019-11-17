@@ -1,4 +1,4 @@
-phony: install install-dev install-gpu test test-mypy test-pylint
+phony: build-image-cpu install install-dev install-gpu test test-mypy test-pylint
 
 build-image-cpu:
     DOCKER_BUILDKIT=1 docker build --secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.cpu -t registry.gitlab.com/moonraker/coinbase_train/cpu:${TAG} .

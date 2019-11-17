@@ -11,8 +11,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from funcy import compose
 from gym.spaces import Box
 import tensorflow as tf
-from tensorflow.keras import backend as K  # pylint: disable=E0401
-from tensorflow.keras.layers import (  # pylint: disable=E0401
+
+# pylint: disable=import-error
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import (
     Concatenate,
     Conv2D,
     Dense,
@@ -21,16 +23,19 @@ from tensorflow.keras.layers import (  # pylint: disable=E0401
     LeakyReLU,
     Reshape,
 )
-from tensorflow.keras.models import Model  # pylint: disable=E0401
+from tensorflow.keras.models import Model
+
+# pylint: enable=import-error
 
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 from coinbase_train import layers as l
 from coinbase_train.observations import ObservationSpace
-from coinbase_train.utils.common import HyperParameters, prod
+from coinbase_train.utils.common import prod
+from coinbase_train.utils.config_utils import HyperParameters
 
 
-class ActorCriticModel(TFModelV2):
+class ActorValueModel(TFModelV2):
     """
     Attributes:
         account_funds (tf.Tensor): Description

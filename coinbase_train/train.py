@@ -2,27 +2,24 @@
 """
 import io
 import logging
-import random
 from math import isnan
 from tempfile import TemporaryDirectory
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-import numpy as np
-import tensorflow as tf
 from sacred.run import Run
 
 import ray
-from ray.rllib.agents import ppo
-from ray.rllib.evaluation.episode import MultiAgentEpisode
-from ray.rllib.models import ModelCatalog
 import ray.cloudpickle as cloudpickle
+from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 from coinbase_train import constants as c
+from coinbase_train import models
 from coinbase_train import reward
-from coinbase_train.utils import common as utils
-from coinbase_train.environment import Environment
-from coinbase_train.experiment import SACRED_EXPERIMENT
-from coinbase_train.model import ActorCriticModel
+from coinbase_train.experiment_configs.common import SACRED_EXPERIMENT
+from coinbase_train.trainers import get_and_build_trainer
+from coinbase_train.utils.config_utils import EnvironmentConfigs, HyperParameters
+from coinbase_train.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
+from coinbase_train.utils.ray_utils import register_custom_models
 
 
 LOGGER = logging.getLogger(__name__)
@@ -67,44 +64,15 @@ def log_metrics_to_sacred(metrics: Dict[str, float], prefix: str) -> None:
         SACRED_EXPERIMENT.log_scalar(_metric_name, 0.0 if isnan(metric) else metric)
 
 
-def set_seed(seed: int) -> None:
-    """
-    set_seed [summary]
-
-    Args:
-        seed (int): [description]
-
-    Returns:
-        None: [description]
-    """
-    np.random.seed(seed)
-    random.seed(seed)
-    tf.set_random_seed(seed)
-
-
-def on_episode_end(info: Dict[str, Any]) -> None:
-    """
-    on_episode_end [summary]
-
-    Args:
-        info (Dict[str, Any]): [description]
-
-    Returns:
-        None: [description]
-    """
-    episode: MultiAgentEpisode = info["episode"]
-    episode.custom_metrics.update(episode.last_info_for())
-    episode.custom_metrics["episode_reward"] = episode.total_reward
-
-
 @SACRED_EXPERIMENT.automain
 def main(
     _run: Run,
-    hyper_params: dict,
+    custom_model_names: List[str],
+    hyper_params: Dict[str, Any],
     return_value_key: str,
-    seed: int,
     test_environment_configs: Dict[str, Any],
     train_environment_configs: Dict[str, Any],
+    trainer_name: str,
 ) -> float:
     """
     main builds an agent, trains on the train environment, evaluates on the test
@@ -121,8 +89,6 @@ def main(
     Returns:
         float: [description]
     """
-    set_seed(seed)
-
     test_reward_strategy_name = test_environment_configs.pop("reward_strategy_name")
     train_reward_strategy_name = train_environment_configs.pop("reward_strategy_name")
     test_environment_configs["reward_strategy"] = reward.__dict__[
@@ -132,68 +98,30 @@ def main(
         train_reward_strategy_name
     ]()
 
-    _hyper_params = utils.HyperParameters(**hyper_params)
-    _train_environment_configs = utils.EnvironmentConfigs(**train_environment_configs)
-    _test_environment_configs = utils.EnvironmentConfigs(
-        is_test_environment=True, **test_environment_configs
-    )
-
-    max_train_episode_steps = utils.calc_nb_max_episode_steps(
-        end_dt=_train_environment_configs.environment_time_intervals[0].end_dt,
-        num_warmup_time_steps=_train_environment_configs.num_warmup_time_steps,
-        start_dt=_train_environment_configs.environment_time_intervals[0].start_dt,
-        time_delta=_train_environment_configs.time_delta,
-    )
-
-    max_test_episode_steps = utils.calc_nb_max_episode_steps(
-        end_dt=_test_environment_configs.environment_time_intervals[0].end_dt,
-        num_warmup_time_steps=_test_environment_configs.num_warmup_time_steps,
-        start_dt=_test_environment_configs.environment_time_intervals[0].start_dt,
-        time_delta=_test_environment_configs.time_delta,
-    )
-
     ray.init(
         include_webui=c.RAY_INCLUDE_WEBUI,
         object_store_memory=c.RAY_OBJECT_STORE_MEMORY,
         redis_address=c.RAY_REDIS_ADDRESS,
     )
 
-    ModelCatalog.register_custom_model("ActorCriticModel", ActorCriticModel)
-    trainer = ppo.PPOTrainer(
-        env=Environment,
-        config={
-            "callbacks": {"on_episode_end": on_episode_end},
-            "env_config": _train_environment_configs,
-            "evaluation_config": {
-                "env_config": _test_environment_configs,
-                "sample_batch_size": max_test_episode_steps,
-            },
-            "evaluation_interval": 1,
-            "evaluation_num_episodes": 10,
-            "grad_clip": _hyper_params.gradient_clip,
-            "log_level": "INFO",
-            "model": {
-                "custom_options": {"hyper_params": _hyper_params},
-                "custom_model": "ActorCriticModel",
-            },
-            "num_cpus_for_driver": 4,
-            "num_cpus_per_worker": 2,
-            "num_gpus": c.NUM_GPUS,
-            "num_workers": _hyper_params.num_actors,
-            "num_sgd_iter": _hyper_params.num_epochs_per_iteration,
-            "vf_share_layers": True,
-            "train_batch_size": _train_environment_configs.num_episodes
-            * max_train_episode_steps
-            * _hyper_params.num_actors,
-            "sample_batch_size": max_train_episode_steps * _hyper_params.num_actors,
-            "sgd_minibatch_size": _hyper_params.batch_size,
-        },
+    custom_models: List[TFModelV2] = [
+        models.__dict__[model_name] for model_name in custom_model_names
+    ]
+    register_custom_models(custom_models)
+
+    trainer = get_and_build_trainer(
+        hyper_params=HyperParameters(**hyper_params),
+        test_environment_configs=EnvironmentConfigs(
+            is_test_environment=True, **test_environment_configs
+        ),
+        train_environment_configs=EnvironmentConfigs(**train_environment_configs),
+        trainer_name=trainer_name,
     )
 
     checkpoint_dir = TemporaryDirectory()
     best_iteration_reward = float("-inf")
     best_results: Dict[str, Any] = {}
-    for _ in range(_hyper_params.num_iterations):
+    for _ in range(hyper_params["num_iterations"]):
         results: Dict[str, Any] = trainer.train()
 
         LOGGER.info(results)
@@ -216,10 +144,10 @@ def main(
 
     LOGGER.info(best_results)
 
-    checkpoint_gcs_key = f"{utils.get_gcs_base_path(_run)}/rllib_checkpoint"
+    checkpoint_gcs_key = f"{get_gcs_base_path(_run)}/rllib_checkpoint"
 
     # upload best checkpoint
-    utils.upload_file_to_gcs(
+    upload_file_to_gcs(
         bucket_name=c.MODEL_BUCKET_NAME,
         credentials_path=c.SERVICE_ACCOUNT_JSON,
         filename=best_checkpoint,
@@ -228,7 +156,7 @@ def main(
     )
 
     # upload best checkpoint metadata
-    utils.upload_file_to_gcs(
+    upload_file_to_gcs(
         bucket_name=c.MODEL_BUCKET_NAME,
         credentials_path=c.SERVICE_ACCOUNT_JSON,
         filename=best_checkpoint + ".tune_metadata",
@@ -240,7 +168,7 @@ def main(
     with io.BytesIO() as config_pickle_file:
         cloudpickle.dump(trainer.config, config_pickle_file)
         config_pickle_file.seek(0)
-        utils.upload_file_to_gcs(
+        upload_file_to_gcs(
             bucket_name=c.MODEL_BUCKET_NAME,
             credentials_path=c.SERVICE_ACCOUNT_JSON,
             file=config_pickle_file,

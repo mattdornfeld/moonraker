@@ -69,6 +69,16 @@ class TimeInterval:
         """
         return self.__add__(-time_delta)
 
+    @property
+    def time_delta(self) -> timedelta:
+        """
+        time_delta [summary]
+
+        Returns:
+            timedelta: [description]
+        """
+        return self.end_dt - self.start_dt
+
 
 def generate_random_time_delta(
     max_random_shift: timedelta, min_random_shift: timedelta

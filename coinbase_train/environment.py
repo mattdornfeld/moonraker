@@ -25,9 +25,9 @@ from coinbase_train.observations import (
     ObservationSpaceShape,
 )
 from coinbase_train.reward import BaseRewardStrategy
-from coinbase_train.utils.common import (
-    EnvironmentConfigs,
-    EnvironmentFinishedException,
+from coinbase_train.utils.config_utils import EnvironmentConfigs
+from coinbase_train.utils.exception_utils import EnvironmentFinishedException
+from coinbase_train.utils.preprocessing_utils import (
     clamp_to_range,
     convert_to_bool,
     pad_to_length,
