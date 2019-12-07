@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.0.0-experimental
-FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:0.1.0-e1290d5beaa0d65f1a38494c81a08e58cbd0f1d2
+FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:0.1.0-075dfac769af9924204cda2513a84e4f4ea3b051
 
 ENV PYTHONPATH=/app
 

@@ -28,33 +28,23 @@ GITLAB_PREFIX = (
     else "git+ssh://gitlab.com/moonraker"
 )
 
-GITLAB_PREFIX = f"git+https://{GITLAB_USERNAME}:{GITLAB_PASSWORD}@gitlab.com/moonraker"
 DEPENDENCY_LINKS = [
-    f"{GITLAB_PREFIX}/fakebase@6e6306292d322a7b75f324460a3d7293b5bec83a#egg=fakebase-0.1"
-]
-
-RAY_WEBUI_REQUIRES = [
-    "aiohttp",
-    "bokeh>=1.4.0,<2.0.0",
-    "ipywidgets>=7.5.0,<8.0.0",
-    "psutil",
-    "setproctitle",
+    f"{GITLAB_PREFIX}/fakebase@cad3ccb0fb55764624c561ae0e3d51b1b870fd29#egg=fakebase-0.1"
 ]
 
 INSTALL_REQUIRES = [
     "GitPython>=2.1.10,<3.0.0",
     "dnspython>=1.16.0, <2.0.0",
-    "keras>=2.2.4,<3.0.0",
     f"fakebase @ {DEPENDENCY_LINKS[0]}",
     "funcy>=1.11.0,<2.0.0",
     "google-cloud-storage>=1.15.0,<2.0.0",
-    "jupyterlab>=0.35.4,<0.36.0",
-    "pymongo>=3.5.0,<4.0.0",
-    "python-dateutil>=2.6.0,<3.0.0",
+    "incense>=0.0.10",
+    "python-dateutil>=maket2.6.0,<3.0.0",
+    "pytimeparse>=1.1.0,<2.0.0",
     "requests>=2.20.0,<3.0.0",
     "sacred",
     "ray[rllib]==0.7.6",
-    f"tensorflow>=1.14.0,<1.15.0",
+    f"tensorflow>=2.0.0",
 ]
 
 # bintrees needs cython installed first in order to use its cython compiled tree
@@ -91,11 +81,9 @@ setup(
     author="Matthew Dornfeld",
     author_email="matt@firstorderlabs.co",
     dependency_links=DEPENDENCY_LINKS,
-    extras_require=dict(
-        dev=["black>=19.3b0,<20.0"], gpu=["tensorflow-gpu>=1.14.0,<1.15.0"]
-    ),
-    install_requires=INSTALL_REQUIRES + RAY_WEBUI_REQUIRES,
-    name="coinbase_train",
+    extras_require=dict(dev=["black>=19.3b0,<20.0"], gpu=["tensorflow-gpu>=2.0.0"]),
+    install_requires=INSTALL_REQUIRES,
+    name="coinbase_ml",
     packages=find_packages(),
     scripts=SCRIPTS,
     setup_requires=SETUP_REQUIRES,
