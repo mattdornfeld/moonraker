@@ -1,4 +1,4 @@
 #!/bin/bash
 connect_to_ray_cluster && \
-python3 coinbase_train/train.py with staging && \
+python3 coinbase_ml/train/train.py with staging && \
 python3 bin/stop_gitlab_environment.py
