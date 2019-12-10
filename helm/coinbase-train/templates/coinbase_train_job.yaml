@@ -54,13 +54,16 @@ spec:
                 key: mongodb-url
 
           - name: NUM_GPUS
-            value: {{.Values.notebook.num_gpus | quote}}
+            value: {{.Values.job.num_gpus | quote}}
 
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: postgres-secret
                 key: password
+
+          - name: SACRED_CONFIG
+            value: {{.Values.job.sacred_config}}
 
           {{- if .Values.ray.deploy_ray_cluster}}
           - name: RAY_REDIS_ADDRESS

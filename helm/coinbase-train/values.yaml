@@ -3,6 +3,7 @@ job:
   num_cpus: 7.7
   num_gpus: 1
   node_group: n1-standard-8-nvidia-tesla-p100
+  sacred_config: staging
 
 notebook:
   num_cpus: 0.0
