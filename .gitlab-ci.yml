@@ -8,10 +8,8 @@ stages:
   - deploy
 
 variables:
-  CHART_NAME: coinbase-train
   K8S_NAMESPACE: moonraker
   NEXT_RELEASE_TYPE: minor
-  RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
 
 .create_credentials_ini_file: &create_credentials_ini_file |
   cat << EOF > gitlab_credentials.ini
@@ -19,16 +17,6 @@ variables:
   GITLAB_PASSWORD = $CI_TOKEN
   GITLAB_USERNAME = $CI_USERNAME
   EOF
-
-.helm_deploy_args: &helm_deploy_args |
-  HELM_ARGS="--set CI_TOKEN=${CI_TOKEN}
-  --set ENVIRONMENT=staging/${CI_COMMIT_REF_NAME}
-  --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
-  --set moonraker-common.registry.username=${CI_USERNAME}
-  --set moonraker-common.registry.password=${CI_TOKEN}
-  --set ray.head_deployment.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
-  --set ray.worker_deployments.cpu-workers.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
-  --set service_account_json=${SERVICE_ACCOUNT_JSON}"
 
 .version_tag_script: &version_tag_script |
   echo 'export VERSION_TAG environment variable' && set -o allexport && if [ -f "semantic_version.env" ]; then source semantic_version.env; else VERSION_TAG=0.1.0-${CI_COMMIT_SHA}; fi && set +o allexport
@@ -71,24 +59,35 @@ build:build_cpu_image:
    DOCKER_BUILDKIT: 1
    DOCKER_REPO: $CI_REGISTRY_IMAGE/cpu
 
-build:package_helm_chart:
+build:package_helm_charts:
   extends: .package_helm_chart
 
   variables:
     HELM_ARGS: "--dependency-update"
-    CHART_NAME: coinbase-train
+    CHART_NAME: coinbase-ml-train,coinbase-ml-serve
 
-build:deploy_helm_chart_dry_run:
-  # We do this in the before_script here because Gitlab had trouble interpolating the VERSION_TAG variable
-  # passing helm_deploy_args in as an environment variable
-  before_script:
-    - *version_tag_script
-    - *helm_deploy_args
 
-  extends: .deploy_helm_chart_dry_run
+# build:deploy_helm_chart_dry_run:
+#   # We do this in the before_script here because Gitlab had trouble interpolating the VERSION_TAG variable
+#   # passing helm_deploy_args in as an environment variable
+#   before_script:
+#     - *version_tag_script
+#     - *helm_deploy_args
 
-  variables:
-    CHART_PATH: helm/coinbase-train
+#   extends: .deploy_helm_chart_dry_run
+
+#   variables:
+#     CHART_PATH: helm/coinbase-ml-train
+
+.helm_deploy_args: &helm_deploy_args |
+  HELM_ARGS="--set CI_TOKEN=${CI_TOKEN}
+  --set ENVIRONMENT=staging/train-${CI_COMMIT_REF_NAME}
+  --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
+  --set moonraker-common.registry.username=${CI_USERNAME}
+  --set moonraker-common.registry.password=${CI_TOKEN}
+  --set ray.head_deployment.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
+  --set ray.worker_deployments.cpu-workers.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
+  --set service_account_json=${SERVICE_ACCOUNT_JSON}"
 
 deploy:deploy_coinbase_train:
   before_script:
@@ -96,14 +95,57 @@ deploy:deploy_coinbase_train:
     - *helm_deploy_args
 
   environment:
-    name: staging/$CI_COMMIT_REF_NAME
+    name: staging/train-$CI_COMMIT_REF_NAME
     on_stop: deploy:delete_coinbase_train
 
   extends: .deploy_helm_chart
 
+  variables:
+    CHART_NAME: coinbase-ml-train
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
+
 deploy:delete_coinbase_train:
   environment:
-    name: staging/$CI_COMMIT_REF_NAME
+    name: staging/train-$CI_COMMIT_REF_NAME
     action: stop
 
   extends: .delete_helm_release
+
+  variables:
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
+
+.helm_serve_deploy_args: &helm_serve_deploy_args |
+  HELM_ARGS="--set gcp-service-account-secret.service_account_json=${SERVICE_ACCOUNT_JSON}
+  --set gitlab-token-secret.CI_TOKEN=${CI_TOKEN}
+  --set mongo-db-secret.mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
+  --set moonraker-common.registry.password=${CI_TOKEN}
+  --set moonraker-common.registry.username=${CI_USERNAME}
+  --set COINBASE_API_KEY_B64SECRET=${COINBASE_API_KEY_B64SECRET}
+  --set COINBASE_API_KEY_PASSPHRASE=${COINBASE_API_KEY_PASSPHRASE}
+  --set COINBASE_API_KEY_NAME=${COINBASE_API_KEY_NAME}
+  --set ENVIRONMENT=staging/serve-$CI_COMMIT_REF_NAME"
+
+deploy:deploy_coinbase_serve:
+  before_script:
+    - *version_tag_script
+    - *helm_serve_deploy_args
+
+  environment:
+    name: staging/serve-$CI_COMMIT_REF_NAME
+    on_stop: deploy:delete_coinbase_serve
+
+  extends: .deploy_helm_chart
+
+  variables:
+    CHART_NAME: coinbase-ml-serve
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-serve
+
+deploy:delete_coinbase_serve:
+  environment:
+    name: staging/serve-$CI_COMMIT_REF_NAME
+    action: stop
+
+  extends: .delete_helm_release
+
+  variables:
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-serve

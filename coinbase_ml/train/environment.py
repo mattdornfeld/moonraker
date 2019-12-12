@@ -1,9 +1,9 @@
 """Summary
 """
 import logging
-from collections import deque as Deque
+from collections import deque
 from copy import deepcopy
-from typing import Dict, Optional, Tuple
+from typing import Deque, Dict, Optional, Tuple
 
 import numpy as np
 from gym import Env
@@ -21,6 +21,7 @@ from coinbase_ml.common.observations import (
     ObservationSpace,
     ObservationSpaceShape,
 )
+from coinbase_ml.common.utils import StateAtTime
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs
 from coinbase_ml.train.utils.exception_utils import EnvironmentFinishedException
@@ -38,7 +39,10 @@ class Environment(Env):  # pylint: disable=W0223
         self._closing_price = 0.0
         self._initial_portfolio_value = 0.0
         self._made_illegal_transaction = False
-        self._warmed_up_buffer: Deque = Deque(maxlen=_config.num_time_steps)
+        self._warmed_up = False
+        self._warmed_up_buffer: Deque[StateAtTime] = deque(
+            maxlen=_config.num_time_steps
+        )
         self.action_executor: Optional[ActionExecutor[Account]] = None
         self.action_space = ActionSpace()
         self.config = _config
@@ -116,6 +120,7 @@ class Environment(Env):  # pylint: disable=W0223
             self._exchange_step()
 
         self._warmed_up_buffer = deepcopy(self.featurizer.state_buffer)
+        self._warmed_up = True
 
     def close(self) -> None:
         """Summary
@@ -139,7 +144,7 @@ class Environment(Env):  # pylint: disable=W0223
         if c.VERBOSE:
             LOGGER.info("Resetting the environment.")
 
-        if self.exchange is None:
+        if not self._warmed_up:
             self.exchange = Exchange(
                 end_dt=self._end_dt,
                 start_dt=self._start_dt,
@@ -163,11 +168,14 @@ class Environment(Env):  # pylint: disable=W0223
 
             self._warmup()
             self._exchange_checkpoint = self.exchange.create_checkpoint()
-
         else:
             self.exchange.stop_database_workers()
+
             self.exchange = self._exchange_checkpoint.restore()
-            self.action_executor.account = self.exchange.account
+
+            self.featurizer.reset(
+                exchange=self.exchange, state_buffer=self._warmed_up_buffer
+            )
 
         self._made_illegal_transaction = False
 

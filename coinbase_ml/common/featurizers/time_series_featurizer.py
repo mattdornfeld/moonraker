@@ -2,7 +2,7 @@
 time_series_featurizer
 """
 from statistics import mean
-from typing import Any, Callable, List, TypeVar
+from typing import Any, Callable, Generic, List, TypeVar
 
 from funcy import compose, partial
 import numpy as np
@@ -16,7 +16,7 @@ from coinbase_ml.common.utils.preprocessing_utils import NormalizedOperation
 Event = TypeVar("Event", CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder)
 
 
-class TimeSeriesFeaturizer:
+class TimeSeriesFeaturizer(Generic[Exchange]):
     """
     TimeSeriesFeaturizer
     """
@@ -28,7 +28,7 @@ class TimeSeriesFeaturizer:
         Args:
             exchange (Exchange): [description]
         """
-        self._exchange = exchange
+        self.exchange = exchange
         self._cancellation_operators: List[NormalizedOperation] = []
         self._match_operators: List[NormalizedOperation] = []
         self._order_operators: List[NormalizedOperation] = []
@@ -126,16 +126,16 @@ class TimeSeriesFeaturizer:
             np.ndarray: [description]
         """
         cancellation_statistics = [
-            operator(self._exchange.received_cancellations)
+            operator(self.exchange.received_cancellations)
             for operator in self._cancellation_operators
         ]
 
         match_statistics = [
-            operator(self._exchange.matches) for operator in self._match_operators
+            operator(self.exchange.matches) for operator in self._match_operators
         ]
 
         order_statistics = [
-            operator(self._exchange.received_orders)
+            operator(self.exchange.received_orders)
             for operator in self._order_operators
         ]
 

@@ -35,7 +35,7 @@ spec:
       containers:
       - name: coinbase-train
 
-        command: ["job_entrypoint"]
+        command: ["train_job_entrypoint"]
 
         env:
           - name: CI_TOKEN

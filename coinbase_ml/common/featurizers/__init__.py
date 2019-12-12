@@ -3,7 +3,7 @@
 """
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Deque, List, Type
+from typing import Deque, Generic, List, Type
 
 import numpy as np
 
@@ -11,14 +11,14 @@ from coinbase_ml.common import constants as c
 from coinbase_ml.common.featurizers.account_featurizer import AccountFeaturizer
 from coinbase_ml.common.featurizers.order_book_featurizer import OrderBookFeaturizer
 from coinbase_ml.common.featurizers.time_series_featurizer import TimeSeriesFeaturizer
-from coinbase_ml.common.featurizers.types import Exchange
+from coinbase_ml.common.featurizers.types import Account, Exchange
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.reward import BaseRewardStrategy
 from coinbase_ml.common.utils import StateAtTime
 from coinbase_ml.common.utils.preprocessing_utils import pad_to_length
 
 
-class Featurizer:
+class Featurizer(Generic[Exchange]):
     """
     Featurizer [summary]
     """
@@ -37,12 +37,11 @@ class Featurizer:
             reward_strategy (Type[BaseRewardStrategy]): [description]
             state_buffer_size (int): [description]
         """
-        self._exchange = exchange
         self.state_buffer: Deque[StateAtTime] = Deque(maxlen=state_buffer_size)
-        self._account_featurizer = AccountFeaturizer(exchange.account)
-        self._order_book_featurizer = OrderBookFeaturizer(exchange)
+        self._account_featurizer = AccountFeaturizer[Account](exchange.account)
+        self._order_book_featurizer = OrderBookFeaturizer[Exchange](exchange)
         self._reward_strategy = reward_strategy()
-        self._time_series_featurizer = TimeSeriesFeaturizer(exchange)
+        self._time_series_featurizer = TimeSeriesFeaturizer[Exchange](exchange)
 
     def _get_order_book_feature(self) -> np.ndarray:
         """Summary
@@ -128,13 +127,18 @@ class Featurizer:
             time_series=self._get_time_series_features(),
         )
 
-    def reset(self, state_buffer: Deque[StateAtTime]) -> None:
+    def reset(self, exchange: Exchange, state_buffer: Deque[StateAtTime]) -> None:
         """
-        reset [summary]
+        reset clears Featurizer.state_buffer, point Featurizer at a new Exchange,
+        and calls the reset method on reward_strategy.
 
         Args:
+            exchange (Exchange): [description]
             state_buffer (Deque[StateAtTime]): [description]
         """
+        self._account_featurizer = AccountFeaturizer[Account](exchange.account)
+        self._order_book_featurizer = OrderBookFeaturizer[Exchange](exchange)
+        self._time_series_featurizer = TimeSeriesFeaturizer[Exchange](exchange)
         self.state_buffer = deepcopy(state_buffer)
         self._reward_strategy.reset()
 

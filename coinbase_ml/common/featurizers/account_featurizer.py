@@ -1,13 +1,15 @@
 """
 account_featurizer
 """
+from typing import Generic
+
 import numpy as np
 
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.featurizers.types import Account
 
 
-class AccountFeaturizer:
+class AccountFeaturizer(Generic[Account]):
     """
     AccountFeaturizer
     """
@@ -19,7 +21,7 @@ class AccountFeaturizer:
         Args:
             account (Account): [description]
         """
-        self._account = account
+        self.account = account
 
     def get_funds_as_array(self) -> np.ndarray:
         """Summary
@@ -27,10 +29,10 @@ class AccountFeaturizer:
         Returns:
             np.ndarray: [usd_balance, usd_holds, btc_balance, btc_holds]
         """
-        funds = self._account.funds
+        funds = self.account.funds
         _funds_as_array = np.hstack(
             [float(funds[currency].balance), float(funds[currency].holds)]
-            for currency in self._account.currencies
+            for currency in self.account.currencies
         )
 
         return np.expand_dims(_funds_as_array, axis=0)

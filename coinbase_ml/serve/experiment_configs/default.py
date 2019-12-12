@@ -16,11 +16,11 @@ def config():
     These settings are used for testing.
     """
     train_experiment_id = int(os.environ.get("TRAIN_EXPERIMENT_ID", "-1"))
-    train_experiment_id = 13
+    # train_experiment_id = 13
 
     # exchange configs
     serving_run_start_dt = datetime.now(UTC)
-    serving_run_length = timedelta(minutes=1)
+    serving_run_length = timedelta(minutes=3)
     serving_run_end_dt = serving_run_start_dt + serving_run_length
     time_delta = timedelta(seconds=5)
 

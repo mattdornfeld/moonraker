@@ -2,7 +2,7 @@
 order_book_featurizer
 """
 from decimal import Decimal
-from typing import DefaultDict, Tuple
+from typing import DefaultDict, Generic, Tuple
 
 import numpy as np
 
@@ -11,7 +11,7 @@ from coinbase_ml.common.featurizers.types import Exchange
 from coinbase_ml.common.utils.preprocessing_utils import min_max_normalization
 
 
-class OrderBookFeaturizer:
+class OrderBookFeaturizer(Generic[Exchange]):
     """
     OrderBookFeaturizer
     """
@@ -23,7 +23,7 @@ class OrderBookFeaturizer:
         Args:
             exchange (Exchange): [description]
         """
-        self._exchange = exchange
+        self.exchange = exchange
 
     @staticmethod
     def _normalize_price_volume(price: Decimal, volume: Decimal) -> Tuple[float, float]:
@@ -77,6 +77,6 @@ class OrderBookFeaturizer:
         Returns:
             np.ndarray: [description]
         """
-        price_volume_dict = self._exchange.bin_order_book_by_price(order_side)
+        price_volume_dict = self.exchange.bin_order_book_by_price(order_side)
 
         return self._price_volume_dict_to_array(price_volume_dict)

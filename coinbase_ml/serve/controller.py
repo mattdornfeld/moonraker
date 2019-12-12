@@ -8,6 +8,7 @@ import logging
 from time import sleep
 from typing import Optional, Type
 
+import requests
 from funcy import compose
 from ray.rllib.utils.policy_client import PolicyClient
 
@@ -106,7 +107,18 @@ class Controller:
         Returns:
             float: [description]
         """
-        episode_id: str = self.client.start_episode(training_enabled=False)
+        wait_time = 5
+        for _ in range(20):
+            try:
+                episode_id: str = self.client.start_episode(training_enabled=False)
+                break
+            except requests.exceptions.ConnectionError:
+                LOGGER.error(
+                    "Unable to connect to model server. Trying again in %s seconds.",
+                    wait_time,
+                )
+                sleep(wait_time)
+
         self.exchange.run()
         self._warmup()
 
@@ -133,7 +145,6 @@ class Controller:
                         metrics=convert_to_sacred_log_format(
                             self.metrics_recorder.calc_aggregates()
                         ),
-                        prefix="serve",
                     )
                     self.metrics_recorder.reset()
 
@@ -149,7 +160,7 @@ class Controller:
             LOGGER.info("Canceling all remaining orders.")
             self.action_executor.cancel_expired_orders(c.UTC_MAX)
 
-        return self.metrics_recorder.calc_roi()
+        return float(self.metrics_recorder.calc_roi())
 
 
 @SACRED_EXPERIMENT.automain

@@ -52,9 +52,10 @@ PRIORITY_INSTALL = ["cython"]
 
 SCRIPTS = [
     "bin/connect_to_ray_cluster",
-    "bin/job_entrypoint",
     "bin/notebook_entrypoint",
     "bin/start_jupyter_lab",
+    "bin/serve_job_entrypoint",
+    "bin/train_job_entrypoint",
 ]
 
 SETUP_REQUIRES = ["cython", "pytest-runner>=5.1,<6.0"]

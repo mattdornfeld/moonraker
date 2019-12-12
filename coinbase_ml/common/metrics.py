@@ -147,6 +147,6 @@ def convert_to_sacred_log_format(
     for metric_name, aggregate in aggregates.items():
         converted_aggregate: Dict[str, float] = asdict(aggregate)
         for metric_name_suffix, value in converted_aggregate.items():
-            converted_aggregates[f"{metric_name}_{metric_name_suffix}"] = value
+            converted_aggregates[f"{metric_name.value}_{metric_name_suffix}"] = value
 
     return converted_aggregates

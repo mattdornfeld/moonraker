@@ -1,0 +1,12 @@
+train_experiment_id: 60
+
+job:
+  node_group: c2-standard-4
+
+  controller:
+    num_cpus: 0.8
+    memory: 3000Mi
+
+  model_server:
+    num_cpus: 3.0
+    memory: 10000Mi

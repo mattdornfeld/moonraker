@@ -1,0 +1,125 @@
+---
+{{$release_name := .Release.Name | trunc 14}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{$release_name}}-{{randAlphaNum 10 | lower}}
+spec:
+  template:
+    metadata:
+      labels:
+        pod-selector: {{$release_name}}-job-serve
+
+    spec:
+      {{- if .Values.job.node_group}}
+      nodeSelector:
+        node-group: {{.Values.job.node_group}}
+      {{- end}}
+
+      {{- if .Values.job.node_group}}
+      tolerations:
+      - key: node-group
+        operator: "Equal"
+        effect: "NoSchedule"
+        value: {{.Values.job.node_group}}
+      {{- end}}
+
+      imagePullSecrets:
+      - name: {{.Release.Name}}-registry-credentials
+
+      restartPolicy: OnFailure
+
+      containers:
+      - name: controller
+
+        command:
+          - serve_job_entrypoint
+          - controller
+
+        env:
+          - name: CI_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-gitlab-ci-token
+                key: CI_TOKEN
+
+          - name: ENVIRONMENT
+            value: {{.Values.ENVIRONMENT}}
+
+          - name: COINBASE_API_KEY_B64SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-coinbase-api-key
+                key: COINBASE_API_KEY_B64SECRET
+
+          - name: COINBASE_API_KEY_NAME
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-coinbase-api-key
+                key: COINBASE_API_KEY_NAME
+
+          - name: COINBASE_API_KEY_PASSPHRASE
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-coinbase-api-key
+                key: COINBASE_API_KEY_PASSPHRASE
+
+          - name: MONGO_DB_URL
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-mongodb-credentials
+                key: mongodb-url
+
+          - name: TRAIN_EXPERIMENT_ID
+            value: {{.Values.train_experiment_id | quote}}
+
+        image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{.Chart.Version}}"
+
+        resources:
+          limits:
+            cpu: {{.Values.job.controller.num_cpus}}
+            memory: {{.Values.job.controller.memory}}
+
+      - name: model-server
+
+        command:
+          - serve_job_entrypoint
+          - server
+
+        env:
+          - name: MONGO_DB_URL
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-mongodb-credentials
+                key: mongodb-url
+
+          - name: TRAIN_EXPERIMENT_ID
+            value: {{.Values.train_experiment_id | quote}}
+
+        ports:
+          - containerPort: 9096
+            name: model-server
+
+        image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{.Chart.Version}}"
+
+        resources:
+          limits:
+            cpu: {{.Values.job.model_server.num_cpus}}
+            memory: {{.Values.job.model_server.memory}}
+
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+
+          - mountPath: /secrets
+            name: service-account-json
+            readOnly: true
+
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+
+        - name: service-account-json
+          secret:
+            secretName: {{$release_name}}-service-account-json
