@@ -217,11 +217,13 @@ class ActionExecutor(Generic[Account]):
             Optional[CoinbaseOrder]: [description]
         """
         if isinstance(action, NoTransaction):
-            LOGGER.info("No Transaction Action received")
+            if c.VERBOSE:
+                LOGGER.info("No Transaction Action received")
             return_val = None
 
         else:
-            LOGGER.info("Placing %s order: %s", action.order_side, action)
+            if c.VERBOSE:
+                LOGGER.info("Placing %s order: %s", action.order_side, action)
             return_val = self.account.place_limit_order(
                 product_id=c.PRODUCT_ID,
                 price=action.price,

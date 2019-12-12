@@ -24,6 +24,7 @@ SIZE_NORMALIZER = 1e2
 FUNDS_NORMALIZERS: Dict[str, float] = dict(
     BTC=1e1, USD=100e3,
 )
+VERBOSE = False
 
 # gcp configs
 GCP_PROJECT_NAME = "moonraker"
