@@ -1,4 +1,0 @@
-apiVersion: v1
-description: Helm charts for deploying coinbase_train repo
-name: coinbase-train
-version: 0.1.0-20f02d816e75424685daf1ca990fb1bb25511706

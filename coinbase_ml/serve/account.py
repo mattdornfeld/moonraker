@@ -1,12 +1,14 @@
 """
  [summary]
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
 from typing import Any, Dict, List
 
 from cbpro import AuthenticatedClient
+from dateutil.parser import parse
+from dateutil.tz import UTC
 
 import fakebase.constants
 from fakebase.base_classes import AccountBase, Funds
@@ -139,6 +141,15 @@ class Account(AccountBase):
             price=str(price),
             size=str(size),
         )
+
+        # Occasionaly Coinbase can send back a timestamp with an invalid timezone
+        # If this happens replace it with the current utc time. The time should be
+        # very close to each other.
+        if "created_at" in order_info:
+            try:
+                parse(order_info["created_at"])
+            except ValueError:
+                order_info["created_at"] = str(datetime.now(UTC))
 
         order_info["time_to_live"] = time_to_live
         order = self._make_order_object(order_info)

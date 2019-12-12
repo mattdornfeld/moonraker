@@ -1,0 +1,16 @@
+dependencies:
+  - name: gcp-service-account-secret
+    repository: gs://moonraker-helm-repo
+    version: 0.1.0-15f76e9d9bfdab1c0408b6d1a148be7802a496f8
+
+  - name: moonraker-common
+    repository: gs://moonraker-helm-repo
+    version: ~0.9.0
+
+  - name: gitlab-token-secret
+    repository: gs://moonraker-helm-repo
+    version: 0.1.0-15f76e9d9bfdab1c0408b6d1a148be7802a496f8
+
+  - name: mongo-db-secret
+    repository: gs://moonraker-helm-repo
+    version: 0.1.0-15f76e9d9bfdab1c0408b6d1a148be7802a496f8

@@ -3,7 +3,7 @@ sacred_utils.py
 """
 import logging
 from math import isnan
-from typing import Dict
+from typing import Dict, Optional
 
 from incense import ExperimentLoader
 from incense.experiment import Experiment as ExperimentResults
@@ -47,7 +47,7 @@ def get_sacred_experiment_results(experiment_id: int) -> ExperimentResults:
 
 
 def log_metrics_to_sacred(
-    experiment: Experiment, metrics: Dict[str, float], prefix: str
+    experiment: Experiment, metrics: Dict[str, float], prefix: Optional[str] = None
 ) -> None:
     """
     log_metrics_to_sacred [summary]
@@ -55,8 +55,8 @@ def log_metrics_to_sacred(
     Args:
         experiment (Experiment): [description]
         metrics (Dict[str, float]): [description]
-        prefix (str): [description]
+        prefix (Optional[str]): [description]
     """
     for metric_name, metric in metrics.items():
-        _metric_name = f"{prefix}_{metric_name}"
+        _metric_name = f"{prefix}_{metric_name}" if prefix else metric_name
         experiment.log_scalar(_metric_name, 0.0 if isnan(metric) else metric)
