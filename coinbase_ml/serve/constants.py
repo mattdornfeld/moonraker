@@ -29,3 +29,6 @@ COINBASE_WEBSOCKET_API_URL = os.environ.get(
     "COINBASE_WEBSOCKET_API_URL", "wss://ws-feed-public.sandbox.pro.coinbase.com"
 )
 COINBASE_WEBSOCKET_CHANNELS = ["full", "level2"]
+
+# kafka configs
+COINBASE_STREAM_KAFKA_TOPIC = "coinbase_level_2_full_stream_json"
