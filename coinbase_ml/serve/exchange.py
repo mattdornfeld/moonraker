@@ -13,7 +13,9 @@ from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 
 from coinbase_ml.serve.account import Account
 from coinbase_ml.serve.order_book import OrderBookBinner
-from coinbase_ml.serve.stream_processors.coinbase_stream_processor import CoinbaseStreamProcessor
+from coinbase_ml.serve.stream_processors.coinbase_stream_processor import (
+    CoinbaseStreamProcessor,
+)
 
 
 class Exchange(ExchangeBase[Account]):
