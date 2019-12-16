@@ -85,7 +85,7 @@ def staging():
         initial_btc=initial_btc,
         initial_usd=initial_usd,
         num_actors=1,
-        num_episodes=1,
+        num_episodes=10,
         num_time_steps=num_time_steps,
         num_warmup_time_steps=num_warmup_time_steps,
         num_workers=3,
