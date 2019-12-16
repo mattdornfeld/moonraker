@@ -177,6 +177,8 @@ class Environment(Env):  # pylint: disable=W0223
                 exchange=self.exchange, state_buffer=self._warmed_up_buffer
             )
 
+            self.action_executor.account = self.exchange.account
+
         self._made_illegal_transaction = False
 
         observation = self.featurizer.get_observation()
