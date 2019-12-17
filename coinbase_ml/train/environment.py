@@ -215,7 +215,6 @@ class Environment(Env):  # pylint: disable=W0223
 
         self._exchange_step()
 
-        self.featurizer.update_state_buffer()
         observation = self.featurizer.get_observation()
         reward = self.featurizer.calculate_reward()
 
