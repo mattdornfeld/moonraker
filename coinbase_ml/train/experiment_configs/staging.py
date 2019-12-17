@@ -53,7 +53,7 @@ def staging():
         gradient_clip=0.1,
         learning_rate=0.001,
         num_epochs_per_iteration=10,
-        num_iterations=20,
+        num_iterations=10,
         optimizer_name=optimizer_name,
         output_tower_depth=3,
         output_tower_num_units=100,
