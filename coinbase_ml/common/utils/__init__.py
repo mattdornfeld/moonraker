@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from fractions import Fraction
 from functools import reduce
+from math import log
 from operator import mul
 from statistics import stdev as base_stdev
 from typing import Generator, Iterable, List, Optional, Sequence, TypeVar
@@ -49,6 +50,20 @@ def all_but_last(iterable: Iterable) -> Generator:
     for i in iterator:
         yield current
         current = i
+
+
+def log_epsilon(num: float, epsilon: float = 1e-10) -> float:
+    """
+    log_epsilon [summary]
+
+    Args:
+        num (float): [description]
+        epsilon (float, optional): [description]. Defaults to 1e-10.
+
+    Returns:
+        float: [description]
+    """
+    return log(num + epsilon)
 
 
 def parse_if_not_none(dt: Optional[str]) -> datetime:
