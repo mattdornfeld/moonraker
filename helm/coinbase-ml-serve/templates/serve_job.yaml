@@ -70,6 +70,9 @@ spec:
                 name: {{$release_name}}-mongodb-credentials
                 key: mongodb-url
 
+          - name: SACRED_CONFIG
+            value: {{.Values.sacred_config}}
+
           - name: TRAIN_EXPERIMENT_ID
             value: {{.Values.train_experiment_id | quote}}
 

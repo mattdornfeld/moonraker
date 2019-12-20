@@ -167,8 +167,8 @@ class Controller:
 def main(
     serving_run_end_dt: datetime,
     serving_run_start_dt: datetime,
+    time_delta: Optional[timedelta],
     train_experiment_id: int,
-    time_delta: Optional[timedelta] = None,
 ) -> float:
     """
     main is the entry point for the serve module
@@ -176,6 +176,7 @@ def main(
     Args:
         serving_run_end_dt (datetime): [description]
         serving_run_start_dt (datetime): [description]
+        time_delta (Optional[timedelta]): [description]
         train_experiment_id (int): [description]
 
     Returns:
