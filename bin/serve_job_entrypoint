@@ -2,7 +2,8 @@
 if [ "$1" = "server" ]; then
     python3 coinbase_ml/serve/serve.py
 elif [ "$1" = "controller" ]; then
-    python3 coinbase_ml/serve/controller.py && python3 bin/stop_gitlab_environment.py
+    python3 coinbase_ml/serve/controller.py $(if [ $SACRED_CONFIG ]; then echo "with $SACRED_CONFIG"; fi) && \
+    python3 bin/stop_gitlab_environment.py
 else
     echo "Argument $1 not recognized."
 fi

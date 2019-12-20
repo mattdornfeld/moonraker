@@ -1,4 +1,5 @@
-train_experiment_id: 60
+sacred_config: staging
+train_experiment_id: 86
 
 job:
   node_group: c2-standard-4
