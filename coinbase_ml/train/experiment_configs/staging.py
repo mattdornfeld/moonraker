@@ -18,8 +18,8 @@ def staging():
     """
     custom_model_names = ["ActorValueModel"]
     trainer_name = "ppo"
-    initial_btc = "1.000000"
-    initial_usd = "10000.00"
+    initial_btc = "0.000000"
+    initial_usd = "100.00"
     num_time_steps = 100
     num_warmup_time_steps = 100
     optimizer_name = "Adam"
