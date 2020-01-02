@@ -1,6 +1,5 @@
 """
 Configs common to both train and serve
-TODO: go through train/constants.py and rm duplicates
 """
 import os
 import platform
@@ -8,6 +7,8 @@ from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict
+
+from fakebase.types import Currency, ProductId
 
 ACTOR_OUTPUT_DIMENSION = 4
 ENVIRONMENT = os.environ.get("ENVIRONMENT", platform.node())
@@ -18,12 +19,14 @@ ORDER_BOOK_BIN_SIZE = Decimal("0.01")
 ORDER_BOOK_DEPTH = 10
 ORDER_TIME_TO_LIVE = timedelta(seconds=30)
 PRICE_NORMALIZER = 10e3
-PRODUCT_ID = "BTC-USD"
-PRODUCT_CURRENCY, QUOTE_CURRENCY = PRODUCT_ID.split("-")
+PRODUCT_CURRENCY = Currency.BTC
+QUOTE_CURRENCY = Currency.USD
+PRODUCT_ID = ProductId(PRODUCT_CURRENCY, QUOTE_CURRENCY)
 SIZE_NORMALIZER = 1e2
-FUNDS_NORMALIZERS: Dict[str, float] = dict(
-    BTC=1e1, USD=100e3,
-)
+FUNDS_NORMALIZERS: Dict[Currency, float] = {
+    Currency.BTC: 1e1,
+    Currency.USD: 100e3,
+}
 VERBOSE = False
 
 # gcp configs

@@ -7,6 +7,8 @@ from typing import Deque, Generic, List, Type
 
 import numpy as np
 
+from fakebase.types import OrderSide
+
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.featurizers.account_featurizer import AccountFeaturizer
 from coinbase_ml.common.featurizers.order_book_featurizer import OrderBookFeaturizer
@@ -120,7 +122,6 @@ class Featurizer(Generic[Exchange]):
         Returns:
             Observation: [description]
         """
-
         return Observation(
             account_funds=self._get_account_funds_features(),
             order_book=self._get_order_book_feature(),
@@ -148,11 +149,15 @@ class Featurizer(Generic[Exchange]):
         and stores them in Featurizer.state_buffer.
         """
         account_funds = self._account_featurizer.get_funds_as_array()
-        buy_order_book = self._order_book_featurizer.get_order_book_features("buy")
+        buy_order_book = self._order_book_featurizer.get_order_book_features(
+            OrderSide.buy
+        )
         normalized_account_funds = (
             self._account_featurizer.get_funds_as_normalized_array()
         )
-        sell_order_book = self._order_book_featurizer.get_order_book_features("sell")
+        sell_order_book = self._order_book_featurizer.get_order_book_features(
+            OrderSide.sell
+        )
         time_series = self._time_series_featurizer.get_time_series_features()
 
         state = StateAtTime(

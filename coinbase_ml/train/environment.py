@@ -10,7 +10,8 @@ from gym import Env
 
 from ray.rllib.env.env_context import EnvContext
 
-from fakebase.exchange import Account, Exchange
+from fakebase.account import Account
+from fakebase.exchange import Exchange
 
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.action import ActionExecutor
@@ -147,6 +148,7 @@ class Environment(Env):  # pylint: disable=W0223
         if not self._warmed_up:
             self.exchange = Exchange(
                 end_dt=self._end_dt,
+                product_id=cc.PRODUCT_ID,
                 start_dt=self._start_dt,
                 time_delta=self.config.time_delta,
             )

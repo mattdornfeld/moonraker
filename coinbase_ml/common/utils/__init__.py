@@ -5,6 +5,7 @@ import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
+from enum import Enum
 from fractions import Fraction
 from functools import reduce
 from math import log
@@ -17,6 +18,9 @@ import tensorflow as tf
 from dateutil.parser import parse
 from pytimeparse import parse as time_delta_str_to_int
 
+from fakebase.types import Currency, ProductId
+
+GenericEnum = TypeVar("GenericEnum", bound=Enum)
 Numeric = TypeVar("Numeric", float, Decimal, Fraction)
 
 
@@ -50,6 +54,44 @@ def all_but_last(iterable: Iterable) -> Generator:
     for i in iterator:
         yield current
         current = i
+
+
+def convert_to_enum(enum: GenericEnum, name: str) -> GenericEnum:
+    """
+    convert_to_enum [summary]
+
+    Args:
+        enum (GenericEnum): [description]
+        name (str): [description]
+
+    Returns:
+        GenericEnum: [description]
+    """
+    # The __members__ property is created dynamically by the Enum metaclass
+    # Mypy won't know it's there. So ignore this type check.
+    return enum.__members__.get(name)  # type: ignore
+
+
+def convert_str_product_id(product_id: Optional[str]) -> Optional[ProductId]:
+    """
+    convert_str_product_id [summary]
+
+    Args:
+        product_id (Optional[str]): [description]
+
+    Returns:
+        Optional[ProductId]: [description]
+    """
+    if product_id is not None:
+        product_currency = Currency[product_id.split("-")[0]]
+        quote_currency = Currency[product_id.split("-")[1]]
+        return_val = ProductId(
+            product_currency=product_currency, quote_currency=quote_currency
+        )
+    else:
+        return_val = None
+
+    return return_val
 
 
 def log_epsilon(num: float, epsilon: float = 1e-10) -> float:

@@ -11,7 +11,7 @@ from coinbase_ml.common import constants as cc
 UTC_MAX = datetime.utcfromtimestamp(2147483647).astimezone(UTC)
 
 # sacred configs
-EXPERIMENT_NAME = f"{cc.PRODUCT_ID.lower()}-serve"
+EXPERIMENT_NAME = f"{str(cc.PRODUCT_ID).lower()}-serve"
 METRICS_RECORD_FREQUENCY = 5
 
 # ray configs

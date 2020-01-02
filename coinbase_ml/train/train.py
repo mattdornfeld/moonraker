@@ -14,13 +14,13 @@ from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common import models
 from coinbase_ml.common.reward import REWARD_STRATEGIES
+from coinbase_ml.common.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
 from coinbase_ml.common.utils.ray_utils import register_custom_models
 from coinbase_ml.common.utils.sacred_utils import log_metrics_to_sacred
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
 from coinbase_ml.train.trainers import get_and_build_trainer
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs, HyperParameters
-from coinbase_ml.train.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
 
 
 LOGGER = logging.getLogger(__name__)

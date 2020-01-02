@@ -25,7 +25,7 @@ variables:
 build:run_tests:
   extends: .base_test
 
-  image: registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:0.1.0-075dfac769af9924204cda2513a84e4f4ea3b051
+  image: registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:0.1.0-dc6dd4739dd76b52492302251385022f0161dcdb
 
   script:
     - make install
