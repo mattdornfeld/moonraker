@@ -14,9 +14,13 @@ from typing import ClassVar, Generic, Optional, TypeVar
 import numpy as np
 from funcy import compose, partial, rpartial
 
-from fakebase import utils as fakebase_utils
+from fakebase.utils.currency_utils import (
+    get_currency_min_value,
+    round_to_currency_precision,
+)
 from fakebase.base_classes import AccountBase
 from fakebase.orm import CoinbaseOrder
+from fakebase.types import OrderSide
 
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.utils.preprocessing_utils import clamp_to_range, softmax
@@ -65,7 +69,7 @@ class PlaceBuyOrder(Action):
     PlaceBuyOrder [summary]
     """
 
-    order_side = "buy"
+    order_side = OrderSide.buy
 
 
 class PlaceSellOrder(Action):
@@ -73,7 +77,7 @@ class PlaceSellOrder(Action):
     PlaceSellOrder [summary]
     """
 
-    order_side = "sell"
+    order_side = OrderSide.sell
 
 
 class ActionExecutor(Generic[Account]):
@@ -101,10 +105,10 @@ class ActionExecutor(Generic[Account]):
         Returns:
             Decimal: [description]
         """
-        min_value = fakebase_utils.get_currency_min_value(c.QUOTE_CURRENCY)
+        min_value = get_currency_min_value(c.QUOTE_CURRENCY)
 
         return compose(
-            partial(fakebase_utils.round_to_currency_precision, c.QUOTE_CURRENCY),
+            partial(round_to_currency_precision, c.QUOTE_CURRENCY),
             Decimal,
             str,
             rpartial(clamp_to_range, min_value, inf),
@@ -137,9 +141,7 @@ class ActionExecutor(Generic[Account]):
             else available_product
         )
 
-        return fakebase_utils.round_to_currency_precision(
-            c.PRODUCT_CURRENCY, transaction_size
-        )
+        return round_to_currency_precision(c.PRODUCT_CURRENCY, transaction_size)
 
     def cancel_expired_orders(self, current_dt: datetime) -> None:
         """

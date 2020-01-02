@@ -12,9 +12,9 @@ import requests
 from funcy import compose
 from ray.rllib.utils.policy_client import PolicyClient
 
-from fakebase.utils import ExchangeFinishedException
+from fakebase.utils.exceptions import ExchangeFinishedException
 
-
+import coinbase_ml.common.constants as cc
 from coinbase_ml.common.action import Action, ActionExecutor
 from coinbase_ml.common.featurizers import Featurizer
 from coinbase_ml.common.metrics import MetricsRecorder, convert_to_sacred_log_format
@@ -58,14 +58,17 @@ class Controller:
             time_delta (timedelta): [description]
         """
 
-        self.account = Account()
-        self.action_executor = ActionExecutor[Account](self.account)
         self.client = PolicyClient(
             f"http://{c.SERVED_POLICY_ADDRESS}:{c.SERVED_POLICY_PORT}"
         )
         self.exchange = Exchange(
-            start_dt=start_dt, end_dt=end_dt, time_delta=time_delta,
+            product_id=cc.PRODUCT_ID,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            time_delta=time_delta,
         )
+        self.account = Account(self.exchange)
+        self.action_executor = ActionExecutor[Account](self.account)
         self.exchange.account = self.account
 
         self.num_warmup_time_steps = num_warmup_time_steps

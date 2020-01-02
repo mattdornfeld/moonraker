@@ -3,10 +3,7 @@ Downloads artifacts from train run and starts RLLib policy server
 """
 from pathlib import Path
 from tempfile import TemporaryDirectory, TemporaryFile
-from typing import Any, Dict, Optional, IO
-
-from google.cloud import storage
-from google.oauth2.service_account import Credentials
+from typing import Any, Dict
 
 import ray
 import ray.cloudpickle as cloudpickle
@@ -20,43 +17,12 @@ from coinbase_ml.common.observations import (
     ObservationSpace,
     ObservationSpaceShape,
 )
+from coinbase_ml.common.utils.gcs_utils import download_file_from_gcs
 from coinbase_ml.common.utils.ray_utils import register_custom_models
 from coinbase_ml.common.utils.sacred_utils import get_sacred_experiment_results
 from coinbase_ml.serve.environment import Environment
 from coinbase_ml.serve.experiment_configs.default import config
 from coinbase_ml.serve.trainers import TRAINERS
-
-
-def download_file_from_gcs(
-    bucket_name: str,
-    credentials_path: Path,
-    gcp_project_name: str,
-    key: str,
-    file: Optional[IO[bytes]] = None,
-    filename: Optional[Path] = None,
-) -> None:
-    """
-    download_file_from_gcs [summary]
-
-    Args:
-        bucket_name (str): [description]
-        credentials_path (Path): [description]
-        gcp_project_name (str): [description]
-        key (str): [description]
-        file (Optional[IO[bytes]], optional): [description]. Defaults to None.
-        filename (Optional[Path], optional): [description]. Defaults to None.
-    """
-    credentials = Credentials.from_service_account_file(credentials_path)
-    client = storage.Client(project=gcp_project_name, credentials=credentials)
-    bucket = client.bucket(bucket_name)
-    blob = bucket.get_blob(key)
-    if file:
-        blob.download_to_file(file)
-        file.seek(0)
-    elif filename:
-        blob.download_to_filename(filename)
-    else:
-        raise ValueError("Must specify file or filename.")
 
 
 def env_creator(env_config: EnvContext) -> Environment:

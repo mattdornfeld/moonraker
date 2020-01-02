@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 from cbpro import WebsocketClient
 from kafka import KafkaProducer
 
-import fakebase.constants as fc
+from coinbase_ml.common import constants as cc
 from coinbase_ml.serve.constants import (
     COINBASE_STREAM_KAFKA_TOPIC,
     COINBASE_WEBSOCKET_API_URL,
@@ -30,7 +30,7 @@ class CoinbaseKafkaStreamProducer(WebsocketClient):
     ) -> None:
         super(CoinbaseKafkaStreamProducer, self).__init__(
             channels=COINBASE_WEBSOCKET_CHANNELS,
-            products=[fc.PRODUCT_ID],
+            products=[cc.PRODUCT_ID],
             url=COINBASE_WEBSOCKET_API_URL,
         )
 

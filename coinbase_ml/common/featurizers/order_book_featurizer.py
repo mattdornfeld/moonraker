@@ -6,6 +6,8 @@ from typing import DefaultDict, Generic, Tuple
 
 import numpy as np
 
+from fakebase.types import OrderSide
+
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.featurizers.types import Exchange
 from coinbase_ml.common.utils.preprocessing_utils import min_max_normalization
@@ -67,12 +69,12 @@ class OrderBookFeaturizer(Generic[Exchange]):
 
         return np.array(price_volume_list) if price_volume_dict else np.zeros((1, 2))
 
-    def get_order_book_features(self, order_side: str) -> np.ndarray:
+    def get_order_book_features(self, order_side: OrderSide) -> np.ndarray:
         """
         get_order_book_features [summary]
 
         Args:
-            order_side (str): [description]
+            order_side (OrderSide): [description]
 
         Returns:
             np.ndarray: [description]

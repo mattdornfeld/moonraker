@@ -4,57 +4,59 @@ pulls in orders, cancellations, matches, and the binned order book.
 """
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import DefaultDict, List
+from typing import TYPE_CHECKING, DefaultDict, List
 
 from dateutil.tz import UTC
 
 from fakebase.base_classes import ExchangeBase
-from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+from fakebase.orm import CoinbaseEvent, CoinbaseMatch
+from fakebase.types import OrderSide, ProductId
 
-from coinbase_ml.serve.account import Account
 from coinbase_ml.serve.order_book import OrderBookBinner
 from coinbase_ml.serve.stream_processors.coinbase_stream_processor import (
     CoinbaseStreamProcessor,
 )
 
+if TYPE_CHECKING:
+    import coinbase_ml.serve.account
 
-class Exchange(ExchangeBase[Account]):
+
+class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
     """
     Exchange encapsulates the order book, received orders, and
     received cancelations from the live Coinbase exchange.
     """
 
     def __init__(
-        self, end_dt: datetime, start_dt: datetime, time_delta: timedelta,
+        self,
+        end_dt: datetime,
+        product_id: ProductId,
+        start_dt: datetime,
+        time_delta: timedelta,
     ) -> None:
         """
-        Exchange [summary]
+        __init__ [summary]
 
         Args:
             end_dt (datetime): [description]
+            product_id (ProductId): [description]
             start_dt (datetime): [description]
             time_delta (timedelta): [description]
-
-        Returns:
-            [type]: [description]
         """
-        super().__init__(end_dt, start_dt, time_delta)
-        self.order_book_binner = OrderBookBinner()
+        super().__init__(end_dt, product_id, start_dt, time_delta)
+        self.order_book_binner = OrderBookBinner(product_id)
         self.stream_processor = CoinbaseStreamProcessor(
             order_book_binner=self.order_book_binner,
-            matches=self.matches,
-            received_cancellations=self.received_cancellations,
-            received_orders=self.received_orders,
         )
 
     def bin_order_book_by_price(
-        self, order_side: str, price_aggregation: Decimal = Decimal("0.01")
+        self, order_side: OrderSide, price_aggregation: Decimal = Decimal("0.01")
     ) -> DefaultDict[Decimal, Decimal]:
         """
         bin_order_book_by_price [summary]
 
         Args:
-            order_side (str): [description]
+            order_side (OrderSide): [description]
             price_aggregation (Decimal, optional): [description]. Defaults to Decimal("0.01").
 
         Returns:
@@ -81,6 +83,36 @@ class Exchange(ExchangeBase[Account]):
             value (datetime): [description]
         """
 
+    @property
+    def matches(self) -> List[CoinbaseMatch]:
+        """
+        matches [summary]
+
+        Returns:
+            List[CoinbaseMatch]: [description]
+        """
+        return self.stream_processor.matches
+
+    @property
+    def received_cancellations(self) -> List[CoinbaseEvent]:
+        """
+        received_cancellations [summary]
+
+        Returns:
+            List[CoinbaseEvent]: [description]
+        """
+        return self.stream_processor.received_cancellations
+
+    @property
+    def received_orders(self) -> List[CoinbaseEvent]:
+        """
+        received_orders [summary]
+
+        Returns:
+            List[CoinbaseEvent]: [description]
+        """
+        return self.stream_processor.received_orders
+
     def run(self) -> None:
         """
         run starts the stream processor in a background thread to collect data from the
@@ -95,9 +127,7 @@ class Exchange(ExchangeBase[Account]):
         """
         super().step()
         self.interval_start_dt = datetime.now(UTC)
-        self.received_cancellations: List[CoinbaseCancellation] = []
-        self.received_orders: List[CoinbaseOrder] = []
-        self.matches: List[CoinbaseMatch] = []
+        self.stream_processor.flush()
 
     def stop(self) -> None:
         """

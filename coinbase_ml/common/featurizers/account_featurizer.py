@@ -31,8 +31,10 @@ class AccountFeaturizer(Generic[Account]):
         """
         funds = self.account.funds
         _funds_as_array = np.hstack(
-            [float(funds[currency].balance), float(funds[currency].holds)]
-            for currency in self.account.currencies
+            [
+                [float(funds[currency].balance), float(funds[currency].holds)]
+                for currency in self.account.currencies
+            ]
         )
 
         return np.expand_dims(_funds_as_array, axis=0)

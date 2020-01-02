@@ -1,6 +1,6 @@
 job:
   memory: 25000Mi
-  num_cpus: 7.7
+  num_cpus: 7.5
   num_gpus: 1
   node_group: n1-standard-8-nvidia-tesla-p100
   sacred_config: staging
@@ -14,13 +14,13 @@ ray:
   deploy_ray_cluster: true
 
   head_deployment:
-    num_cpus: 3.8
+    num_cpus: 3.6
     num_gpus: 0
     node_group: c2-standard-4
 
   worker_deployments:
     cpu-workers:
-      num_cpus_per_replica: 3.8
+      num_cpus_per_replica: 3.6
       num_gpus_per_replica: 0
       num_replicas: 1
       node_group: c2-standard-4

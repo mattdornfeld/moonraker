@@ -7,9 +7,16 @@ from typing import Any, Dict, List
 from cbpro import WebsocketClient
 from dateutil import parser
 
-from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+from fakebase.orm import (
+    CoinbaseEvent,
+    CoinbaseCancellation,
+    CoinbaseMatch,
+    CoinbaseOrder,
+)
+from fakebase.types import OrderId, OrderStatus, OrderSide, OrderType
 
 from coinbase_ml.common import constants as cc
+from coinbase_ml.common.utils import convert_str_product_id
 from coinbase_ml.serve import constants as c
 from coinbase_ml.serve.order_book import OrderBookBinner
 
@@ -21,31 +28,31 @@ class CoinbaseStreamProcessor(WebsocketClient):
     [summary]
     """
 
-    def __init__(
-        self,
-        matches: List[CoinbaseMatch],
-        order_book_binner: OrderBookBinner,
-        received_cancellations: List[CoinbaseCancellation],
-        received_orders: List[CoinbaseOrder],
-    ) -> None:
+    def __init__(self, order_book_binner: OrderBookBinner,) -> None:
         """
         __init__ [summary]
 
         Args:
-            order_book (BinnedOrderBook): [description]
-            received_orders (List[CoinbaseOrder]): [description]
-            matches (List[CoinbaseMatch]): [description]
-            received_cancellations (List[CoinbaseCancellation]): [description]
+            order_book_binner (OrderBookBinner): [description]
         """
         super().__init__(
             channels=c.COINBASE_WEBSOCKET_CHANNELS,
-            products=[cc.PRODUCT_ID],
+            products=[str(cc.PRODUCT_ID)],
             url=c.COINBASE_WEBSOCKET_API_URL,
         )
         self.order_book_binner = order_book_binner
-        self.received_orders = received_orders
-        self.matches = matches
-        self.received_cancellations = received_cancellations
+        self.received_orders: List[CoinbaseEvent] = []
+        self.matches: List[CoinbaseMatch] = []
+        self.received_cancellations: List[CoinbaseEvent] = []
+
+    def flush(self) -> None:
+        """
+        flush clears the buffers self.received_orders, self.matches,
+        and self.received_cancellations
+        """
+        self.received_orders = []
+        self.matches = []
+        self.received_cancellations = []
 
     def on_message(self, msg: Dict[str, Any]) -> None:
         """
@@ -59,7 +66,7 @@ class CoinbaseStreamProcessor(WebsocketClient):
         """
         if msg["type"] == "snapshot":
             self.order_book_binner.insert_book_snapshot(
-                {"buy": msg["bids"], "sell": msg["asks"]}
+                {OrderSide.buy: msg["bids"], OrderSide.sell: msg["asks"]}
             )
 
         elif msg["type"] == "l2update":
@@ -70,13 +77,13 @@ class CoinbaseStreamProcessor(WebsocketClient):
                 CoinbaseOrder(
                     client_oid=msg.get("client_oid"),
                     funds=msg.get("funds"),
-                    order_id=msg["order_id"],
-                    order_type=msg["order_type"],
-                    order_status=msg["type"],
+                    order_id=OrderId(msg["order_id"]),
+                    order_type=OrderType[msg["order_type"]],
+                    order_status=OrderStatus[msg["type"]],
                     price=msg.get("price"),
-                    product_id=msg["product_id"],
+                    product_id=convert_str_product_id(msg["product_id"]),
                     sequence=msg["sequence"],
-                    side=msg["side"],
+                    side=OrderSide[msg["side"]],
                     size=msg.get("size"),
                     time=parser.parse(msg["time"]),
                 )
@@ -85,13 +92,13 @@ class CoinbaseStreamProcessor(WebsocketClient):
         elif msg["type"] == "match":
             self.matches.append(
                 CoinbaseMatch(
-                    maker_order_id=msg["maker_order_id"],
+                    maker_order_id=OrderId(msg["maker_order_id"]),
                     price=msg["price"],
-                    product_id=msg["product_id"],
+                    product_id=convert_str_product_id(msg["product_id"]),
                     sequence=msg["sequence"],
-                    side=msg["side"],
+                    side=OrderSide[msg["side"]],
                     size=msg["size"],
-                    taker_order_id=msg["taker_order_id"],
+                    taker_order_id=OrderId(msg["taker_order_id"]),
                     time=parser.parse(msg["time"]),
                     trade_id=msg["trade_id"],
                 )
@@ -100,9 +107,9 @@ class CoinbaseStreamProcessor(WebsocketClient):
         elif msg["type"] == "done" and msg["reason"] == "canceled":
             self.received_cancellations.append(
                 CoinbaseCancellation(
-                    order_id=msg["order_id"],
+                    order_id=OrderId(msg["order_id"]),
                     price=msg["price"],
-                    product_id=msg["product_id"],
+                    product_id=convert_str_product_id(msg["product_id"]),
                     remaining_size=msg["remaining_size"],
                     side=msg["side"],
                     time=parser.parse(msg["time"]),
@@ -111,3 +118,14 @@ class CoinbaseStreamProcessor(WebsocketClient):
 
         else:
             LOGGER.debug("Error: message type not known: %s", msg)
+
+    def on_open(self) -> None:
+        """
+        on_open [summary]
+        """
+        LOGGER.info(
+            "Subscribed to the %s channels, for the %s product, from the %s feed.",
+            c.COINBASE_WEBSOCKET_CHANNELS,
+            str(cc.PRODUCT_ID),
+            c.COINBASE_WEBSOCKET_API_URL,
+        )

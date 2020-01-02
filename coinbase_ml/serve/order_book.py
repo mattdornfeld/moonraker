@@ -7,8 +7,9 @@ from decimal import Decimal
 from threading import Lock
 from typing import DefaultDict, Dict, Iterator, List, Tuple
 
-from fakebase import constants as c
-from fakebase.utils import get_currency_precision
+from fakebase.types import Currency, OrderSide, ProductId
+from fakebase.utils.currency_utils import get_currency_precision
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -24,14 +25,13 @@ class OrderBookBinner:
      [summary]
     """
 
-    def __init__(self) -> None:
+    def __init__(self, product_id: ProductId) -> None:
         """
         __init__ [summary]
         """
-        self.order_books: Dict[str, BinnedOrderBook] = {
-            order_side: defaultdict(Decimal) for order_side in ["buy", "sell"]
-        }
+        self.order_books: Dict[OrderSide, BinnedOrderBook] = {}
         self.book_lock = Lock()
+        self.product_id = product_id
 
     def _create_snapshot_generator(
         self, snapshot: OrderBookSnapshot
@@ -47,20 +47,20 @@ class OrderBookBinner:
         """
         return (
             (
-                self.convert_to_decimal(level[0], c.QUOTE_CURRENCY),
-                self.convert_to_decimal(level[1], c.PRODUCT_CURRENCY),
+                self.convert_to_decimal(level[0], self.product_id.quote_currency),
+                self.convert_to_decimal(level[1], self.product_id.product_currency),
             )
             for level in snapshot
         )
 
     @staticmethod
-    def convert_to_decimal(value: str, currency: str) -> Decimal:
+    def convert_to_decimal(value: str, currency: Currency) -> Decimal:
         """
         convert_to_decimal [summary]
 
         Args:
             value (str): [description]
-            currency (str): [description]
+            currency (Currency): [description]
 
         Returns:
             Decimal: [description]
@@ -69,19 +69,19 @@ class OrderBookBinner:
         return Decimal(value).quantize(Decimal(precision))
 
     def insert_book_snapshot(
-        self, order_book_snapshots: Dict[str, OrderBookSnapshot]
+        self, order_book_snapshots: Dict[OrderSide, OrderBookSnapshot]
     ) -> None:
         """
         insert_book_snapshot [summary]
 
         Args:
-            order_book_snapshots (Dict[str, OrderBookSnapshot]): [description]
+            order_book_snapshots (Dict[OrderSide, OrderBookSnapshot]): [description]
         """
         LOGGER.debug("Inserting order book snapshot")
 
         self.book_lock.acquire()
         try:
-            for order_side in ["buy", "sell"]:
+            for order_side in [OrderSide.buy, OrderSide.sell]:
                 snapshot = order_book_snapshots[order_side]
                 self.order_books[order_side] = defaultdict(
                     Decimal, self._create_snapshot_generator(snapshot)
@@ -90,13 +90,13 @@ class OrderBookBinner:
             self.book_lock.release()
 
     def insert_book_change(
-        self, order_side: str, price: Decimal, size: Decimal
+        self, order_side: OrderSide, price: Decimal, size: Decimal
     ) -> None:
         """
         insert_book_change [summary]
 
         Args:
-            order_side (str): [description]
+            order_side (OrderSide): [description]
             price (Decimal): [description]
             size (Decimal): [description]
 
@@ -129,14 +129,15 @@ class OrderBookBinner:
         self.book_lock.acquire()
         try:
             for change in changes:
-                order_side, price, size = change
+                _order_side, price, size = change
+                order_side = OrderSide[_order_side]
 
-                if order_side not in ["buy", "sell"]:
+                if order_side not in [OrderSide.buy, OrderSide.sell]:
                     LOGGER.error("Error: change side not recognized %s", change)
                     continue
 
-                _price = self.convert_to_decimal(price, c.QUOTE_CURRENCY)
-                _size = self.convert_to_decimal(size, c.PRODUCT_CURRENCY)
+                _price = self.convert_to_decimal(price, self.product_id.quote_currency)
+                _size = self.convert_to_decimal(size, self.product_id.product_currency)
                 self.insert_book_change(order_side, _price, _size)
         finally:
             self.book_lock.release()

@@ -8,6 +8,7 @@ from funcy import compose, partial
 import numpy as np
 
 from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+from fakebase.types import OrderSide
 
 from coinbase_ml.common.featurizers.types import Exchange
 from coinbase_ml.common.utils import stdev
@@ -29,17 +30,18 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
             exchange (Exchange): [description]
         """
         self.exchange = exchange
+        self.feature_names: List[str] = []
         self._cancellation_operators: List[NormalizedOperation] = []
         self._match_operators: List[NormalizedOperation] = []
         self._order_operators: List[NormalizedOperation] = []
         self._create_time_series_operators()
 
     @staticmethod
-    def _calc_event_counts(order_side: str, events: List[Event]) -> int:
+    def _calc_event_counts(order_side: OrderSide, events: List[Event]) -> int:
         """Summary
 
         Args:
-            order_side (str): Description
+            order_side (OrderSide): Description
             events (List[Event]): Description
 
         Returns:
@@ -51,14 +53,14 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
         self,
         attribute: str,
         operation: Callable[[List[Any]], float],
-        order_side: str,
+        order_side: OrderSide,
         events: List[Event],
     ) -> float:
         """Summary
         Args:
             attribute (str): Description
             operation (Callable[[List[Any]], float]): Description
-            order_side (str): Description
+            order_side (OrderSide): Description
             events (List[Event]): Description
 
         Returns:
@@ -72,11 +74,12 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
         """
         _create_time_series_operators [summary]
         """
-        for order_side in ["buy", "sell"]:
+        for order_side in [OrderSide.buy, OrderSide.sell]:
 
             operator = partial(self._calc_event_counts, order_side)
 
             name = f"{order_side}_count"
+            self.feature_names.append(name)
             self._cancellation_operators.append(NormalizedOperation(operator, name))
             self._match_operators.append(NormalizedOperation(operator, name))
             self._order_operators.append(NormalizedOperation(operator, name))
@@ -91,6 +94,7 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
                     )
 
                     name = f"{order_side}_{attribute}_{_operator.__name__}"
+                    self.feature_names.append(name)
 
                     if attribute in ["price"]:
                         self._cancellation_operators.append(
@@ -102,11 +106,11 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
 
     @staticmethod
     def _filter_events(
-        attribute: str, events: List[Event], order_side: str
+        attribute: str, events: List[Event], order_side: OrderSide
     ) -> List[Any]:
         """Summary
         Args:
-            attribute (str): Description
+            attribute (OrderSide): Description
             events (List[Event]): Description
             order_side (str): Description
         Returns:
