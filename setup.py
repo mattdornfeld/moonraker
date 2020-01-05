@@ -29,7 +29,7 @@ GITLAB_PREFIX = (
 )
 
 DEPENDENCY_LINKS = [
-    f"{GITLAB_PREFIX}/fakebase@43e70d075380a7d42485adf8149844416e90ee59#egg=fakebase-0.1"
+    f"{GITLAB_PREFIX}/fakebase@a0e59f1f1b20fa336cd4f06b4eaa13d01172f063#egg=fakebase-0.1"
 ]
 
 INSTALL_REQUIRES = [
