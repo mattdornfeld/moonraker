@@ -24,7 +24,7 @@ def config():
     num_warmup_time_steps = 1 * num_time_steps
     optimizer_name = "Adam"
     return_value_key = "roi"
-    reward_strategy_name = "ProfitRewardStrategy"
+    reward_strategy_name = "LogReturnRewardStrategy"
     test_end_dt = "2019-10-20 17:10:00.00"
     test_start_dt = "2019-10-20 17:00:00.00"
     time_delta = timedelta(seconds=30)

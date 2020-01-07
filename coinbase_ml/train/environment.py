@@ -219,7 +219,6 @@ class Environment(Env):  # pylint: disable=W0223
 
         observation = self.featurizer.get_observation()
         reward = self.featurizer.calculate_reward()
-
         self._made_illegal_transaction = self._check_is_out_of_funds()
 
         if c.VERBOSE:
