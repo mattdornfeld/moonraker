@@ -1,8 +1,5 @@
 """
  [summary]
-
-Returns:
-    [type]: [description]
 """
 from dataclasses import dataclass
 from datetime import datetime, timedelta
