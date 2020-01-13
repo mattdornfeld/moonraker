@@ -13,6 +13,12 @@ class LogReturnRewardStrategy(BaseRewardStrategy):
     is the portfolio value at time t
     """
 
+    def __init__(self) -> None:
+        """
+        LogReturnRewardStrategy [summary]
+        """
+        self._scaling_factor = 10000.0
+
     def calculate_reward(self, state_buffer: Deque[StateAtTime]) -> float:
         """
         __call__ [summary]
@@ -24,7 +30,7 @@ class LogReturnRewardStrategy(BaseRewardStrategy):
             float: [description]
         """
 
-        return log_epsilon(
+        return self._scaling_factor * log_epsilon(
             self.calc_portfolio_value_at_time_index(state_buffer, -1)
             / self.calc_portfolio_value_at_time_index(state_buffer, -2)
         )
