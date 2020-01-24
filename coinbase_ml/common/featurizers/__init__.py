@@ -54,22 +54,19 @@ class Featurizer(Generic[Exchange]):
         _order_book: List[List[float]] = []
         for state in self.state_buffer:
             buy_order_book = (
-                pad_to_length(state.buy_order_book, c.ORDER_BOOK_DEPTH)
+                pad_to_length(state.buy_order_book[::-1], c.ORDER_BOOK_DEPTH)
                 if len(state.buy_order_book) < c.ORDER_BOOK_DEPTH
-                else state.buy_order_book
+                else state.buy_order_book[::-1][: c.ORDER_BOOK_DEPTH]
             )
 
             sell_order_book = (
                 pad_to_length(state.sell_order_book, c.ORDER_BOOK_DEPTH)
                 if len(state.sell_order_book) < c.ORDER_BOOK_DEPTH
-                else state.sell_order_book
+                else state.sell_order_book[: c.ORDER_BOOK_DEPTH]
             )
 
             _order_book.append([])
-            for (pa, va), (pb, vb) in zip(
-                sell_order_book[: c.ORDER_BOOK_DEPTH],
-                buy_order_book[-c.ORDER_BOOK_DEPTH :][::-1],
-            ):
+            for (pa, va), (pb, vb) in zip(sell_order_book, buy_order_book):
                 _order_book[-1] += [pa, va, pb, vb]
 
         return np.array(_order_book)

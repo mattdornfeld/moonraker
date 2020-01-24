@@ -30,10 +30,9 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
             exchange (Exchange): [description]
         """
         self.exchange = exchange
-        self.feature_names: List[str] = []
-        self._cancellation_operators: List[NormalizedOperation] = []
-        self._match_operators: List[NormalizedOperation] = []
-        self._order_operators: List[NormalizedOperation] = []
+        self.cancellation_operators: List[NormalizedOperation] = []
+        self.match_operators: List[NormalizedOperation] = []
+        self.order_operators: List[NormalizedOperation] = []
         self._create_time_series_operators()
 
     @staticmethod
@@ -79,10 +78,9 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
             operator = partial(self._calc_event_counts, order_side)
 
             name = f"{order_side}_count"
-            self.feature_names.append(name)
-            self._cancellation_operators.append(NormalizedOperation(operator, name))
-            self._match_operators.append(NormalizedOperation(operator, name))
-            self._order_operators.append(NormalizedOperation(operator, name))
+            self.cancellation_operators.append(NormalizedOperation(operator, name))
+            self.match_operators.append(NormalizedOperation(operator, name))
+            self.order_operators.append(NormalizedOperation(operator, name))
 
             for attribute in ["price", "size"]:
                 for _operator in [mean, stdev]:
@@ -94,15 +92,14 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
                     )
 
                     name = f"{order_side}_{attribute}_{_operator.__name__}"
-                    self.feature_names.append(name)
 
                     if attribute in ["price"]:
-                        self._cancellation_operators.append(
+                        self.cancellation_operators.append(
                             NormalizedOperation(operator, name)
                         )
 
-                    self._match_operators.append(NormalizedOperation(operator, name))
-                    self._order_operators.append(NormalizedOperation(operator, name))
+                    self.match_operators.append(NormalizedOperation(operator, name))
+                    self.order_operators.append(NormalizedOperation(operator, name))
 
     @staticmethod
     def _filter_events(
@@ -131,16 +128,25 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
         """
         cancellation_statistics = [
             operator(self.exchange.received_cancellations)
-            for operator in self._cancellation_operators
+            for operator in self.cancellation_operators
         ]
 
         match_statistics = [
-            operator(self.exchange.matches) for operator in self._match_operators
+            operator(self.exchange.matches) for operator in self.match_operators
         ]
 
         order_statistics = [
-            operator(self.exchange.received_orders)
-            for operator in self._order_operators
+            operator(self.exchange.received_orders) for operator in self.order_operators
         ]
 
         return np.hstack((cancellation_statistics, match_statistics, order_statistics))
+
+    @property
+    def operators(self) -> List[NormalizedOperation]:
+        """
+        operators is a list
+
+        Returns:
+            List[NormalizedOperation]: [description]
+        """
+        return self.cancellation_operators + self.match_operators + self.order_operators

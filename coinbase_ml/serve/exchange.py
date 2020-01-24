@@ -4,12 +4,17 @@ pulls in orders, cancellations, matches, and the binned order book.
 """
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, DefaultDict, List
+from typing import TYPE_CHECKING, DefaultDict, List, Optional
 
 from dateutil.tz import UTC
 
 from fakebase.base_classes import ExchangeBase
-from fakebase.orm import CoinbaseEvent, CoinbaseMatch
+from fakebase.orm import (
+    CoinbaseCancellation,
+    CoinbaseEvent,
+    CoinbaseMatch,
+    CoinbaseOrder,
+)
 from fakebase.types import OrderSide, ProductId
 
 from coinbase_ml.serve.order_book import OrderBookBinner
@@ -120,12 +125,20 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
         """
         self.stream_processor.start()
 
-    def step(self) -> None:
+    def step(
+        self,
+        insert_cancellations: Optional[List[CoinbaseCancellation]] = None,
+        insert_orders: Optional[List[CoinbaseOrder]] = None,
+    ) -> None:
         """
         step advances the interval, clears self.received_cancellations, self.received_orders,
         and self.matches. Raises an ExchangeFinishedException if self.finished is True.
+
+        Args:
+            insert_cancellations (Optional[List[CoinbaseCancellation]], optional): Defaults to None
+            insert_orders (Optional[List[CoinbaseOrder]], optional): Defaults to None
         """
-        super().step()
+        super().step(insert_cancellations, insert_orders)
         self.interval_start_dt = datetime.now(UTC)
         self.stream_processor.flush()
 

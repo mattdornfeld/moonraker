@@ -29,7 +29,7 @@ GITLAB_PREFIX = (
 )
 
 DEPENDENCY_LINKS = [
-    f"{GITLAB_PREFIX}/fakebase@e925a9cdcde4e93e1371d1bb5de66d4091430847#egg=fakebase-0.1"
+    f"{GITLAB_PREFIX}/fakebase@1c58fdf1efa3a7525e43da9da19452ec72584f4c#egg=fakebase-0.3"
 ]
 
 INSTALL_REQUIRES = [
@@ -44,7 +44,7 @@ INSTALL_REQUIRES = [
     "requests>=2.20.0,<3.0.0",
     "sacred",
     "ray[rllib]==0.7.6",
-    "tensorflow>=2.0.0",
+    "tensorflow==2.0.0",
     "kafka-python>=1.4.7,<2.0.0",
 ]
 
@@ -62,7 +62,9 @@ SCRIPTS = [
 SETUP_REQUIRES = ["cython", "pytest-runner>=5.1,<6.0"]
 
 TESTS_REQUIRE = [
+    "docker>=3.3.0,<4.0.0",
     "pytest>=4.0.2,<5.0.0",
+    "pytest-cases>=1.11.1,<2.0.0",
     "pytest-mypy>=0.4.0,<0.5.0",
     "pytest-pylint>=0.14.1,<0.15",
 ]
@@ -83,7 +85,9 @@ setup(
     author="Matthew Dornfeld",
     author_email="matt@firstorderlabs.co",
     dependency_links=DEPENDENCY_LINKS,
-    extras_require=dict(dev=["black>=19.3b0,<20.0"], gpu=["tensorflow-gpu>=2.0.0"]),
+    extras_require=dict(
+        dev=["black>=19.3b0,<20.0"] + TESTS_REQUIRE, gpu=["tensorflow-gpu==2.0.0"]
+    ),
     install_requires=INSTALL_REQUIRES,
     name="coinbase_ml",
     packages=find_packages(),
