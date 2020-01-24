@@ -18,20 +18,20 @@ def staging():
     """
     custom_model_names = ["ActorValueModel"]
     trainer_name = "ppo"
-    initial_btc = "0.000000"
-    initial_usd = "100.00"
+    initial_btc = "1.000000"
+    initial_usd = "10000.00"
     num_time_steps = 100
     num_warmup_time_steps = 100
     optimizer_name = "Adam"
     return_value_key = "roi"
     reward_strategy_name = "LogReturnRewardStrategy"
-    test_end_dt = "2019-10-20 19:00:00.00"
-    test_start_dt = "2019-10-20 17:00:00.00"
+    test_end_dt = "2020-01-17 19:00:00.00"
+    test_start_dt = "2020-01-17 17:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)
 
-    latest_train_end_dt = "2019-10-20 17:00:00.00"
-    latest_train_start_dt = "2019-10-20 09:00:00.00"
+    latest_train_end_dt = "2020-01-17 17:00:00.00"
+    latest_train_start_dt = "2020-01-17 09:00:00.00"
     num_lookback_intervals = 5
 
     train_time_intervals = generate_randomly_shifted_lookback_intervals(

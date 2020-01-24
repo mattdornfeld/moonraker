@@ -17,7 +17,7 @@ class LogReturnRewardStrategy(BaseRewardStrategy):
         """
         LogReturnRewardStrategy [summary]
         """
-        self._scaling_factor = 10000.0
+        self._scaling_factor = 1.0
 
     def calculate_reward(self, state_buffer: Deque[StateAtTime]) -> float:
         """

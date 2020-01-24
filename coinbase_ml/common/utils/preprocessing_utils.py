@@ -17,17 +17,23 @@ class NormalizedOperation(Generic[T]):
     """
 
     def __init__(
-        self, operator: Callable[[T], float], name: str, normalize: bool = True
+        self,
+        operator: Callable[[T], float],
+        name: str,
+        normalize: bool = True,
+        update: bool = True,
     ):
         """Summary
 
         Args:
             operator (Callable[[T], float]): This operator will be executed when
             name (str): Description
-            normalize (bool, optional): The result of __call__ is Normalized when
+            normalize (bool optional): The result of __call__ is Normalized when
             __call__ is called. If normalize is True the output will be normalized.
             using running mean and variance if True. If False __call__ will
             simply apply operator.
+            update (bool): If True will update running mean and variance on each
+            __call__.
         """
         self._mean = 0.0
         self._m = 0.0
@@ -37,6 +43,7 @@ class NormalizedOperation(Generic[T]):
         self._variance = 0.0
         self.name = name
         self.normalize = normalize
+        self.update = update
 
     def __call__(self, operand: T) -> float:
         """Summary
@@ -50,9 +57,10 @@ class NormalizedOperation(Generic[T]):
         _result = self._operator(operand)
 
         if self.normalize:
-            self._num_samples += 1
-            self._update_mean(_result)
-            self._update_variance(_result)
+            if self.update:
+                self._num_samples += 1
+                self._update_mean(_result)
+                self._update_variance(_result)
 
             result = (_result - self._mean) / (sqrt(self._variance) + 1e-12)
         else:
@@ -136,7 +144,7 @@ def pad_to_length(array: np.ndarray, length: int, pad_value: float = 0.0) -> np.
     """
     return np.pad(
         array=array,
-        pad_width=((0, length), (0, 0)),
+        pad_width=((0, length - len(array)), (0, 0)),
         mode="constant",
         constant_values=(pad_value,),
     )

@@ -14,6 +14,15 @@ class AccountFeaturizer(Generic[Account]):
     AccountFeaturizer
     """
 
+    NORMALIZER_ARRAY = np.array(
+        (
+            c.FUNDS_NORMALIZERS[c.QUOTE_CURRENCY],
+            c.FUNDS_NORMALIZERS[c.QUOTE_CURRENCY],
+            c.FUNDS_NORMALIZERS[c.PRODUCT_CURRENCY],
+            c.FUNDS_NORMALIZERS[c.PRODUCT_CURRENCY],
+        )
+    )
+
     def __init__(self, account: Account) -> None:
         """
         __init__ [summary]
@@ -46,14 +55,4 @@ class AccountFeaturizer(Generic[Account]):
         Returns:
             np.ndarray: [description]
         """
-        account_funds = self.get_funds_as_array()
-        normalizer_array = np.array(
-            (
-                c.FUNDS_NORMALIZERS[c.QUOTE_CURRENCY],
-                c.FUNDS_NORMALIZERS[c.QUOTE_CURRENCY],
-                c.FUNDS_NORMALIZERS[c.PRODUCT_CURRENCY],
-                c.FUNDS_NORMALIZERS[c.PRODUCT_CURRENCY],
-            )
-        )
-
-        return account_funds / normalizer_array
+        return self.get_funds_as_array() / AccountFeaturizer.NORMALIZER_ARRAY

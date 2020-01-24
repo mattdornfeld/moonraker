@@ -16,10 +16,17 @@ install-gpu:
 	pip3 install -e .[gpu]
 
 test:
-	python3 setup.py test --addopts "-v --mypy --pylint --pylint-rcfile=setup.cfg"
+	python3 setup.py test --addopts "-v -m 'not integration_tests' --mypy --pylint --pylint-rcfile=setup.cfg"
+
+test-integration:
+	python3 setup.py test --addopts "-v -m 'integration_tests'"
 
 test-mypy:
 	python3 setup.py test --addopts "-v -m mypy --mypy"
 
 test-pylint:
 	python3 setup.py test --addopts "-v -m pylint --pylint --pylint-rcfile=setup.cfg"
+
+test-unit:
+	python3 setup.py test --addopts "-s -v -m 'not integration_tests'"
+
