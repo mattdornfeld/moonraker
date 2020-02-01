@@ -17,7 +17,7 @@ from fakebase.utils.currency_utils import (
 )
 from fakebase.base_classes import AccountBase
 from fakebase.orm import CoinbaseOrder
-from fakebase.types import OrderSide
+from fakebase.types import OrderSide, OrderStatus
 
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.utils.preprocessing_utils import clamp_to_range, softmax
@@ -151,7 +151,7 @@ class ActionExecutor(Generic[Account]):
         # Call list on the below dict so that this function does
         # not change the size of the dict during iteration
         for order in list(self.account.orders.values()):
-            if order.order_status != "open":
+            if order.order_status != OrderStatus.open:
                 continue
 
             deadline = (

@@ -24,14 +24,14 @@ def staging():
     num_warmup_time_steps = 100
     optimizer_name = "Adam"
     return_value_key = "roi"
-    reward_strategy_name = "LogReturnRewardStrategy"
-    test_end_dt = "2020-01-17 19:00:00.00"
-    test_start_dt = "2020-01-17 17:00:00.00"
+    reward_strategy_name = "ProfitRewardStrategy"
+    test_end_dt = "2020-10-20 19:00:00.00"
+    test_start_dt = "2020-10-20 17:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)
 
-    latest_train_end_dt = "2020-01-17 17:00:00.00"
-    latest_train_start_dt = "2020-01-17 09:00:00.00"
+    latest_train_end_dt = "2020-10-20 17:00:00.00"
+    latest_train_start_dt = "2020-10-20 09:00:00.00"
     num_lookback_intervals = 5
 
     train_time_intervals = generate_randomly_shifted_lookback_intervals(
@@ -53,7 +53,7 @@ def staging():
         gradient_clip=0.1,
         learning_rate=0.001,
         num_epochs_per_iteration=10,
-        num_iterations=10,
+        num_iterations=3,
         optimizer_name=optimizer_name,
         output_tower_depth=3,
         output_tower_num_units=100,

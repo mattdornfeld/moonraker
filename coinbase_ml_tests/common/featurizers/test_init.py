@@ -94,7 +94,7 @@ class TestFeaturizer:
 
     @staticmethod
     def test_account_funds_feature(
-        account: Account, featurizer: Featurizer[Exchange],
+        account: Account, featurizer: Featurizer[Exchange]
     ) -> None:
         """
         test_update_state_buffer [summary]
@@ -126,7 +126,7 @@ class TestFeaturizer:
 
     @staticmethod
     def test_order_book_feature(
-        account: Account, featurizer: Featurizer[Exchange],
+        account: Account, featurizer: Featurizer[Exchange]
     ) -> None:
         """
         test_order_book_feature [summary]
@@ -183,7 +183,7 @@ class TestFeaturizer:
 
     @staticmethod
     def test_time_series_cancellation_features(
-        account: Account, featurizer: Featurizer[Exchange],
+        account: Account, featurizer: Featurizer[Exchange]
     ) -> None:
         """
         test_time_series_cancellation_features [summary]
@@ -216,7 +216,7 @@ class TestFeaturizer:
 
     @staticmethod
     def test_time_series_order_features(
-        account: Account, featurizer: Featurizer[Exchange],
+        account: Account, featurizer: Featurizer[Exchange]
     ) -> None:
         """
         test_time_series_order_feature [summary]
@@ -246,7 +246,7 @@ class TestFeaturizer:
 
     @staticmethod
     def test_time_series_match_features(
-        account: Account, featurizer: Featurizer[Exchange],
+        account: Account, featurizer: Featurizer[Exchange]
     ) -> None:
         """
         test_time_series_match_features [summary]

@@ -28,5 +28,5 @@ test-pylint:
 	python3 setup.py test --addopts "-v -m pylint --pylint --pylint-rcfile=setup.cfg"
 
 test-unit:
-	python3 setup.py test --addopts "-s -v -m 'not integration_tests'"
+	python3 setup.py test --addopts "-v -m 'not integration_tests'"
 

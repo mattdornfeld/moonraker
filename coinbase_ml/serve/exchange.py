@@ -51,7 +51,7 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
         super().__init__(end_dt, product_id, start_dt, time_delta)
         self.order_book_binner = OrderBookBinner(product_id)
         self.stream_processor = CoinbaseStreamProcessor(
-            order_book_binner=self.order_book_binner,
+            order_book_binner=self.order_book_binner
         )
 
     def bin_order_book_by_price(

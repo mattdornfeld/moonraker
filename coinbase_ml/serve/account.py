@@ -60,6 +60,15 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
 
     @staticmethod
     def _make_order_object(order_info: Dict[str, Any]) -> CoinbaseOrder:
+        """
+        _make_order_object [summary]
+
+        Args:
+            order_info (Dict[str, Any]): [description]
+
+        Returns:
+            CoinbaseOrder: [description]
+        """
         return CoinbaseOrder(
             order_id=OrderId(order_info.get("id")),
             order_status=convert_to_enum(OrderStatus, order_info.get("status")),
@@ -75,6 +84,15 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
         )
 
     def cancel_order(self, order_id: OrderId) -> CoinbaseOrder:
+        """
+        cancel_order [summary]
+
+        Args:
+            order_id (OrderId): [description]
+
+        Returns:
+            CoinbaseOrder: [description]
+        """
         LOGGER.info("Canceling order %s", order_id)
         order_info: Dict[str, Any] = self.client.get_order(order_id)
         order_info["status"] = "canceled"
