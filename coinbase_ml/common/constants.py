@@ -23,10 +23,7 @@ PRODUCT_CURRENCY = Currency.BTC
 QUOTE_CURRENCY = Currency.USD
 PRODUCT_ID = ProductId(PRODUCT_CURRENCY, QUOTE_CURRENCY)
 SIZE_NORMALIZER = 1e2
-FUNDS_NORMALIZERS: Dict[Currency, float] = {
-    Currency.BTC: 1e1,
-    Currency.USD: 100e3,
-}
+FUNDS_NORMALIZERS: Dict[Currency, float] = {Currency.BTC: 1e1, Currency.USD: 100e3}
 VERBOSE = False
 
 # gcp configs

@@ -28,7 +28,7 @@ class CoinbaseStreamProcessor(WebsocketClient):
     [summary]
     """
 
-    def __init__(self, order_book_binner: OrderBookBinner,) -> None:
+    def __init__(self, order_book_binner: OrderBookBinner) -> None:
         """
         __init__ [summary]
 
