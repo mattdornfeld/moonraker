@@ -64,60 +64,61 @@ class CoinbaseStreamProcessor(WebsocketClient):
         Returns:
             None: [description]
         """
-        if msg["type"] == "snapshot":
-            self.order_book_binner.insert_book_snapshot(
-                {OrderSide.buy: msg["bids"], OrderSide.sell: msg["asks"]}
-            )
-
-        elif msg["type"] == "l2update":
-            self.order_book_binner.process_book_changes(msg["changes"])
-
-        elif msg["type"] == "received":
-            self.received_orders.append(
-                CoinbaseOrder(
-                    client_oid=msg.get("client_oid"),
-                    funds=msg.get("funds"),
-                    order_id=OrderId(msg["order_id"]),
-                    order_type=OrderType[msg["order_type"]],
-                    order_status=OrderStatus[msg["type"]],
-                    price=msg.get("price"),
-                    product_id=convert_str_product_id(msg["product_id"]),
-                    sequence=msg["sequence"],
-                    side=OrderSide[msg["side"]],
-                    size=msg.get("size"),
-                    time=parser.parse(msg["time"]),
+        try:
+            if msg["type"] == "snapshot":
+                self.order_book_binner.insert_book_snapshot(
+                    {OrderSide.buy: msg["bids"], OrderSide.sell: msg["asks"]}
                 )
-            )
 
-        elif msg["type"] == "match":
-            self.matches.append(
-                CoinbaseMatch(
-                    maker_order_id=OrderId(msg["maker_order_id"]),
-                    price=msg["price"],
-                    product_id=convert_str_product_id(msg["product_id"]),
-                    sequence=msg["sequence"],
-                    side=OrderSide[msg["side"]],
-                    size=msg["size"],
-                    taker_order_id=OrderId(msg["taker_order_id"]),
-                    time=parser.parse(msg["time"]),
-                    trade_id=msg["trade_id"],
+            elif msg["type"] == "l2update":
+                self.order_book_binner.process_book_changes(msg["changes"])
+
+            elif msg["type"] == "received":
+                self.received_orders.append(
+                    CoinbaseOrder(
+                        client_oid=msg.get("client_oid"),
+                        funds=msg.get("funds"),
+                        order_id=OrderId(msg["order_id"]),
+                        order_type=OrderType[msg["order_type"]],
+                        order_status=OrderStatus[msg["type"]],
+                        price=msg.get("price"),
+                        product_id=convert_str_product_id(msg["product_id"]),
+                        sequence=msg["sequence"],
+                        side=OrderSide[msg["side"]],
+                        size=msg.get("size"),
+                        time=parser.parse(msg["time"]),
+                    )
                 )
-            )
 
-        elif msg["type"] == "done" and msg["reason"] == "canceled":
-            self.received_cancellations.append(
-                CoinbaseCancellation(
-                    order_id=OrderId(msg["order_id"]),
-                    price=msg["price"],
-                    product_id=convert_str_product_id(msg["product_id"]),
-                    remaining_size=msg["remaining_size"],
-                    side=msg["side"],
-                    time=parser.parse(msg["time"]),
+            elif msg["type"] == "match":
+                self.matches.append(
+                    CoinbaseMatch(
+                        maker_order_id=OrderId(msg["maker_order_id"]),
+                        price=msg["price"],
+                        product_id=convert_str_product_id(msg["product_id"]),
+                        sequence=msg["sequence"],
+                        side=OrderSide[msg["side"]],
+                        size=msg["size"],
+                        taker_order_id=OrderId(msg["taker_order_id"]),
+                        time=parser.parse(msg["time"]),
+                        trade_id=msg["trade_id"],
+                    )
                 )
-            )
 
-        else:
-            LOGGER.debug("Error: message type not known: %s", msg)
+            elif msg["type"] == "done" and msg["reason"] == "canceled":
+                self.received_cancellations.append(
+                    CoinbaseCancellation(
+                        order_id=OrderId(msg["order_id"]),
+                        price=msg["price"],
+                        product_id=convert_str_product_id(msg["product_id"]),
+                        remaining_size=msg["remaining_size"],
+                        side=msg["side"],
+                        time=parser.parse(msg["time"]),
+                    )
+                )
+
+        except Exception as exception:  # pylint: disable=broad-except
+            LOGGER.exception(exception)
 
     def on_open(self) -> None:
         """

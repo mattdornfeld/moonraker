@@ -22,11 +22,17 @@ SERVED_POLICY_PORT = 9093
 COINBASE_API_KEY_B64SECRET = os.environ.get("COINBASE_API_KEY_B64SECRET", "test")
 COINBASE_API_KEY_NAME = os.environ.get("COINBASE_API_KEY_NAME", "test")
 COINBASE_API_KEY_PASSPHRASE = os.environ.get("COINBASE_API_KEY_PASSPHRASE", "test")
-COINBASE_API_URL = os.environ.get(
-    "COINBASE_API_URL", "https://api-public.sandbox.pro.coinbase.com"
+USE_SANDBOX_API = os.environ.get("USE_SANDBOX_API", True) not in [
+    "False",
+    "false",
+    False,
+]
+COINBASE_API_URL = (
+    f"https://{'api-public.sandbox' if USE_SANDBOX_API else 'api'}" ".pro.coinbase.com"
 )
-COINBASE_WEBSOCKET_API_URL = os.environ.get(
-    "COINBASE_WEBSOCKET_API_URL", "wss://ws-feed-public.sandbox.pro.coinbase.com"
+COINBASE_WEBSOCKET_API_URL = (
+    f"wss://{'ws-feed-public.sandbox' if USE_SANDBOX_API else 'ws-feed'}"
+    ".pro.coinbase.com"
 )
 COINBASE_WEBSOCKET_CHANNELS = ["full", "level2"]
 
