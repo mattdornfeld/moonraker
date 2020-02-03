@@ -1,5 +1,6 @@
 sacred_config: staging
-train_experiment_id: 93
+train_experiment_id: 147
+use_sandbox_api: true
 
 job:
   node_group: c2-standard-4

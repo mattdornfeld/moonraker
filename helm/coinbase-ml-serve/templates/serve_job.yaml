@@ -1,5 +1,6 @@
 ---
 {{$release_name := .Release.Name | trunc 14}}
+
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -75,6 +76,9 @@ spec:
 
           - name: TRAIN_EXPERIMENT_ID
             value: {{.Values.train_experiment_id | quote}}
+
+          - name: USE_SANDBOX_API
+            value: {{.Values.use_sandbox_api | quote}}
 
         image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{.Chart.Version}}"
 
