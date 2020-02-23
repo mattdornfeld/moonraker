@@ -3,8 +3,9 @@
 """
 from typing import Deque
 
-from coinbase_ml.common.utils import StateAtTime, log_epsilon
+from coinbase_ml.common.types import StateAtTime
 from coinbase_ml.common.reward.base_reward_strategy import BaseRewardStrategy
+from coinbase_ml.common.utils import log_epsilon
 
 
 class LogReturnRewardStrategy(BaseRewardStrategy):

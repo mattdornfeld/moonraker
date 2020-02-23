@@ -3,7 +3,7 @@
 """
 from typing import Deque
 
-from coinbase_ml.common.utils import StateAtTime
+from coinbase_ml.common.types import StateAtTime
 from coinbase_ml.common.reward.base_reward_strategy import BaseRewardStrategy
 
 

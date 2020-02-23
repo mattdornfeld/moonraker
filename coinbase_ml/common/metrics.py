@@ -50,12 +50,11 @@ class MetricsRecorder:
             featurizer (Featurizer): [description]
         """
         self.featurizer = featurizer
-        self._initial_portfolio_value = self.featurizer.calculate_portfolio_value()
         self._metrics: List[MetricsDict] = []
 
     def _check_is_empty(self) -> None:
         """
-        _check_is_empty [summary]
+        _check_is_empty will raise ValueError if self._metrics is empty
 
         Raises:
             ValueError: [description]
@@ -67,7 +66,8 @@ class MetricsRecorder:
 
     def calc_aggregates(self) -> Dict[MetricNames, Aggregates]:
         """
-        calc_aggregates [summary]
+        calc_aggregates will iterate over the internal self._metrics buffer
+        and caculate the statistics specified in Aggregates
 
         Returns:
             Dict[MetricNames, Aggregates]: [description]
@@ -90,21 +90,25 @@ class MetricsRecorder:
 
         return aggregates
 
-    def calc_roi(self) -> float:
+    def get_metrics(self) -> MetricsDict:
         """
-        calc_roi [summary]
+        get_metrics will contact the exchange api and return the most up to date
+        MetricsDict
 
         Returns:
-            float: [description]
+            MetricsDict: [description]
         """
-        portfolio_value = self.featurizer.calculate_portfolio_value()
-        return (
-            portfolio_value - self._initial_portfolio_value
-        ) / self._initial_portfolio_value
+        info_dict = self.featurizer.get_info_dict()
+
+        return {
+            MetricNames.PORTFOLIO_VALUE: info_dict["portfolio_value"],
+            MetricNames.REWARD: self.featurizer.calculate_reward(),
+            MetricNames.ROI: info_dict["roi"],
+        }
 
     def get_latest(self) -> MetricsDict:
         """
-        get_latest [summary]
+        get_latest will return the latest element of the internal self._metrics buffer
 
         Returns:
             MetricsDict: [description]
@@ -114,28 +118,23 @@ class MetricsRecorder:
 
     def reset(self) -> None:
         """
-        reset [summary]
+        reset will flush the internal self._metrics buffer
         """
         self._metrics = []
 
     def update_metrics(self) -> None:
         """
-        update_metrics [summary]
+        update_metrics will update the internal self._metrics buffer
         """
-        self._metrics.append(
-            {
-                MetricNames.PORTFOLIO_VALUE: self.featurizer.calculate_portfolio_value(),
-                MetricNames.REWARD: self.featurizer.calculate_reward(),
-                MetricNames.ROI: self.calc_roi(),
-            }
-        )
+        self._metrics.append(self.get_metrics())
 
 
 def convert_to_sacred_log_format(
     aggregates: Dict[MetricNames, Aggregates]
 ) -> Dict[str, float]:
     """
-    convert_to_sacred_log_format [summary]
+    convert_to_sacred_log_format converts an aggregates
+    data structure to one that can be logged to Sacred
 
     Args:
         aggregates (Dict[MetricNames, Aggregates]): [description]

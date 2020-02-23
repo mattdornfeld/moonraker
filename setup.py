@@ -67,6 +67,7 @@ TESTS_REQUIRE = [
     "pytest-cases>=1.11.1,<2.0.0",
     "pytest-mypy>=0.4.0,<0.5.0",
     "pytest-pylint>=0.14.1,<0.15",
+    "wrapt==1.11.2",
 ]
 
 try:

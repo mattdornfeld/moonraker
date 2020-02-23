@@ -4,7 +4,9 @@
 from typing import Deque
 
 from coinbase_ml.common import constants as c
-from coinbase_ml.common.utils import StateAtTime
+from coinbase_ml.common.types import StateAtTime
+
+StateBuffer = Deque[StateAtTime]
 
 
 class BaseRewardStrategy:
@@ -13,12 +15,12 @@ class BaseRewardStrategy:
     """
 
     @staticmethod
-    def _calc_mid_price(state_buffer: Deque[StateAtTime], time_index: int) -> float:
+    def _calc_mid_price(state_buffer: StateBuffer, time_index: int) -> float:
         """
         _calc_mid_price [summary]
 
         Args:
-            state_buffer (Deque[StateAtTime]): [description]
+            state_buffer (StateBuffer): [description]
             time_index (int): [description]
 
         Returns:
@@ -35,13 +37,13 @@ class BaseRewardStrategy:
 
     @staticmethod
     def calc_portfolio_value_at_time_index(
-        state_buffer: Deque[StateAtTime], time_index: int
+        state_buffer: StateBuffer, time_index: int
     ) -> float:
         """
         calc_portfolio_value_at_time_index [summary]
 
         Args:
-            state_buffer (Deque[StateAtTime]): [description]
+            state_buffer (StateBuffer): [description]
             time_index (int): [description]
 
         Returns:
@@ -56,12 +58,12 @@ class BaseRewardStrategy:
         return mid_price * product + quote
 
     @staticmethod
-    def _calc_latest_return(state_buffer: Deque[StateAtTime]) -> float:
+    def _calc_latest_return(state_buffer: StateBuffer) -> float:
         """
         _calc_latest_return [summary]
 
         Args:
-            state_buffer (Deque[StateAtTime]): [description]
+            state_buffer (StateBuffer): [description]
 
         Returns:
             float: [description]
@@ -70,12 +72,12 @@ class BaseRewardStrategy:
             state_buffer, -1
         ) - BaseRewardStrategy.calc_portfolio_value_at_time_index(state_buffer, -2)
 
-    def calculate_reward(self, state_buffer: Deque[StateAtTime]) -> float:
+    def calculate_reward(self, state_buffer: StateBuffer) -> float:
         """
         calculate_reward [summary]
 
         Args:
-            state_buffer (Deque[StateAtTime]): [description]
+            state_buffer (StateBuffer): [description]
 
         Raises:
             NotImplementedError: [description]

@@ -9,15 +9,19 @@ from time import sleep
 from typing import Optional, Type
 
 import requests
-from funcy import compose
 from ray.rllib.utils.policy_client import PolicyClient
 
 from fakebase.utils.exceptions import ExchangeFinishedException
 
 import coinbase_ml.common.constants as cc
-from coinbase_ml.common.action import Action, ActionExecutor
+from coinbase_ml.common.action import ActionBase
+from coinbase_ml.common.actionizers import Actionizer
 from coinbase_ml.common.featurizers import Featurizer
-from coinbase_ml.common.metrics import MetricsRecorder, convert_to_sacred_log_format
+from coinbase_ml.common.metrics import (
+    MetricNames,
+    MetricsRecorder,
+    convert_to_sacred_log_format,
+)
 from coinbase_ml.common.reward import REWARD_STRATEGIES, BaseRewardStrategy
 from coinbase_ml.common.utils import parse_time_delta
 from coinbase_ml.common.utils.sacred_utils import (
@@ -68,7 +72,6 @@ class Controller:
             time_delta=time_delta,
         )
         self.account = Account(self.exchange)
-        self.action_executor = ActionExecutor[Account](self.account)
         self.exchange.account = self.account
 
         self.num_warmup_time_steps = num_warmup_time_steps
@@ -80,16 +83,14 @@ class Controller:
         self.metrics_recorder: Optional[MetricsRecorder] = None
         self.time_delta = time_delta
 
-    def _step(self) -> None:
+    def _step(self, action: ActionBase) -> None:
         """
         _step [summary]
         """
         sleep(self.time_delta.total_seconds())
-        self.featurizer.update_state_buffer()
+        self.featurizer.update_state_buffer(action)
         self.exchange.step()
-        self.action_executor.cancel_expired_orders(
-            current_dt=self.exchange.interval_start_dt
-        )
+        action.cancel_expired_orders(current_dt=self.exchange.interval_start_dt)
 
     def _warmup(self) -> None:
         """
@@ -98,8 +99,10 @@ class Controller:
         LOGGER.info(
             "Warming up the Exchange for %s time steps.", self.num_warmup_time_steps
         )
+        actionizer = Actionizer[Account](self.exchange.account)
+        no_transaction = actionizer.get_action()
         for _ in range(self.num_warmup_time_steps):
-            self._step()
+            self._step(no_transaction)
 
         self.metrics_recorder = MetricsRecorder(self.featurizer)
 
@@ -129,12 +132,11 @@ class Controller:
             for i in count():
                 observation = self.featurizer.get_observation()
 
-                action: Action = compose(
-                    self.action_executor.translate_model_prediction_to_action,
-                    self.client.get_action,
-                )(episode_id, observation)
-
-                self.action_executor.act(action)
+                prediction = self.client.get_action(episode_id, observation)
+                actionizer = Actionizer[Account](self.exchange.account, prediction)
+                action = actionizer.get_action()
+                action.cancel_expired_orders(self.exchange.interval_start_dt)
+                action.execute()
 
                 reward = self.featurizer.calculate_reward()
 
@@ -152,7 +154,7 @@ class Controller:
                     self.metrics_recorder.reset()
 
                 try:
-                    self._step()
+                    self._step(action)
                 except ExchangeFinishedException:
                     LOGGER.info("Serving run finished.")
                     self.client.end_episode(episode_id, observation)
@@ -161,9 +163,9 @@ class Controller:
         finally:
             self.exchange.stop()
             LOGGER.info("Canceling all remaining orders.")
-            self.action_executor.cancel_expired_orders(c.UTC_MAX)
+            action.cancel_expired_orders(c.UTC_MAX)
 
-        return float(self.metrics_recorder.calc_roi())
+        return float(self.metrics_recorder.get_metrics()[MetricNames.ROI])
 
 
 @SACRED_EXPERIMENT.automain

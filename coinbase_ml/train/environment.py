@@ -14,7 +14,8 @@ from fakebase.account import Account
 from fakebase.exchange import Exchange
 
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common.action import ActionExecutor
+from coinbase_ml.common.action import ActionBase
+from coinbase_ml.common.actionizers import Actionizer
 from coinbase_ml.common.featurizers import Featurizer
 from coinbase_ml.common.observations import (
     ActionSpace,
@@ -22,7 +23,7 @@ from coinbase_ml.common.observations import (
     ObservationSpace,
     ObservationSpaceShape,
 )
-from coinbase_ml.common.utils import StateAtTime
+from coinbase_ml.common.types import StateAtTime
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs
 from coinbase_ml.train.utils.exception_utils import EnvironmentFinishedException
@@ -37,14 +38,11 @@ class Environment(Env):  # pylint: disable=W0223
 
     def __init__(self, config: EnvContext) -> None:
         _config = EnvironmentConfigs(**config)
-        self._closing_price = 0.0
-        self._initial_portfolio_value = 0.0
         self._made_illegal_transaction = False
         self._warmed_up = False
         self._warmed_up_buffer: Deque[StateAtTime] = deque(
             maxlen=_config.num_time_steps
         )
-        self.action_executor: Optional[ActionExecutor[Account]] = None
         self.action_space = ActionSpace()
         self.config = _config
         self.exchange: Optional[Exchange] = None
@@ -86,14 +84,18 @@ class Environment(Env):  # pylint: disable=W0223
             + self.exchange.account.funds[cc.QUOTE_CURRENCY].balance
         ) <= 0.0
 
-    def _exchange_step(self) -> None:
-        """Summary
+    def _exchange_step(self, action: ActionBase) -> None:
+        """
+        _exchange_step [summary]
+
+        Args:
+            action (Optional[ActionBase]): [description]
         """
         if c.VERBOSE and self._results_queue_is_empty:
             LOGGER.info("Data queue is empty. Waiting for next entry.")
 
         self.exchange.step()
-        self.featurizer.update_state_buffer()
+        self.featurizer.update_state_buffer(action)
 
         if c.VERBOSE:
             interval_end_dt = self.exchange.interval_end_dt
@@ -117,8 +119,14 @@ class Environment(Env):  # pylint: disable=W0223
         while self.featurizer.state_buffer:
             self.featurizer.state_buffer.pop()
 
+        actionizer = Actionizer[Account](self.exchange.account)
+        no_transaction = actionizer.get_action()
         for _ in range(self.config.num_warmup_time_steps):
-            self._exchange_step()
+            self._exchange_step(no_transaction)
+
+        # Call self.featurizer.get_info_dict to inititialize values
+        # in InfoDictFeaturizer
+        self.featurizer.get_info_dict()
 
         self._warmed_up_buffer = deepcopy(self.featurizer.state_buffer)
         self._warmed_up = True
@@ -159,8 +167,6 @@ class Environment(Env):  # pylint: disable=W0223
                 state_buffer_size=self.config.num_time_steps,
             )
 
-            self.action_executor = ActionExecutor[Account](self.exchange.account)
-
             self.exchange.account.add_funds(
                 currency=cc.QUOTE_CURRENCY, amount=self.config.initial_usd
             )
@@ -179,16 +185,12 @@ class Environment(Env):  # pylint: disable=W0223
                 exchange=self.exchange, state_buffer=self._warmed_up_buffer
             )
 
-            self.action_executor.account = self.exchange.account
-
         self._made_illegal_transaction = False
 
         observation = self.featurizer.get_observation()
 
         if c.VERBOSE:
             LOGGER.info("Environment reset.")
-
-        self._initial_portfolio_value = self.featurizer.calculate_portfolio_value()
 
         return observation
 
@@ -207,15 +209,12 @@ class Environment(Env):  # pylint: disable=W0223
         if self.episode_finished:
             raise EnvironmentFinishedException
 
-        self.action_executor.cancel_expired_orders(self.exchange.interval_start_dt)
+        actionizer = Actionizer[Account](self.exchange.account, action)
+        action = actionizer.get_action()
+        action.cancel_expired_orders(self.exchange.interval_start_dt)
+        action.execute()
 
-        _action = self.action_executor.translate_model_prediction_to_action(action)
-        self.action_executor.act(_action)
-
-        if c.VERBOSE:
-            LOGGER.info(_action)
-
-        self._exchange_step()
+        self._exchange_step(action)
 
         observation = self.featurizer.get_observation()
         reward = self.featurizer.calculate_reward()
@@ -224,12 +223,6 @@ class Environment(Env):  # pylint: disable=W0223
         if c.VERBOSE:
             LOGGER.info("reward = %s", reward)
 
-        portfolio_value = self.featurizer.calculate_portfolio_value()
-
-        info_dict = {
-            "portfolio_value": portfolio_value,
-            "roi": (portfolio_value - self._initial_portfolio_value)
-            / self._initial_portfolio_value,
-        }
+        info_dict = self.featurizer.get_info_dict()
 
         return observation, reward, self.episode_finished, info_dict
