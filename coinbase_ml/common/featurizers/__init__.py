@@ -3,20 +3,22 @@
 """
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Deque, Generic, List, Type
+from typing import Deque, Dict, Generic, List, Optional, Type
 
 import numpy as np
 
 from fakebase.types import OrderSide
 
 from coinbase_ml.common import constants as c
+from coinbase_ml.common.action import ActionBase
 from coinbase_ml.common.featurizers.account_featurizer import AccountFeaturizer
+from coinbase_ml.common.featurizers.info_dict_featurizer import InfoDictFeaturizer
 from coinbase_ml.common.featurizers.order_book_featurizer import OrderBookFeaturizer
 from coinbase_ml.common.featurizers.time_series_featurizer import TimeSeriesFeaturizer
 from coinbase_ml.common.featurizers.types import Account, Exchange
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.reward import BaseRewardStrategy
-from coinbase_ml.common.utils import StateAtTime
+from coinbase_ml.common.types import StateAtTime
 from coinbase_ml.common.utils.preprocessing_utils import pad_to_length
 
 
@@ -43,6 +45,7 @@ class Featurizer(Generic[Exchange]):
         self._account_featurizer = AccountFeaturizer[Account](exchange.account)
         self._order_book_featurizer = OrderBookFeaturizer[Exchange](exchange)
         self._reward_strategy = reward_strategy()
+        self._info_dict_featurizer = InfoDictFeaturizer(self._reward_strategy)
         self._time_series_featurizer = TimeSeriesFeaturizer[Exchange](exchange)
 
     def _get_order_book_feature(self) -> np.ndarray:
@@ -95,30 +98,46 @@ class Featurizer(Generic[Exchange]):
         """
         calculate_reward [summary]
 
+        Raises:
+            StateBufferIsEmpty: [description]
+
         Returns:
             float: [description]
         """
+        if not self.state_buffer:
+            raise StateBufferIsEmpty
+
         return self._reward_strategy.calculate_reward(self.state_buffer)
 
-    def calculate_portfolio_value(self) -> float:
+    def get_info_dict(self) -> Dict[str, float]:
         """
-        calculate_portfolio_value [summary]
+        get_info_dict [summary]
+
+        Raises:
+            StateBufferIsEmpty: [description]
 
         Returns:
-            float: [description]
+            Dict[str, float]: [description]
         """
-        return self._reward_strategy.calc_portfolio_value_at_time_index(
-            state_buffer=self.state_buffer, time_index=-1
-        )
+        if not self.state_buffer:
+            raise StateBufferIsEmpty
+
+        return self._info_dict_featurizer.get_info_dict(self.state_buffer)
 
     def get_observation(self) -> Observation:
         """
         get_observation assembles feature arrays out of feature rows in buffers.
         Will return up to num_time_intervals_to_keep rows.
 
+        Raises:
+            StateBufferIsEmpty: [description]
+
         Returns:
             Observation: [description]
         """
+        if not self.state_buffer:
+            raise StateBufferIsEmpty
+
         return Observation(
             account_funds=self._get_account_funds_features(),
             order_book=self._get_order_book_feature(),
@@ -134,13 +153,16 @@ class Featurizer(Generic[Exchange]):
             exchange (Exchange): [description]
             state_buffer (Deque[StateAtTime]): [description]
         """
+        # Don't reset self._info_dict_featurizer since it doesn't point to an
+        # Exchange or Account object
+
         self._account_featurizer = AccountFeaturizer[Account](exchange.account)
         self._order_book_featurizer = OrderBookFeaturizer[Exchange](exchange)
         self._time_series_featurizer = TimeSeriesFeaturizer[Exchange](exchange)
         self.state_buffer = deepcopy(state_buffer)
         self._reward_strategy.reset()
 
-    def update_state_buffer(self) -> None:
+    def update_state_buffer(self, action: Optional[ActionBase]) -> None:
         """
         update_state_buffer generates features from the current state of Account and Exchange
         and stores them in Featurizer.state_buffer.
@@ -159,6 +181,7 @@ class Featurizer(Generic[Exchange]):
 
         state = StateAtTime(
             account_funds=account_funds,
+            action=action,
             buy_order_book=buy_order_book,
             normalized_account_funds=normalized_account_funds,
             sell_order_book=sell_order_book,
@@ -166,3 +189,21 @@ class Featurizer(Generic[Exchange]):
         )
 
         self.state_buffer.append(state)
+
+
+class StateBufferIsEmpty(Exception):
+    """
+    StateBufferIsEmpty [summary]
+    """
+
+    def __init__(self) -> None:
+        """
+        StateBufferIsEmpty [summary]
+
+        Args:
+            Exception ([type]): [description]
+        """
+        super().__init__(
+            "Featurizer.state_buffer is empty. "
+            "Please call Featurizer.update_state_buffer to add an element to it."
+        )

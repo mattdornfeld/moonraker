@@ -24,21 +24,6 @@ GenericEnum = TypeVar("GenericEnum", bound=Enum)
 Numeric = TypeVar("Numeric", float, Decimal, Fraction)
 
 
-@dataclass
-class StateAtTime:
-    """
-    StateAtTime encapsulates the state of the exhange necessary
-    for common.featurizers.Featurizer to perform its operations.
-    This is the data type in the deque Featurizer.state_buffer.
-    """
-
-    account_funds: np.ndarray
-    buy_order_book: np.ndarray
-    normalized_account_funds: np.ndarray
-    sell_order_book: np.ndarray
-    time_series: np.ndarray
-
-
 def all_but_last(iterable: Iterable) -> Generator:
     """
     all_but_last [summary]
