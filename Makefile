@@ -16,7 +16,7 @@ install-gpu:
 	pip3 install -e .[gpu]
 
 test:
-	python3 setup.py test --addopts "-m 'not integration_tests' --mypy --pylint --pylint-rcfile=setup.cfg"
+	python3 setup.py test --addopts "--ignore=coinbase_ml_tests/fakebase --ignore=coinbase_ml/fakebase -m 'not integration_tests' --mypy --pylint --pylint-rcfile=setup.cfg"
 
 test-integration:
 	python3 setup.py test --addopts "-m 'integration_tests'"

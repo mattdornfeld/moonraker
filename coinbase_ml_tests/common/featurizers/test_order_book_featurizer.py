@@ -3,10 +3,10 @@ Tests for OrderBookFeaturizer
 """
 import numpy as np
 
-from fakebase.exchange import Exchange
-from fakebase.types import OrderSide
 from fakebase_tests import constants as ftc
 from fakebase_tests.test_exchange_integration import create_exchange_with_db_connection
+from fakebase.exchange import Exchange
+from fakebase.types import OrderSide
 
 import pytest
 
