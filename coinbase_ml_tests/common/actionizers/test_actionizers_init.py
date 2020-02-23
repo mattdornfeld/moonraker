@@ -6,10 +6,10 @@ from typing import Tuple, Optional
 
 import numpy as np
 
+from fakebase_tests.test_exchange_unit import create_exchange  # pylint: disable=W0611
 from fakebase.account import Account
 from fakebase.exchange import Exchange
 from fakebase.types import OrderSide
-from fakebase_tests.test_exchange_unit import create_exchange  # pylint: disable=W0611
 
 import pytest
 
@@ -67,7 +67,9 @@ class TestActionizer:
     @staticmethod
     @pytest.mark.parametrize("order_side", [OrderSide.buy, OrderSide.sell, None])
     def test_get_action(
-        create_exchange: Tuple[Account, Exchange], # pylint: disable=redefined-outer-name
+        create_exchange: Tuple[
+            Account, Exchange
+        ],  # pylint: disable=redefined-outer-name
         order_side: Optional[OrderSide],
     ) -> None:
         """
@@ -97,7 +99,9 @@ class TestActionizer:
     @staticmethod
     @pytest.mark.parametrize("order_side", [OrderSide.buy, OrderSide.sell, None])
     def test_execute_action(
-        create_exchange: Tuple[Account, Exchange], # pylint: disable=redefined-outer-name
+        create_exchange: Tuple[
+            Account, Exchange
+        ],  # pylint: disable=redefined-outer-name
         order_side: Optional[OrderSide],
     ) -> None:
         """

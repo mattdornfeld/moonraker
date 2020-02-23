@@ -3,9 +3,9 @@ Tests for TimeSeriesFeaturizer
 """
 import numpy as np
 
-from fakebase.exchange import Exchange
 from fakebase_tests import constants as ftc
 from fakebase_tests.test_exchange_integration import create_exchange_with_db_connection
+from fakebase.exchange import Exchange
 
 import pytest
 

@@ -5,10 +5,10 @@ from typing import Tuple
 
 import numpy as np
 
-from fakebase.account import Account
-from fakebase.exchange import Exchange
 from fakebase_tests import constants as ftc
 from fakebase_tests.test_exchange_unit import create_exchange  # pylint: disable=W0611
+from fakebase.account import Account
+from fakebase.exchange import Exchange
 
 import pytest
 

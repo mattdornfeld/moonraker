@@ -6,12 +6,12 @@ from typing import Dict, Tuple, cast
 
 import numpy as np
 
+from fakebase_tests import constants as ftc
+from fakebase_tests.test_exchange_unit import create_exchange  # pylint: disable=W0611
 from fakebase.account import Account
 from fakebase.exchange import Exchange
 from fakebase.orm import CoinbaseCancellation, CoinbaseOrder, CoinbaseMatch
 from fakebase.types import Currency
-from fakebase_tests import constants as ftc
-from fakebase_tests.test_exchange_unit import create_exchange  # pylint: disable=W0611
 
 import pytest
 from pytest_cases import fixture_ref, pytest_fixture_plus, pytest_parametrize_plus
