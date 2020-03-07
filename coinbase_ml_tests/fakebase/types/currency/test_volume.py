@@ -3,8 +3,8 @@
 """
 import pytest
 
-from fakebase.types import InvalidTypeError
-from fakebase_tests import constants as tc
+from coinbase_ml.fakebase.types import InvalidTypeError
+from .... import constants as tc
 
 
 class TestVolume:

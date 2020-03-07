@@ -5,11 +5,10 @@ from collections.abc import ItemsView
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import timedelta
-from decimal import Decimal
 from typing import List, Type
 
-
 from coinbase_ml.common.reward import BaseRewardStrategy
+from coinbase_ml.fakebase.types import ProductVolume, QuoteVolume
 from coinbase_ml.train.utils.time_utils import TimeInterval
 
 
@@ -19,8 +18,8 @@ class EnvironmentConfigs:
     """
 
     environment_time_intervals: List[TimeInterval]
-    initial_usd: Decimal
-    initial_btc: Decimal
+    initial_usd: QuoteVolume
+    initial_btc: ProductVolume
     num_actors: int
     num_episodes: int
     num_time_steps: int

@@ -1,22 +1,19 @@
 """
 Module for testing the coinbase_ml/common/actionizers module
 """
-from decimal import Decimal
 from typing import Tuple, Optional
 
 import numpy as np
-
-from fakebase_tests.test_exchange_unit import create_exchange  # pylint: disable=W0611
-from fakebase.account import Account
-from fakebase.exchange import Exchange
-from fakebase.types import OrderSide
-
 import pytest
 
-from coinbase_ml.common import constants as cc
 from coinbase_ml.common.action import Action, NoTransaction
 from coinbase_ml.common.actionizers import Actionizer
+from coinbase_ml.fakebase.account import Account
+from coinbase_ml.fakebase.exchange import Exchange
+from coinbase_ml.fakebase.types import OrderSide
+from coinbase_ml_tests import constants as tc
 
+from ...fixtures import create_exchange  # pylint: disable=unused-import
 
 NORMALIZED_ORDER_PRICE = 0.9
 
@@ -85,12 +82,14 @@ class TestActionizer:
 
         if isinstance(action, Action):
             expected_size = {
-                OrderSide.buy: Decimal("8.50427350"),
-                OrderSide.sell: Decimal("10.0"),
+                OrderSide.buy: tc.PRODUCT_ID.product_volume_type("8.50427350"),
+                OrderSide.sell: tc.PRODUCT_ID.product_volume_type("10.0"),
             }[order_side]
 
-            assert action.price == Decimal(str(NORMALIZED_ORDER_PRICE * cc.MAX_PRICE))
-            assert action.time_to_live == cc.ORDER_TIME_TO_LIVE
+            assert action.price == tc.PRODUCT_ID.price_type(
+                str(NORMALIZED_ORDER_PRICE * Actionizer.MAX_PRICE)
+            )
+            assert action.time_to_live == Action.ORDER_TIME_TO_LIVE
             assert action.order_side == order_side
             assert action.size == expected_size
         else:

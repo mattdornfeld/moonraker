@@ -10,9 +10,6 @@ from gym import Env
 
 from ray.rllib.env.env_context import EnvContext
 
-from fakebase.account import Account
-from fakebase.exchange import Exchange
-
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.action import ActionBase
 from coinbase_ml.common.actionizers import Actionizer
@@ -24,6 +21,8 @@ from coinbase_ml.common.observations import (
     ObservationSpaceShape,
 )
 from coinbase_ml.common.types import StateAtTime
+from coinbase_ml.fakebase.account import Account
+from coinbase_ml.fakebase.exchange import Exchange
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs
 from coinbase_ml.train.utils.exception_utils import EnvironmentFinishedException
@@ -79,10 +78,16 @@ class Environment(Env):  # pylint: disable=W0223
         Returns:
             bool: Description
         """
-        return (
+        out_of_product = (
             self.exchange.account.funds[cc.PRODUCT_CURRENCY].balance
-            + self.exchange.account.funds[cc.QUOTE_CURRENCY].balance
-        ) <= 0.0
+            <= cc.PRODUCT_ID.product_volume_type.get_zero_volume()
+        )
+        out_of_quote = (
+            self.exchange.account.funds[cc.QUOTE_CURRENCY].balance
+            <= cc.PRODUCT_ID.quote_volume_type.get_zero_volume()
+        )
+
+        return out_of_product and out_of_quote
 
     def _exchange_step(self, action: ActionBase) -> None:
         """

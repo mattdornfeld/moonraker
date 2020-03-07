@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Dict, Generic, List, Optional, TypeVar
 
-from fakebase.orm import CoinbaseOrder
-from fakebase.types import (
+from ..orm import CoinbaseOrder
+from ..types import (
     Currency,
     OrderId,
     OrderSide,
@@ -21,9 +21,9 @@ from fakebase.types import (
 if TYPE_CHECKING:
     # To avoid circular import exchange on the submodule level
     # ExchangeBase is then referenced using the str syntax below
-    import fakebase.base_classes
+    import coinbase_ml.fakebase.base_classes as base_classes
 
-Exchange = TypeVar("Exchange", bound="fakebase.base_classes.ExchangeBase")
+Exchange = TypeVar("Exchange", bound="base_classes.ExchangeBase")
 
 
 class AccountBase(Generic[Exchange]):

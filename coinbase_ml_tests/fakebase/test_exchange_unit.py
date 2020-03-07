@@ -2,18 +2,16 @@
  [summary]
 """
 from datetime import datetime
-from typing import Tuple
 
 import numpy as np
 import pytest
-from pytest_cases import pytest_fixture_plus
+from pytest_cases import unpack_fixture
 
-from fakebase import constants as c
-from fakebase.account import Account
-from fakebase.exchange import Exchange
-from fakebase.orm import CoinbaseOrder
-from fakebase.matching_engine import SlippageProtection
-from fakebase.types import (
+from coinbase_ml.fakebase.account import Account
+from coinbase_ml.fakebase.exchange import Exchange
+from coinbase_ml.fakebase.orm import CoinbaseOrder
+from coinbase_ml.fakebase.matching_engine import SlippageProtection
+from coinbase_ml.fakebase.types import (
     Currency,
     DoneReason,
     OrderSide,
@@ -23,42 +21,18 @@ from fakebase.types import (
     RejectReason,
     Volume,
 )
-from fakebase.utils import generate_order_id, set_seed
-from fakebase.utils.exceptions import OrderNotFoundException
-from fakebase_tests import constants as tc
+from coinbase_ml.fakebase.utils import generate_order_id
+from coinbase_ml.fakebase.utils.exceptions import OrderNotFoundException
 
+from .. import constants as tc
+from ..fixtures import create_exchange
 
-@pytest_fixture_plus(unpack_into="account, exchange")
-def create_exchange() -> Tuple[Account, Exchange]:
-    """
-    test_exchange [summary]
+(  # pylint: disable=unbalanced-tuple-unpacking
+    account,  # pylint: disable=invalid-name
+    exchange,  # pylint: disable=invalid-name
+) = unpack_fixture("account,exchange", create_exchange)
 
-    Returns:
-        Tuple[Account, Exchange]: [description]
-    """
-    c.NUM_DATABASE_WORKERS = 0
-    # Set seed here to control randomness when account ids are created
-    set_seed(1)
-    exchange = Exchange(
-        end_dt=tc.EXCHANGE_END_DT,
-        product_id=tc.PRODUCT_ID,
-        start_dt=tc.EXCHANGE_START_DT,
-        time_delta=tc.EXCHANGE_TIME_DELTA,
-    )
-    exchange.account.add_funds(
-        currency=tc.QUOTE_CURRENCY, amount=tc.TEST_WALLET_QUOTE_FUNDS
-    )
-    exchange.account.add_funds(
-        currency=tc.PRODUCT_CURRENCY, amount=tc.TEST_WALLET_PRODUCT_FUNDS
-    )
-
-    # Do an exchange restore to ensure that doing so
-    # doesn't cause tests to fail.
-    # Set seed here to control randomness of order execution
-    set_seed(1)
-    exchange = exchange.create_checkpoint().restore()
-
-    return exchange.account, exchange
+# pylint: disable=redefined-outer-name
 
 
 class TestExchangeUnit:

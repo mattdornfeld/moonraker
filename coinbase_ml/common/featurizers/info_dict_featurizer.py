@@ -3,11 +3,10 @@ InfoDictFeaturizer
 """
 from typing import Deque, Dict, Optional
 
-from fakebase.types import OrderSide
-
 import coinbase_ml.common.reward.base_reward_strategy as reward
-from coinbase_ml.common.action import NoTransaction
-from coinbase_ml.common.types import StateAtTime
+from ..action import NoTransaction
+from ..types import StateAtTime
+from ...fakebase.types import OrderSide
 
 StateBuffer = Deque[StateAtTime]
 

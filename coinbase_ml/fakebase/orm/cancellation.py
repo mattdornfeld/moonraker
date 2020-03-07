@@ -7,9 +7,10 @@ from decimal import Decimal
 from typing import Any, Optional, Union
 
 from sqlalchemy import Column, String, Float
+from sqlalchemy.orm import reconstructor
 
-from fakebase.orm.mixins import Base, CoinbaseEvent
-from fakebase.types import (
+from ..orm.mixins import Base, CoinbaseEvent
+from ..types import (
     InvalidTypeError,
     OrderId,
     OrderSide,
@@ -20,7 +21,7 @@ from fakebase.types import (
 )
 
 
-class CoinbaseCancellation(Base, CoinbaseEvent):  # pylint: disable=R0903
+class CoinbaseCancellation(CoinbaseEvent, Base):  # pylint: disable=R0903
     """Model for storing Coinbase order cancellations
     """
 
@@ -51,7 +52,18 @@ class CoinbaseCancellation(Base, CoinbaseEvent):  # pylint: disable=R0903
             time (datetime): [description]
         """
         self.remaining_size = remaining_size
-        super().__init__(
+        CoinbaseEvent.__init__(
+            self,
+            price=price,
+            product_id=product_id,
+            order_id=order_id,
+            side=side,
+            time=time,
+            **kwargs,
+        )
+
+        Base.__init__(  # pylint: disable=non-parent-init-called
+            self,
             price=price,
             product_id=product_id,
             order_id=order_id,
@@ -81,6 +93,12 @@ class CoinbaseCancellation(Base, CoinbaseEvent):  # pylint: disable=R0903
             raise InvalidTypeError(type(other), "other")
 
         return return_val
+
+    @reconstructor
+    def init_on_load(self) -> None:
+        """Summary
+        """
+        self._set_typed_price()
 
     @property
     def order_id(self) -> OrderId:

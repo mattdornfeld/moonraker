@@ -7,10 +7,10 @@ from random import getrandbits, randint
 from typing import Dict, List, Optional, Union
 from uuid import UUID
 
-import fakebase.account
-from fakebase.order_book import OrderBook, OrderBookEmpty
-from fakebase.orm import CoinbaseOrder, CoinbaseMatch, CoinbaseCancellation
-from fakebase.types import (
+import coinbase_ml.fakebase.account as account_module
+from .order_book import OrderBook, OrderBookEmpty
+from .orm import CoinbaseOrder, CoinbaseMatch, CoinbaseCancellation
+from .types import (
     DoneReason,
     Liquidity,
     OrderSide,
@@ -21,7 +21,7 @@ from fakebase.types import (
     ProductVolume,
     QuoteVolume,
 )
-from fakebase.utils.exceptions import OrderNotFoundException
+from .utils.exceptions import OrderNotFoundException
 
 
 class MatchingEngine:
@@ -29,8 +29,13 @@ class MatchingEngine:
     Exchange matching engine logic
     """
 
-    def __init__(self, account: Optional[fakebase.account.Account]) -> None:
+    def __init__(self, account: Optional[account_module.Account]) -> None:
+        """
+        __init__ [summary]
 
+        Args:
+            account (Optional[account_module.Account]): [description]
+        """
         self.account = account
         self.order_book: Dict[OrderSide, OrderBook] = {
             OrderSide.buy: OrderBook(),

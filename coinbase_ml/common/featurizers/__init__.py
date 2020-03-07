@@ -7,19 +7,18 @@ from typing import Deque, Dict, Generic, List, Optional, Type
 
 import numpy as np
 
-from fakebase.types import OrderSide
-
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.action import ActionBase
-from coinbase_ml.common.featurizers.account_featurizer import AccountFeaturizer
-from coinbase_ml.common.featurizers.info_dict_featurizer import InfoDictFeaturizer
-from coinbase_ml.common.featurizers.order_book_featurizer import OrderBookFeaturizer
-from coinbase_ml.common.featurizers.time_series_featurizer import TimeSeriesFeaturizer
-from coinbase_ml.common.featurizers.types import Account, Exchange
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.reward import BaseRewardStrategy
 from coinbase_ml.common.types import StateAtTime
 from coinbase_ml.common.utils.preprocessing_utils import pad_to_length
+from coinbase_ml.fakebase.types import OrderSide
+from .account_featurizer import AccountFeaturizer
+from .info_dict_featurizer import InfoDictFeaturizer
+from .order_book_featurizer import OrderBookFeaturizer
+from .time_series_featurizer import TimeSeriesFeaturizer
+from .types import Account, Exchange
 
 
 class Featurizer(Generic[Exchange]):

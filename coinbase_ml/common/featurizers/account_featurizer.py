@@ -5,8 +5,8 @@ from typing import Generic
 
 import numpy as np
 
-from coinbase_ml.common import constants as c
-from coinbase_ml.common.featurizers.types import Account
+from .types import Account
+from .. import constants as c
 
 
 class AccountFeaturizer(Generic[Account]):
@@ -41,7 +41,10 @@ class AccountFeaturizer(Generic[Account]):
         funds = self.account.funds
         _funds_as_array = np.hstack(
             [
-                [float(funds[currency].balance), float(funds[currency].holds)]
+                [
+                    float(funds[currency].balance.amount),
+                    float(funds[currency].holds.amount),
+                ]
                 for currency in self.account.currencies
             ]
         )

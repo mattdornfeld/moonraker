@@ -2,32 +2,31 @@
  [summary]
 """
 from datetime import datetime, timedelta
-from decimal import Decimal
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from cbpro import AuthenticatedClient
 from dateutil.parser import parse
 from dateutil.tz import UTC
 
-from fakebase.base_classes.account import AccountBase, Funds
-from fakebase.orm import CoinbaseOrder
-from fakebase.types import (
+from coinbase_ml.common import constants as cc
+from coinbase_ml.common.utils import (
+    convert_str_product_id,
+    parse_if_not_none,
+)
+from coinbase_ml.fakebase.base_classes.account import AccountBase, Funds
+from coinbase_ml.fakebase.orm import CoinbaseOrder
+from coinbase_ml.fakebase.types import (
     Currency,
     OrderId,
     OrderSide,
     OrderStatus,
     OrderType,
     ProductId,
+    ProductPrice,
+    ProductVolume,
 )
-from fakebase.utils import convert_to_decimal_if_not_none
-
-from coinbase_ml.common import constants as cc
-from coinbase_ml.common.utils import (
-    convert_to_enum,
-    convert_str_product_id,
-    parse_if_not_none,
-)
+from coinbase_ml.fakebase.types.currency.volume import VOLUMES
 from coinbase_ml.serve import constants as c
 
 LOGGER = logging.getLogger(__name__)
@@ -59,6 +58,40 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
         self.order_time_to_live: Dict[OrderId, timedelta] = {}
 
     @staticmethod
+    def _convert_to_price_if_not_none(
+        price_str: Optional[str],
+    ) -> Optional[ProductPrice]:
+        """
+        _convert_to_price_if_not_none [summary]
+
+        Args:
+            price_str (Optional[str]): [description]
+
+        Returns:
+            Optional[ProductPrice]: [description]
+        """
+        return None if price_str is None else cc.PRODUCT_ID.price_type(price_str)
+
+    @staticmethod
+    def _convert_to_product_volume_if_not_none(
+        volume_str: Optional[str],
+    ) -> Optional[ProductVolume]:
+        """
+        _convert_to_product_volume_if_not_none [summary]
+
+        Args:
+            volume_str (Optional[str]): [description]
+
+        Returns:
+            Optional[ProductVolume]: [description]
+        """
+        return (
+            None
+            if volume_str is None
+            else cc.PRODUCT_ID.product_volume_type(volume_str)
+        )
+
+    @staticmethod
     def _make_order_object(order_info: Dict[str, Any]) -> CoinbaseOrder:
         """
         _make_order_object [summary]
@@ -71,13 +104,13 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
         """
         return CoinbaseOrder(
             order_id=OrderId(order_info.get("id")),
-            order_status=convert_to_enum(OrderStatus, order_info.get("status")),
-            order_type=convert_to_enum(OrderType, order_info.get("type")),
+            order_status=OrderStatus.from_string(order_info.get("order_status")),
+            order_type=OrderType.from_string(order_info.get("type")),
             post_only=bool(order_info.get("post_only")),
-            price=convert_to_decimal_if_not_none(order_info.get("price")),
+            price=Account._convert_to_price_if_not_none(order_info.get("price")),
             product_id=convert_str_product_id(order_info.get("product_id")),
-            side=convert_to_enum(OrderSide, order_info.get("side")),
-            size=convert_to_decimal_if_not_none(order_info.get("size")),
+            side=OrderSide.from_string(order_info.get("side")),
+            size=Account._convert_to_product_volume_if_not_none(order_info.get("size")),
             time=parse_if_not_none(order_info.get("created_at")),
             time_in_force=order_info.get("time_in_force"),
             time_to_live=order_info.get("time_to_live"),
@@ -112,25 +145,27 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
             Dict[Currency, Funds]: [description]
         """
         _funds: Dict[Currency, Funds] = {}
-        for fund in self.get_accounts():
-            currency = Currency[fund["currency"]]
+        for currency_str, fund in self.get_accounts().items():
+            currency = Currency[currency_str]
+            VolumeType = VOLUMES[currency]  # pylint: disable=invalid-name
+
             _funds[currency] = Funds(
-                balance=Decimal(fund["balance"]),
+                balance=VolumeType(fund["balance"]),
                 currency=currency,
-                holds=Decimal(fund["hold"]),
+                holds=VolumeType(fund["hold"]),
                 id=fund["id"],
             )
 
         return _funds
 
-    def get_accounts(self) -> List[Dict[str, str]]:
+    def get_accounts(self) -> Dict[str, Dict[str, str]]:
         """
         get_accounts [summary]
 
         Returns:
-            List[Dict[str, str]]: [description]
+            Dict[str, Dict[str, str]]: [description]
         """
-        accounts = []
+        accounts: Dict[str, Dict[str, str]] = {}
         for account in self.client.get_accounts():
             try:
                 currency = Currency[account["currency"]]
@@ -138,7 +173,7 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
                 continue
 
             if currency in self.currencies:
-                accounts.append(account)
+                accounts[account["currency"]] = account
 
         return accounts
 
@@ -163,9 +198,9 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
     def place_limit_order(
         self,
         product_id: ProductId,
-        price: Decimal,
+        price: ProductPrice,
         side: OrderSide,
-        size: Decimal,
+        size: ProductVolume,
         post_only: bool = False,
         time_in_force: str = "GTC",
         time_to_live: timedelta = timedelta.max,
@@ -175,9 +210,9 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
 
         Args:
             product_id (ProductId): [description]
-            price (Decimal): [description]
+            price (ProductPrice): [description]
             side (OrderSide): [description]
-            size (Decimal): [description]
+            size (ProductVolume): [description]
             post_only (bool, optional): [description]. Defaults to False.
             time_in_force (str, optional): [description]. Defaults to "GTC".
             time_to_live (timedelta, optional): [description]. Defaults to timedelta.max.
@@ -188,12 +223,12 @@ class Account(AccountBase["coinbase_ml.serve.exchange.Exchange"]):
         order_info: Dict[str, Any] = self.client.place_limit_order(
             product_id=str(self.exchange.product_id),
             side=side.value,
-            price=str(price),
-            size=str(size),
+            price=str(price.amount),
+            size=str(size.amount),
         )
 
         # Occasionaly Coinbase can send back a timestamp with an invalid timezone
-        # If this happens replace it with the current utc time. The time should be
+        # If this happens replace it with the current utc time. The times should be
         # very close to each other.
         if "created_at" in order_info:
             try:

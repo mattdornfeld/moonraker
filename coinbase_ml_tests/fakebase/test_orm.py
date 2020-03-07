@@ -1,8 +1,9 @@
 """
  [summary]
 """
-from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
-from fakebase_tests import constants as tc
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+
+from .. import constants as tc
 
 
 def test_cancellation_init() -> None:

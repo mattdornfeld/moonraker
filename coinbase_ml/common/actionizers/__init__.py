@@ -6,22 +6,24 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
 from math import inf
-from typing import Dict, Generic, Optional, TypeVar
+from typing import Callable, Dict, Generic, Optional, TypeVar
 
 import numpy as np
 from funcy import compose, partial, rpartial
 
-from fakebase.utils.currency_utils import (
-    get_currency_min_value,
-    round_to_currency_precision,
-)
-from fakebase.base_classes import AccountBase
-from fakebase.orm import CoinbaseOrder
-from fakebase.types import OrderSide, OrderStatus, OrderType
-
 import coinbase_ml.common.action as action
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.utils.preprocessing_utils import clamp_to_range, softmax
+from coinbase_ml.fakebase.base_classes import AccountBase
+from coinbase_ml.fakebase.orm import CoinbaseOrder
+from coinbase_ml.fakebase.types import (
+    OrderSide,
+    OrderStatus,
+    OrderType,
+    ProductPrice,
+    ProductVolume,
+    QuoteVolume,
+)
 
 Account = TypeVar("Account", bound=AccountBase)
 
@@ -30,6 +32,9 @@ class Actionizer(Generic[Account]):
     """
     Actionizer [summary]
     """
+
+    BUY_RESERVE_FRACTION = Decimal("0.005")
+    MAX_PRICE = 13000.00
 
     def __init__(
         self, account: Account, actor_prediction: Optional[np.ndarray] = None
@@ -78,27 +83,27 @@ class Actionizer(Generic[Account]):
         return Actionizer(self.account, self._actor_prediction)
 
     @property
-    def _available_product(self) -> Decimal:
+    def _available_product(self) -> ProductVolume:
         """
         _available_product [summary]
 
         Returns:
-            Decimal: [description]
+            ProductVolume: [description]
         """
-        return Decimal(
+        return (
             self._funds[c.PRODUCT_CURRENCY].balance
             - self._funds[c.PRODUCT_CURRENCY].holds
         )
 
     @property
-    def _available_quote(self) -> Decimal:
+    def _available_quote(self) -> QuoteVolume:
         """
         _available_quote [summary]
 
         Returns:
-            Decimal: [description]
+            QuoteVolume: [description]
         """
-        return Decimal(
+        return (
             self._funds[c.QUOTE_CURRENCY].balance - self._funds[c.QUOTE_CURRENCY].holds
         )
 
@@ -139,7 +144,7 @@ class Actionizer(Generic[Account]):
         return OrderType.limit
 
     @property
-    def price(self) -> Decimal:
+    def price(self) -> ProductPrice:
         """
         price [summary]
 
@@ -147,24 +152,32 @@ class Actionizer(Generic[Account]):
             AttributeError: [description]
 
         Returns:
-            Decimal: [description]
+            ProductPrice: [description]
         """
         if self.order_side is None:
             raise AttributeError
 
-        min_value = get_currency_min_value(c.QUOTE_CURRENCY)
+        min_value = float(c.PRODUCT_ID.min_price.amount)
+        clamp_normalized_price_to_range: Callable[[float], float] = rpartial(
+            clamp_to_range, 0.0, 1.0
+        )
+        clamp_price_to_range: Callable[[float], float] = rpartial(
+            clamp_to_range, min_value, inf
+        )
+        denormalize_price: Callable[
+            [float], float
+        ] = lambda price: self.MAX_PRICE * price
 
         return compose(
-            partial(round_to_currency_precision, c.QUOTE_CURRENCY),
-            Decimal,
+            c.PRODUCT_ID.price_type,
             str,
-            rpartial(clamp_to_range, min_value, inf),
-            lambda price: c.MAX_PRICE * price,
-            rpartial(clamp_to_range, 0.0, 1.0),
+            clamp_price_to_range,
+            denormalize_price,
+            clamp_normalized_price_to_range,
         )(self._normalized_price)
 
     @property
-    def size(self) -> Decimal:
+    def size(self) -> ProductVolume:
         """
         size [summary]
 
@@ -172,15 +185,18 @@ class Actionizer(Generic[Account]):
             AttributeError: [description]
 
         Returns:
-            Decimal: [description]
+            ProductVolume: [description]
         """
         if self.order_side is None:
             raise AttributeError
 
-        transaction_size = (
-            self._available_quote * (1 - c.BUY_RESERVE_FRACTION) / self.price
-            if self.order_side == OrderSide.buy
-            else self._available_product
-        )
+        if self.order_side == OrderSide.buy:
+            transaction_size = c.PRODUCT_ID.product_volume_type(
+                self._available_quote.amount
+                * (1 - self.BUY_RESERVE_FRACTION)
+                / self.price.amount
+            )  # quote * product / quote = product
+        else:
+            transaction_size = self._available_product
 
-        return round_to_currency_precision(c.PRODUCT_CURRENCY, transaction_size)
+        return transaction_size

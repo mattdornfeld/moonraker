@@ -6,44 +6,13 @@ from typing import List
 
 import pytest
 
-from fakebase import constants as c
-from fakebase.account import Account
-from fakebase.exchange import Exchange, ExchangeCheckpoint
-from fakebase.orm import CoinbaseOrder
-from fakebase.types import Liquidity, OrderSide, OrderStatus, RejectReason
-from fakebase.utils import set_seed
-from fakebase.utils.exceptions import ExchangeFinishedException
-from fakebase_tests import constants as tc
+from coinbase_ml.fakebase.exchange import ExchangeCheckpoint
+from coinbase_ml.fakebase.orm import CoinbaseOrder
+from coinbase_ml.fakebase.types import Liquidity, OrderSide, OrderStatus, RejectReason
+from coinbase_ml.fakebase.utils.exceptions import ExchangeFinishedException
 
-
-def create_exchange_with_db_connection() -> Exchange:
-    """
-    create_exchange_with_db_connection [summary]
-
-    Returns:
-        Exchange: [description]
-    """
-    c.NUM_DATABASE_WORKERS = 1
-
-    db_exchange = Exchange(
-        end_dt=tc.EXCHANGE_END_DT,
-        product_id=tc.PRODUCT_ID,
-        start_dt=tc.EXCHANGE_START_DT,
-        time_delta=tc.EXCHANGE_TIME_DELTA,
-    )
-
-    set_seed(1)
-    account = Account(db_exchange)
-    account.add_funds(currency=tc.QUOTE_CURRENCY, amount=tc.TEST_WALLET_QUOTE_FUNDS)
-    account.add_funds(currency=tc.PRODUCT_CURRENCY, amount=tc.TEST_WALLET_PRODUCT_FUNDS)
-    db_exchange.account = account
-
-    # Do an exchange restore to ensure that doing so
-    # doesn't cause tests to fail
-    db_exchange = db_exchange.create_checkpoint().restore()
-    set_seed(1)
-
-    return db_exchange
+from .. import constants as tc
+from ..fixtures import create_exchange_with_db_connection
 
 
 class TestExchangeIntegration:

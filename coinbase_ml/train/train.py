@@ -74,18 +74,11 @@ def main(
     Returns:
         float: [description]
     """
-    test_reward_strategy_name: str = test_environment_configs.pop(
-        "reward_strategy_name"
-    )
-    train_reward_strategy_name: str = train_environment_configs.pop(
-        "reward_strategy_name"
-    )
-    test_environment_configs["reward_strategy"] = REWARD_STRATEGIES[
-        test_reward_strategy_name
-    ]
-    train_environment_configs["reward_strategy"] = REWARD_STRATEGIES[
-        train_reward_strategy_name
-    ]
+    for configs in [test_environment_configs, train_environment_configs]:
+        reward_strategy_name: str = configs.pop("reward_strategy_name")
+        configs["reward_strategy"] = REWARD_STRATEGIES[reward_strategy_name]
+        configs["initial_usd"] = cc.PRODUCT_ID.quote_volume_type(configs["initial_usd"])
+        configs["initial_btc"] = cc.PRODUCT_ID.quote_volume_type(configs["initial_btc"])
 
     ray.init(
         include_webui=c.RAY_INCLUDE_WEBUI,

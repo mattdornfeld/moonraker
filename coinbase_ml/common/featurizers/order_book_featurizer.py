@@ -1,16 +1,14 @@
 """
 order_book_featurizer
 """
-from decimal import Decimal
 from typing import DefaultDict, Generic, Tuple
 
 import numpy as np
 
-from fakebase.types import OrderSide
-
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.featurizers.types import Exchange
 from coinbase_ml.common.utils.preprocessing_utils import min_max_normalization
+from coinbase_ml.fakebase.types import OrderSide, ProductPrice, ProductVolume
 
 
 class OrderBookFeaturizer(Generic[Exchange]):
@@ -28,31 +26,33 @@ class OrderBookFeaturizer(Generic[Exchange]):
         self.exchange = exchange
 
     @staticmethod
-    def _normalize_price_volume(price: Decimal, volume: Decimal) -> Tuple[float, float]:
+    def _normalize_price_volume(
+        price: ProductPrice, volume: ProductVolume
+    ) -> Tuple[float, float]:
         """
         _normalize_price_volume [summary]
 
         Args:
-            price (Decimal): [description]
-            volume (Decimal): [description]
+            price (ProductPrice): [description]
+            volume (ProductVolume): [description]
 
         Returns:
             Tuple[float, float]: [description]
         """
         return (
-            min_max_normalization(c.PRICE_NORMALIZER, 0, float(price)),
-            min_max_normalization(c.SIZE_NORMALIZER, 0, float(volume)),
+            min_max_normalization(c.PRICE_NORMALIZER, 0, float(price.amount)),
+            min_max_normalization(c.SIZE_NORMALIZER, 0, float(volume.amount)),
         )
 
     @staticmethod
     def _price_volume_dict_to_array(
-        price_volume_dict: DefaultDict[Decimal, Decimal]
+        price_volume_dict: DefaultDict[ProductPrice, ProductVolume]
     ) -> np.ndarray:
         """
         _price_volume_dict_to_array [summary]
 
         Args:
-            price_volume_dict (DefaultDict[Decimal, Decimal]): [description]
+            price_volume_dict (DefaultDict[ProductPrice, ProductVolume]): [description]
 
         Returns:
             np.ndarray: [description]

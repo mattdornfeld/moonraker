@@ -1,18 +1,9 @@
 """
 Tests for Featurizer
 """
-from decimal import Decimal
 from typing import Dict, Tuple, cast
 
 import numpy as np
-
-from fakebase_tests import constants as ftc
-from fakebase_tests.test_exchange_unit import create_exchange  # pylint: disable=W0611
-from fakebase.account import Account
-from fakebase.exchange import Exchange
-from fakebase.orm import CoinbaseCancellation, CoinbaseOrder, CoinbaseMatch
-from fakebase.types import Currency
-
 import pytest
 from pytest_cases import fixture_ref, pytest_fixture_plus, pytest_parametrize_plus
 
@@ -22,8 +13,14 @@ from coinbase_ml.common.actionizers import Actionizer
 from coinbase_ml.common.featurizers import AccountFeaturizer
 from coinbase_ml.common.featurizers import Featurizer
 from coinbase_ml.common.reward import LogReturnRewardStrategy
+from coinbase_ml.fakebase.account import Account
+from coinbase_ml.fakebase.exchange import Exchange
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseOrder, CoinbaseMatch
+from coinbase_ml.fakebase.types.currency import Currency
+from ... import constants as tc
+from ...fixtures import create_exchange  # pylint: disable=unused-import
 
-BUY_ORDER_PRICE = Decimal("1.00")
+BUY_ORDER_PRICE = tc.PRODUCT_ID.price_type("1.00")
 
 
 @pytest_fixture_plus(
@@ -72,30 +69,30 @@ def place_orders_and_update(
         Tuple[CoinbaseOrder, CoinbaseOrder]: [description]
     """
     buy_order = account.place_limit_order(
-        product_id=ftc.PRODUCT_ID,
+        product_id=tc.PRODUCT_ID,
         price=BUY_ORDER_PRICE,
-        side=ftc.TEST_ORDER_SIDE,
-        size=ftc.TEST_ORDER_SIZE,
+        side=tc.TEST_ORDER_SIDE,
+        size=tc.TEST_ORDER_SIZE,
     )
 
     sell_order = account.place_limit_order(
-        product_id=ftc.PRODUCT_ID,
-        price=ftc.TEST_ORDER_PRICE,
-        side=ftc.TEST_ORDER_SIDE.get_opposite_side(),
-        size=ftc.TEST_ORDER_SIZE,
+        product_id=tc.PRODUCT_ID,
+        price=tc.TEST_ORDER_PRICE,
+        side=tc.TEST_ORDER_SIDE.get_opposite_side(),
+        size=tc.TEST_ORDER_SIZE,
     )
 
     account.exchange.step()
 
     match = CoinbaseMatch(
-        price=ftc.TEST_ORDER_PRICE,
-        product_id=ftc.PRODUCT_ID,
-        maker_order_id=ftc.TEST_ORDER_ID,
-        taker_order_id=ftc.TEST_ORDER_ID,
-        trade_id=ftc.TEST_TRADE_ID,
-        side=ftc.TEST_ORDER_SIDE.get_opposite_side(),
-        size=ftc.TEST_ORDER_SIZE,
-        time=ftc.TEST_ORDER_TIME,
+        price=tc.TEST_ORDER_PRICE,
+        product_id=tc.PRODUCT_ID,
+        maker_order_id=tc.TEST_ORDER_ID,
+        taker_order_id=tc.TEST_ORDER_ID,
+        trade_id=tc.TEST_TRADE_ID,
+        side=tc.TEST_ORDER_SIDE.get_opposite_side(),
+        size=tc.TEST_ORDER_SIZE,
+        time=tc.TEST_ORDER_TIME,
     )
 
     account.exchange.matches.append(match)
@@ -129,10 +126,10 @@ class TestFeaturizer:
         expected_accound_funds = (
             np.array(
                 [
-                    ftc.TEST_WALLET_QUOTE_FUNDS,
-                    BUY_ORDER_PRICE * ftc.TEST_ORDER_SIZE,
-                    ftc.TEST_WALLET_PRODUCT_FUNDS,
-                    ftc.TEST_ORDER_SIZE,
+                    tc.TEST_WALLET_QUOTE_FUNDS.amount,
+                    (BUY_ORDER_PRICE * tc.TEST_ORDER_SIZE).amount,
+                    tc.TEST_WALLET_PRODUCT_FUNDS.amount,
+                    tc.TEST_ORDER_SIZE.amount,
                 ]
             )
             .astype(float)
@@ -170,7 +167,7 @@ class TestFeaturizer:
         portfolio_value = usd_funds + mid_price * btc_funds
 
         assert pytest.approx(
-            float(portfolio_value), featurizer.get_info_dict()["portfolio_value"]
+            float(portfolio_value.amount), featurizer.get_info_dict()["portfolio_value"]
         )
 
     @staticmethod
@@ -239,8 +236,12 @@ class TestFeaturizer:
         place_orders_and_update(account, featurizer, no_transaction)
 
         old_portfolio_value = featurizer.get_info_dict()["portfolio_value"]
-        account.funds[Currency.USD].balance = Decimal("0.0")
-        account.funds[Currency.USD].holds = Decimal("0.0")
+        account.funds[
+            tc.QUOTE_CURRENCY
+        ].balance = tc.PRODUCT_ID.quote_volume_type.get_zero_volume()
+        account.funds[
+            tc.QUOTE_CURRENCY
+        ].holds = tc.PRODUCT_ID.quote_volume_type.get_zero_volume()
         account.exchange.step()
         featurizer.update_state_buffer(no_transaction)
 
@@ -268,10 +269,12 @@ class TestFeaturizer:
         observation = featurizer.get_observation()
 
         expected_order_book = np.zeros((1, 4 * c.ORDER_BOOK_DEPTH))
-        expected_order_book[0, 0] = float(ftc.TEST_ORDER_PRICE) / c.PRICE_NORMALIZER
-        expected_order_book[0, 1] = float(ftc.TEST_ORDER_SIZE) / c.SIZE_NORMALIZER
-        expected_order_book[0, 2] = float(BUY_ORDER_PRICE) / c.PRICE_NORMALIZER
-        expected_order_book[0, 3] = float(ftc.TEST_ORDER_SIZE) / c.SIZE_NORMALIZER
+        expected_order_book[0, 0] = (
+            float(tc.TEST_ORDER_PRICE.amount) / c.PRICE_NORMALIZER
+        )
+        expected_order_book[0, 1] = float(tc.TEST_ORDER_SIZE.amount) / c.SIZE_NORMALIZER
+        expected_order_book[0, 2] = float(BUY_ORDER_PRICE.amount) / c.PRICE_NORMALIZER
+        expected_order_book[0, 3] = float(tc.TEST_ORDER_SIZE.amount) / c.SIZE_NORMALIZER
 
         np.testing.assert_almost_equal(expected_order_book, observation.order_book, 10)
 
@@ -283,16 +286,18 @@ class TestFeaturizer:
         expected_order_book = np.vstack(
             (expected_order_book, np.zeros((1, 4 * c.ORDER_BOOK_DEPTH)))
         )
-        expected_order_book[1, 0] = float(ftc.TEST_ORDER_PRICE) / c.PRICE_NORMALIZER
-        expected_order_book[1, 1] = float(ftc.TEST_ORDER_SIZE) / c.SIZE_NORMALIZER
+        expected_order_book[1, 0] = (
+            float(tc.TEST_ORDER_PRICE.amount) / c.PRICE_NORMALIZER
+        )
+        expected_order_book[1, 1] = float(tc.TEST_ORDER_SIZE.amount) / c.SIZE_NORMALIZER
 
         np.testing.assert_almost_equal(expected_order_book, observation.order_book, 10)
 
         account.place_limit_order(
-            product_id=ftc.PRODUCT_ID,
-            price=2 * ftc.TEST_ORDER_PRICE,
-            side=ftc.TEST_ORDER_SIDE.get_opposite_side(),
-            size=ftc.TEST_ORDER_SIZE,
+            product_id=tc.PRODUCT_ID,
+            price=tc.TEST_ORDER_PRICE / 0.5,
+            side=tc.TEST_ORDER_SIDE.get_opposite_side(),
+            size=tc.TEST_ORDER_SIZE,
         )
 
         place_orders_and_update(account, featurizer, no_transaction)
@@ -300,12 +305,18 @@ class TestFeaturizer:
         expected_order_book = np.vstack(
             (expected_order_book, np.zeros((1, 4 * c.ORDER_BOOK_DEPTH)))
         )
-        expected_order_book[2, 0] = float(ftc.TEST_ORDER_PRICE) / c.PRICE_NORMALIZER
-        expected_order_book[2, 1] = 2 * float(ftc.TEST_ORDER_SIZE) / c.SIZE_NORMALIZER
-        expected_order_book[2, 2] = float(BUY_ORDER_PRICE) / c.PRICE_NORMALIZER
-        expected_order_book[2, 3] = float(ftc.TEST_ORDER_SIZE) / c.SIZE_NORMALIZER
-        expected_order_book[2, 4] = 2 * float(ftc.TEST_ORDER_PRICE) / c.PRICE_NORMALIZER
-        expected_order_book[2, 5] = float(ftc.TEST_ORDER_SIZE) / c.SIZE_NORMALIZER
+        expected_order_book[2, 0] = (
+            float(tc.TEST_ORDER_PRICE.amount) / c.PRICE_NORMALIZER
+        )
+        expected_order_book[2, 1] = (
+            float(tc.TEST_ORDER_SIZE.amount) / c.SIZE_NORMALIZER / 0.5
+        )
+        expected_order_book[2, 2] = float(BUY_ORDER_PRICE.amount) / c.PRICE_NORMALIZER
+        expected_order_book[2, 3] = float(tc.TEST_ORDER_SIZE.amount) / c.SIZE_NORMALIZER
+        expected_order_book[2, 4] = (
+            float(tc.TEST_ORDER_PRICE.amount) / c.PRICE_NORMALIZER / 0.5
+        )
+        expected_order_book[2, 5] = float(tc.TEST_ORDER_SIZE.amount) / c.SIZE_NORMALIZER
 
         observation = featurizer.get_observation()
         np.testing.assert_almost_equal(expected_order_book, observation.order_book, 10)
@@ -326,12 +337,12 @@ class TestFeaturizer:
         """
         place_orders_and_update(account, featurizer, no_transaction)
         cancellation = CoinbaseCancellation(
-            price=ftc.TEST_ORDER_PRICE,
-            product_id=ftc.PRODUCT_ID,
-            order_id=ftc.TEST_ORDER_ID,
-            remaining_size=ftc.TEST_ORDER_SIZE,
-            time=ftc.TEST_ORDER_TIME,
-            side=ftc.TEST_ORDER_SIDE,
+            price=tc.TEST_ORDER_PRICE,
+            product_id=tc.PRODUCT_ID,
+            order_id=tc.TEST_ORDER_ID,
+            remaining_size=tc.TEST_ORDER_SIZE,
+            time=tc.TEST_ORDER_TIME,
+            side=tc.TEST_ORDER_SIDE,
         )
 
         account.exchange.step()

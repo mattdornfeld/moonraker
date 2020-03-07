@@ -8,9 +8,9 @@ from uuid import UUID
 
 import numpy as np
 
-from fakebase import constants as c
-from fakebase.utils.types import Numeric
-from fakebase.types import OrderId, OrderSide
+from coinbase_ml.fakebase import constants as c
+from coinbase_ml.fakebase.utils.types import Numeric
+from coinbase_ml.fakebase.types import OrderId, OrderSide
 
 
 def convert_to_decimal_if_not_none(value: Optional[Numeric]) -> Optional[Decimal]:

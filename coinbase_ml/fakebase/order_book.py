@@ -7,8 +7,8 @@ from typing import Any, Dict, Iterator, Optional, Tuple
 
 from bintrees import FastRBTree as TreeBase
 
-from fakebase.orm import CoinbaseOrder, ProductPrice
-from fakebase.types import OrderId, OrderSide
+from .orm import CoinbaseOrder, ProductPrice
+from .types import OrderId, OrderSide
 
 OrderBookKey = Tuple[ProductPrice, timedelta]
 

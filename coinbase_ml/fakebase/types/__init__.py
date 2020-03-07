@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import NewType
+from typing import NewType, Optional
 
-from .currency import (
+from coinbase_ml.fakebase.types.currency import (
     Currency,
     InvalidTypeError,
     Price,
@@ -71,6 +71,26 @@ class OrderSide(Enum):
     buy = "buy"
     sell = "sell"
 
+    @staticmethod
+    def from_string(order_side: str) -> Optional[OrderSide]:
+        """
+        from_string [summary]
+
+        Args:
+            order_side (str): [description]
+
+        Returns:
+            Optional[OrderSide]: [description]
+        """
+        if order_side == OrderSide.buy.value:
+            return_val = OrderSide.buy
+        elif order_side == OrderSide.sell.value:
+            return_val = OrderSide.sell
+        else:
+            return_val = None
+
+        return return_val
+
     def get_opposite_side(self) -> OrderSide:
         """
         get_opposite_side [summary]
@@ -92,6 +112,32 @@ class OrderStatus(Enum):
     received = "received"
     rejected = "rejected"
 
+    @staticmethod
+    def from_string(order_status: str) -> Optional[OrderStatus]:
+        """
+        from_string [summary]
+
+        Args:
+            order_status (str): [description]
+
+        Returns:
+            Optional[OrderStatus]: [description]
+        """
+        if order_status == OrderStatus.done.value:
+            return_val = OrderStatus.done
+        elif order_status == OrderStatus.open.value:
+            return_val = OrderStatus.open
+        elif order_status == OrderStatus.pending.value:
+            return_val = OrderStatus.pending
+        elif order_status == OrderStatus.received.value:
+            return_val = OrderStatus.received
+        elif order_status == OrderStatus.rejected:
+            return_val = OrderStatus.rejected
+        else:
+            return_val = None
+
+        return return_val
+
 
 class OrderType(Enum):
     """
@@ -103,6 +149,26 @@ class OrderType(Enum):
 
     def __str__(self) -> str:
         return self.value
+
+    @staticmethod
+    def from_string(order_type: str) -> Optional[OrderType]:
+        """
+        from_string [summary]
+
+        Args:
+            order_type (str): [description]
+
+        Returns:
+            Optional[OrderType]: [description]
+        """
+        if order_type == OrderType.limit.value:
+            return_val = OrderType.limit
+        elif order_type == OrderType.market.value:
+            return_val = OrderType.market
+        else:
+            return_val = None
+
+        return return_val
 
 
 class RejectReason(Enum):

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, Type, TypeVar
+from typing import Dict, Type, TypeVar, Union
 
 from .precise_number import PreciseNumber
 from .utils import InvalidTypeError
@@ -142,6 +142,28 @@ class Volume(PreciseNumber[VolumeSubType]):
             raise InvalidTypeError(type(other), "other")
 
         return self.__class__(self.amount - other.amount)
+
+    def __truediv__(self, other: Union[Decimal, float]) -> Volume[VolumeSubType]:
+        """
+        __truediv__ [summary]
+
+        Args:
+            other (Union[Decimal, float]): [description]
+
+        Raises:
+            InvalidTypeError: [description]
+
+        Returns:
+            Volume[VolumeSubType]: [description]
+        """
+        if isinstance(other, Decimal):
+            return_val = VOLUMES[self.currency](self.amount / other)
+        elif isinstance(other, (float, int)):
+            return_val = VOLUMES[self.currency](self.amount / Decimal(other))
+        else:
+            raise InvalidTypeError(type(other), "other")
+
+        return return_val
 
     def is_zero(self) -> bool:
         """

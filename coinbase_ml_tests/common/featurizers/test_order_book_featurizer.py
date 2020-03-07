@@ -2,15 +2,14 @@
 Tests for OrderBookFeaturizer
 """
 import numpy as np
-
-from fakebase_tests import constants as ftc
-from fakebase_tests.test_exchange_integration import create_exchange_with_db_connection
-from fakebase.exchange import Exchange
-from fakebase.types import OrderSide
-
 import pytest
 
+
 from coinbase_ml.common.featurizers import OrderBookFeaturizer
+from coinbase_ml.fakebase.exchange import Exchange
+from coinbase_ml.fakebase.types import OrderSide
+from ... import constants as tc
+from ...fixtures import create_exchange_with_db_connection
 
 
 @pytest.fixture(name="order_book_featurizer")
@@ -57,7 +56,7 @@ class TestOrderBookFeaturizer:
         # After we call step the array will not be empty, but all we can predict is that
         # it will not be equal to the last array and can be sorted by the 0th column
         # (the price column)
-        for _ in range(ftc.TEST_EXCHANGE_NUM_STEPS):
+        for _ in range(tc.TEST_EXCHANGE_NUM_STEPS):
             order_book_featurizer.exchange.step()
             price_volume_array = order_book_featurizer.get_order_book_features(
                 order_side

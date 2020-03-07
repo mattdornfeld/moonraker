@@ -2,15 +2,13 @@
 Tests for TimeSeriesFeaturizer
 """
 import numpy as np
-
-from fakebase_tests import constants as ftc
-from fakebase_tests.test_exchange_integration import create_exchange_with_db_connection
-from fakebase.exchange import Exchange
-
 import pytest
 
 from coinbase_ml.common.featurizers import TimeSeriesFeaturizer
-from coinbase_ml_tests.utils import assert_arrays_not_equal
+from coinbase_ml.fakebase.exchange import Exchange
+from ... import constants as tc
+from ...fixtures import create_exchange_with_db_connection
+from ...utils import assert_arrays_not_equal
 
 
 @pytest.fixture(name="time_series_featurizer")
@@ -71,7 +69,7 @@ class TestTimeSeriesFeaturizer:
         last_features = time_series_featurizer.get_time_series_features()
         np.testing.assert_almost_equal(last_features, zeros_array, 10)
 
-        for _ in range(ftc.TEST_EXCHANGE_NUM_STEPS):
+        for _ in range(tc.TEST_EXCHANGE_NUM_STEPS):
             assert len(last_features) == 26
             time_series_featurizer.exchange.step()
             features = time_series_featurizer.get_time_series_features()

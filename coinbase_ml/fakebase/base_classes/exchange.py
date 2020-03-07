@@ -5,16 +5,16 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, DefaultDict, Generic, List, Optional, TypeVar
 
-from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
-from fakebase.utils.exceptions import ExchangeFinishedException
-from fakebase.types import OrderSide, ProductId, ProductPrice, ProductVolume
+from ..orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+from ..utils.exceptions import ExchangeFinishedException
+from ..types import OrderSide, ProductId, ProductPrice, ProductVolume
 
 if TYPE_CHECKING:
     # To avoid circular import account on the submodule level
     # AccountBase is then referenced using the str syntax below
-    import fakebase.base_classes.account
+    import coinbase_ml.fakebase.base_classes.account
 
-Account = TypeVar("Account", bound="fakebase.base_classes.AccountBase")
+Account = TypeVar("Account", bound="coinbase_ml.fakebase.base_classes.AccountBase")
 
 
 class ExchangeBase(Generic[Account]):
@@ -36,7 +36,7 @@ class ExchangeBase(Generic[Account]):
         self.time_delta = time_delta
 
         self.interval_start_dt = start_dt - time_delta
-        self.interval_end_dt = start_dt
+        self._interval_end_dt = start_dt
 
     @property
     def account(self) -> Optional[Account]:
@@ -85,6 +85,26 @@ class ExchangeBase(Generic[Account]):
         """
 
         return self.interval_end_dt >= self.end_dt
+
+    @property
+    def interval_end_dt(self) -> datetime:
+        """
+        interval_end_dt [summary]
+
+        Returns:
+            datetime: [description]
+        """
+        return self._interval_end_dt
+
+    @interval_end_dt.setter
+    def interval_end_dt(self, value: datetime) -> None:
+        """
+        interval_end_dt [summary]
+
+        Args:
+            value (datetime): [description]
+        """
+        self._interval_end_dt = value
 
     @property
     def matches(self) -> List[CoinbaseMatch]:

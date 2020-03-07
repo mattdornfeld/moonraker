@@ -50,6 +50,8 @@ class PreciseNumber(Generic[PreciseNumberSubtype]):
             amount.quantize(self.get_precision_as_decimal()) if amount < inf else amount
         )
 
+        self.float_amount = float(self.amount)
+
     def __eq__(  # type: ignore[override]
         self, other: Any
     ) -> bool:
