@@ -3,12 +3,12 @@ Module that contains fakebase orms
 """
 from sqlalchemy_utils import database_exists, create_database
 
-from fakebase import constants as c
-from fakebase.orm.cancellation import CoinbaseCancellation
-from fakebase.orm.match import CoinbaseMatch
-from fakebase.orm.mixins import Base, CoinbaseEvent
-from fakebase.types import ProductPrice, ProductVolume, QuoteVolume
-from fakebase.orm.order import CoinbaseOrder
+from .. import constants as c
+from ..orm.cancellation import CoinbaseCancellation
+from ..orm.match import CoinbaseMatch
+from ..orm.mixins import Base, CoinbaseEvent
+from ..types import ProductPrice, ProductVolume, QuoteVolume
+from ..orm.order import CoinbaseOrder
 
 
 def create_db_and_tables() -> None:

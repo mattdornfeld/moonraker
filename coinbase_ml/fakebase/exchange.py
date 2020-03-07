@@ -6,19 +6,19 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import Any, DefaultDict, Dict, List, Optional, Type
 
-import fakebase.account
-from fakebase import constants as c
-from fakebase.base_classes.exchange import ExchangeBase
-from fakebase.database_workers import DatabaseWorkers
-from fakebase.order_book import OrderBook
-from fakebase.orm import (
+import coinbase_ml.fakebase.account as _account
+from . import constants as c
+from .base_classes.exchange import ExchangeBase
+from .database_workers import DatabaseWorkers
+from .order_book import OrderBook
+from .orm import (
     CoinbaseEvent,
     CoinbaseCancellation,
     CoinbaseMatch,
     CoinbaseOrder,
 )
-from fakebase.matching_engine import MatchingEngine
-from fakebase.types import (
+from .matching_engine import MatchingEngine
+from .types import (
     OrderSide,
     OrderStatus,
     ProductId,
@@ -27,7 +27,7 @@ from fakebase.types import (
 )
 
 
-class Exchange(ExchangeBase[fakebase.account.Account]):  # pylint: disable=R0903,R0902
+class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
     """Summary
     """
 
@@ -61,7 +61,7 @@ class Exchange(ExchangeBase[fakebase.account.Account]):  # pylint: disable=R0903
         self._received_cancellations: List[CoinbaseCancellation] = []
         self._received_orders: List[CoinbaseOrder] = []
         self.matching_engine = MatchingEngine(account=None)
-        self.account = fakebase.account.Account(self)
+        self.account = _account.Account(self)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -96,17 +96,17 @@ class Exchange(ExchangeBase[fakebase.account.Account]):  # pylint: disable=R0903
                 self.received_orders.append(order)
 
     @property
-    def account(self) -> fakebase.account.Account:
+    def account(self) -> _account.Account:
         """
         account [summary]
 
         Returns:
-            fakebase.account.Account: [description]
+            _account.Account: [description]
         """
         return self._account
 
     @account.setter
-    def account(self, value: fakebase.account.Account) -> None:
+    def account(self, value: _account.Account) -> None:
         """
         account [summary]
 
@@ -316,7 +316,7 @@ class ExchangeCheckpoint:
 
     def __init__(
         self,
-        account: "fakebase.account.Account",
+        account: "_account.Account",
         current_dt: datetime,
         end_dt: datetime,
         order_book: Dict[OrderSide, OrderBook],

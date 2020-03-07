@@ -5,9 +5,10 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from sqlalchemy import BigInteger, Column, String
+from sqlalchemy.orm import reconstructor
 
-from fakebase.orm.mixins import Base, MatchOrderEvent
-from fakebase.types import (
+from ..orm.mixins import Base, MatchOrderEvent
+from ..types import (
     Liquidity,
     OrderId,
     OrderSide,
@@ -18,7 +19,7 @@ from fakebase.types import (
 )
 
 
-class CoinbaseMatch(Base, MatchOrderEvent):  # pylint: disable=R0903
+class CoinbaseMatch(MatchOrderEvent, Base):  # pylint: disable=R0903
 
     """Model for storing Coinbase Matches
     """
@@ -56,7 +57,8 @@ class CoinbaseMatch(Base, MatchOrderEvent):  # pylint: disable=R0903
             price (Optional[ProductPrice], optional): [description]. Defaults to None.
             size (Optional[ProductVolume], optional): [description]. Defaults to None.
         """
-        super().__init__(
+        MatchOrderEvent.__init__(
+            self,
             product_id=product_id,
             side=side,
             time=time,
@@ -64,6 +66,17 @@ class CoinbaseMatch(Base, MatchOrderEvent):  # pylint: disable=R0903
             size=size,
             **kwargs,
         )
+
+        Base.__init__(  # pylint: disable=non-parent-init-called
+            self,
+            product_id=product_id,
+            side=side,
+            time=time,
+            price=price,
+            size=size,
+            **kwargs,
+        )
+
         self._maker_order_id = maker_order_id
         self._taker_order_id = taker_order_id
         self.liquidity = liquidity
@@ -95,6 +108,13 @@ class CoinbaseMatch(Base, MatchOrderEvent):  # pylint: disable=R0903
             raise NotImplementedError
 
         return return_val
+
+    @reconstructor
+    def init_on_load(self) -> None:
+        """Summary
+        """
+        self._set_typed_price()
+        self._set_typed_size()
 
     @property
     def account_order_side(self) -> OrderSide:

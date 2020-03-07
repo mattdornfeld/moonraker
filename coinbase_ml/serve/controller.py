@@ -11,8 +11,6 @@ from typing import Optional, Type
 import requests
 from ray.rllib.utils.policy_client import PolicyClient
 
-from fakebase.utils.exceptions import ExchangeFinishedException
-
 import coinbase_ml.common.constants as cc
 from coinbase_ml.common.action import ActionBase
 from coinbase_ml.common.actionizers import Actionizer
@@ -28,6 +26,7 @@ from coinbase_ml.common.utils.sacred_utils import (
     get_sacred_experiment_results,
     log_metrics_to_sacred,
 )
+from coinbase_ml.fakebase.utils.exceptions import ExchangeFinishedException
 from coinbase_ml.serve import constants as c
 from coinbase_ml.serve.account import Account
 from coinbase_ml.serve.exchange import Exchange

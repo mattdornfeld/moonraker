@@ -7,11 +7,11 @@ from random import getrandbits, uniform
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
 from uuid import UUID
 
-from fakebase.base_classes.account import AccountBase, Funds
-from fakebase.orm import CoinbaseMatch, CoinbaseOrder
-from fakebase.utils import generate_order_id
-from fakebase.utils.exceptions import OrderNotFoundException
-from fakebase.types import (
+from .base_classes.account import AccountBase, Funds
+from .orm import CoinbaseMatch, CoinbaseOrder
+from .utils import generate_order_id
+from .utils.exceptions import OrderNotFoundException
+from .types import (
     Currency,
     DoneReason,
     InvalidTypeError,
@@ -31,10 +31,10 @@ from fakebase.types import (
 if TYPE_CHECKING:
     # To avoid circular import exchange on the submodule level
     # Exchange is then referenced using the str syntax below
-    import fakebase.exchange
+    import coinbase_ml.fakebase.exchange as exchange
 
 
-class Account(AccountBase["fakebase.exchange.Exchange"]):
+class Account(AccountBase["exchange.Exchange"]):
 
     """Summary
 
@@ -44,12 +44,12 @@ class Account(AccountBase["fakebase.exchange.Exchange"]):
         profile_id (str): Description
     """
 
-    def __init__(self, exchange: "fakebase.exchange.Exchange"):
+    def __init__(self, exchange: "exchange.Exchange"):
         """
         __init__ [summary]
 
         Args:
-            exchange (Exchange): [description]
+            exchange (exchange.Exchange): [description]
         """
         super().__init__(exchange)
         self.profile_id = str(UUID(int=getrandbits(128)))
@@ -310,28 +310,7 @@ class Account(AccountBase["fakebase.exchange.Exchange"]):
 
     def get_accounts(self) -> Dict[str, Dict[str, str]]:
         """
-        get_accounts returns the Authenticated API's get_accounts()
-        response as a lookup of currency to account.
-        Ex:
-        {
-            'USD': {
-                'available': '0',
-                'balance': '0.0000000000000000',
-                'currency': 'USD',
-                'hold': '0.0000000000000000',
-                'id': '632e3dd8-bcef-49eb-81f7-250bf56eebcd',
-                'profile_id': 'd5a66bdb-36af-4a31-abd3-ec6f18ebac74'
-            },
-            'BTC': {
-                'available': '0',
-                'balance': '0.0000000000000000',
-                'currency': 'BTC',
-                'hold': '0.0000000000000000',
-                'id': '291eb5d0-4c0a-4123-9535-11da69c9dd4b',
-                'profile_id': 'd5a66bdb-36af-4a31-abd3-ec6f18ebac74'
-            },
-            ...
-        }
+        get_accounts [summary]
 
         Returns:
             Dict[str, Dict[str, str]]: [description]
@@ -353,9 +332,9 @@ class Account(AccountBase["fakebase.exchange.Exchange"]):
 
         Args:
             product_id (ProductId): [description]
-            price (Decimal): [description]
+            price (ProductPrice): [description]
             side (OrderSide): [description]
-            size (Decimal): [description]
+            size (ProductVolume): [description]
             post_only (bool, optional): [description]. Defaults to False.
             time_in_force (str, optional): [description]. Defaults to "gtc".
             time_to_live (timedelta, optional): [description]. Defaults to timedelta.max.

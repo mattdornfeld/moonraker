@@ -18,7 +18,7 @@ import tensorflow as tf
 from dateutil.parser import parse
 from pytimeparse import parse as time_delta_str_to_int
 
-from fakebase.types import Currency, ProductId
+from coinbase_ml.fakebase.types import Currency, ProductId, ProductVolume, QuoteVolume
 
 GenericEnum = TypeVar("GenericEnum", bound=Enum)
 Numeric = TypeVar("Numeric", float, Decimal, Fraction)
@@ -41,23 +41,9 @@ def all_but_last(iterable: Iterable) -> Generator:
         current = i
 
 
-def convert_to_enum(enum: GenericEnum, name: str) -> GenericEnum:
-    """
-    convert_to_enum [summary]
-
-    Args:
-        enum (GenericEnum): [description]
-        name (str): [description]
-
-    Returns:
-        GenericEnum: [description]
-    """
-    # The __members__ property is created dynamically by the Enum metaclass
-    # Mypy won't know it's there. So ignore this type check.
-    return enum.__members__.get(name)  # type: ignore
-
-
-def convert_str_product_id(product_id: Optional[str]) -> Optional[ProductId]:
+def convert_str_product_id(
+    product_id: Optional[str],
+) -> Optional[ProductId[ProductVolume, QuoteVolume]]:
     """
     convert_str_product_id [summary]
 
@@ -65,12 +51,12 @@ def convert_str_product_id(product_id: Optional[str]) -> Optional[ProductId]:
         product_id (Optional[str]): [description]
 
     Returns:
-        Optional[ProductId]: [description]
+        Optional[ProductId[ProductVolume, QuoteVolume]]: [description]
     """
     if product_id is not None:
         product_currency = Currency[product_id.split("-")[0]]
         quote_currency = Currency[product_id.split("-")[1]]
-        return_val = ProductId(
+        return_val = ProductId[ProductVolume, QuoteVolume](
             product_currency=product_currency, quote_currency=quote_currency
         )
     else:

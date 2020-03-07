@@ -3,20 +3,17 @@
 """
 import logging
 from collections import defaultdict
-from decimal import Decimal
 from threading import Lock
 from typing import DefaultDict, Dict, Iterator, List, Tuple
 
-from fakebase.types import Currency, OrderSide, ProductId
-from fakebase.utils.currency_utils import get_currency_precision
-
+from coinbase_ml.fakebase.types import OrderSide, ProductId, ProductPrice, ProductVolume
 
 LOGGER = logging.getLogger(__name__)
 
-BinnedOrderBook = DefaultDict[Decimal, Decimal]
+BinnedOrderBook = DefaultDict[ProductPrice, ProductVolume]
 OrderBookChanges = List[Tuple[str, str, str]]
 OrderBookSnapshot = List[Tuple[str, str]]
-OrderBookLevel = Tuple[Decimal, Decimal]
+OrderBookLevel = Tuple[ProductPrice, ProductVolume]
 ProcessedOrderBook = List[OrderBookLevel]
 
 
@@ -47,26 +44,11 @@ class OrderBookBinner:
         """
         return (
             (
-                self.convert_to_decimal(level[0], self.product_id.quote_currency),
-                self.convert_to_decimal(level[1], self.product_id.product_currency),
+                self.product_id.price_type(level[0]),
+                self.product_id.product_volume_type(level[1]),
             )
             for level in snapshot
         )
-
-    @staticmethod
-    def convert_to_decimal(value: str, currency: Currency) -> Decimal:
-        """
-        convert_to_decimal [summary]
-
-        Args:
-            value (str): [description]
-            currency (Currency): [description]
-
-        Returns:
-            Decimal: [description]
-        """
-        precision = get_currency_precision(currency)
-        return Decimal(value).quantize(Decimal(precision))
 
     def insert_book_snapshot(
         self, order_book_snapshots: Dict[OrderSide, OrderBookSnapshot]
@@ -84,29 +66,27 @@ class OrderBookBinner:
             for order_side in [OrderSide.buy, OrderSide.sell]:
                 snapshot = order_book_snapshots[order_side]
                 self.order_books[order_side] = defaultdict(
-                    Decimal, self._create_snapshot_generator(snapshot)
+                    self.product_id.product_volume_type.get_zero_volume,
+                    self._create_snapshot_generator(snapshot),
                 )
         finally:
             self.book_lock.release()
 
     def insert_book_change(
-        self, order_side: OrderSide, price: Decimal, size: Decimal
+        self, order_side: OrderSide, price: ProductPrice, size: ProductVolume
     ) -> None:
         """
         insert_book_change [summary]
 
         Args:
             order_side (OrderSide): [description]
-            price (Decimal): [description]
-            size (Decimal): [description]
-
-        Returns:
-            None: [description]
+            price (ProductPrice): [description]
+            size (ProductVolume): [description]
         """
         # if size is 0, Coinbase says order is filled, remove from book
         # size can be '0' or '0.00000000'
         # https://docs.pro.coinbase.com/#the-level2-channel
-        if size == Decimal("0"):
+        if size == self.product_id.product_volume_type.get_zero_volume():
             LOGGER.debug("Removing orders at price: %s", price)
             del self.order_books[order_side][price]
 
@@ -129,15 +109,15 @@ class OrderBookBinner:
         self.book_lock.acquire()
         try:
             for change in changes:
-                _order_side, price, size = change
+                _order_side, _price, _size = change
                 order_side = OrderSide[_order_side]
 
                 if order_side not in [OrderSide.buy, OrderSide.sell]:
                     LOGGER.error("Error: change side not recognized %s", change)
                     continue
 
-                _price = self.convert_to_decimal(price, self.product_id.quote_currency)
-                _size = self.convert_to_decimal(size, self.product_id.product_currency)
-                self.insert_book_change(order_side, _price, _size)
+                price = self.product_id.price_type(_price)
+                size = self.product_id.product_volume_type(_size)
+                self.insert_book_change(order_side, price, size)
         finally:
             self.book_lock.release()

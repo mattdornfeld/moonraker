@@ -7,16 +7,14 @@ from typing import Any, Dict, List
 from cbpro import WebsocketClient
 from dateutil import parser
 
-from fakebase.orm import (
-    CoinbaseEvent,
+from coinbase_ml.common import constants as cc
+from coinbase_ml.common.utils import convert_str_product_id
+from coinbase_ml.fakebase.orm import (
     CoinbaseCancellation,
     CoinbaseMatch,
     CoinbaseOrder,
 )
-from fakebase.types import OrderId, OrderStatus, OrderSide, OrderType
-
-from coinbase_ml.common import constants as cc
-from coinbase_ml.common.utils import convert_str_product_id
+from coinbase_ml.fakebase.types import OrderId, OrderStatus, OrderSide, OrderType
 from coinbase_ml.serve import constants as c
 from coinbase_ml.serve.order_book import OrderBookBinner
 
@@ -41,9 +39,9 @@ class CoinbaseStreamProcessor(WebsocketClient):
             url=c.COINBASE_WEBSOCKET_API_URL,
         )
         self.order_book_binner = order_book_binner
-        self.received_orders: List[CoinbaseEvent] = []
+        self.received_orders: List[CoinbaseOrder] = []
         self.matches: List[CoinbaseMatch] = []
-        self.received_cancellations: List[CoinbaseEvent] = []
+        self.received_cancellations: List[CoinbaseCancellation] = []
 
     def flush(self) -> None:
         """

@@ -8,10 +8,10 @@ from typing import List
 
 from sqlalchemy.orm import sessionmaker
 
-from fakebase import constants as c
-from fakebase.orm import CoinbaseOrder, CoinbaseCancellation
-from fakebase.utils.queue_utils import PriorityQueue, populate_datetime_queue
-from fakebase.types import ProductId
+from . import constants as c
+from .orm import CoinbaseOrder, CoinbaseCancellation
+from .utils.queue_utils import PriorityQueue, populate_datetime_queue
+from .types import ProductId
 
 
 @dataclass

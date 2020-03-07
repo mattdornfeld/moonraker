@@ -11,7 +11,7 @@ from sqlalchemy import Column, BigInteger, String, DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from fakebase.types import (
+from ..types import (
     Currency,
     InvalidTypeError,
     OrderSide,
@@ -24,7 +24,7 @@ from fakebase.types import (
     QuoteVolumeSubType,
     Volume,
 )
-from fakebase.utils.types import Numeric
+from ..utils.types import Numeric
 
 Base: Any = declarative_base()
 
@@ -57,10 +57,12 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
             time (datetime): [description]
             price (Optional[Price], optional): [description]. Defaults to None.
         """
+        self._typed_price: Optional[ProductPrice] = None
         self._product_id = str(product_id) if product_id else None
         self._price = price.amount if price else None
         self.side = side
         self.time = time
+        self._set_typed_price()
 
     def __repr__(self) -> str:
         """
@@ -70,6 +72,16 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
             str: [description]
         """
         return str(self.__dict__)
+
+    def _set_typed_price(self) -> None:
+        """
+        _set_typed_price [summary]
+        """
+        self._typed_price = (
+            None
+            if self._price is None
+            else self.get_product_id().price_type(self._price)
+        )
 
     def get_product_id(self) -> ProductId[ProductVolume, QuoteVolume]:
         """
@@ -99,11 +111,7 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
         Returns:
             ProductPrice: Description
         """
-        return (
-            None
-            if self._price is None
-            else self.get_product_id().price_type(self._price)
-        )
+        return self._typed_price
 
     @price.setter
     def price(self, value: Optional[Union[Numeric, ProductPrice]]) -> None:
@@ -127,6 +135,8 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
             self._price = price_optional_decimal
         else:
             raise InvalidTypeError(type(value), "value")
+
+        self._set_typed_price()
 
     @hybrid_property
     def product_id(self) -> ProductId:
@@ -237,7 +247,19 @@ class MatchOrderEvent(CoinbaseEvent):
             product_id=product_id, side=side, time=time, price=price, **kwargs
         )
 
+        self._typed_size: Optional[ProductVolume] = None
         self.size = size
+        self._set_typed_size()
+
+    def _set_typed_size(self) -> None:
+        """
+        _set_typed_size [summary]
+        """
+        self._typed_size = (
+            None
+            if self._size is None
+            else self.get_product_id().product_volume_type(self._size)
+        )
 
     @property
     def size(self) -> Optional[ProductVolume]:
@@ -246,11 +268,7 @@ class MatchOrderEvent(CoinbaseEvent):
         Returns:
             Optional[Volume]: Description
         """
-        return (
-            self.get_product_id().product_volume_type(self._size)
-            if self._size is not None
-            else self._size
-        )
+        return self._typed_size
 
     @size.setter
     def size(self, value: Optional[Union[Numeric, ProductVolume]]) -> None:
@@ -274,3 +292,5 @@ class MatchOrderEvent(CoinbaseEvent):
             self._size = size_optional_decimal
         else:
             raise InvalidTypeError(type(value), "value")
+
+        self._set_typed_size()

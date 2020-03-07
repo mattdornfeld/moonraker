@@ -3,20 +3,17 @@ Serving Exchange makes a connection to the Coinbase websocket feed,
 pulls in orders, cancellations, matches, and the binned order book.
 """
 from datetime import datetime, timedelta
-from decimal import Decimal
 from typing import TYPE_CHECKING, DefaultDict, List, Optional
 
 from dateutil.tz import UTC
 
-from fakebase.base_classes import ExchangeBase
-from fakebase.orm import (
+from coinbase_ml.fakebase.base_classes import ExchangeBase
+from coinbase_ml.fakebase.orm import (
     CoinbaseCancellation,
-    CoinbaseEvent,
     CoinbaseMatch,
     CoinbaseOrder,
 )
-from fakebase.types import OrderSide, ProductId
-
+from coinbase_ml.fakebase.types import OrderSide, ProductId, ProductPrice, ProductVolume
 from coinbase_ml.serve.order_book import OrderBookBinner
 from coinbase_ml.serve.stream_processors.coinbase_stream_processor import (
     CoinbaseStreamProcessor,
@@ -55,17 +52,16 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
         )
 
     def bin_order_book_by_price(
-        self, order_side: OrderSide, price_aggregation: Decimal = Decimal("0.01")
-    ) -> DefaultDict[Decimal, Decimal]:
+        self, order_side: OrderSide,
+    ) -> DefaultDict[ProductPrice, ProductVolume]:
         """
         bin_order_book_by_price [summary]
 
         Args:
             order_side (OrderSide): [description]
-            price_aggregation (Decimal, optional): [description]. Defaults to Decimal("0.01").
 
         Returns:
-            DefaultDict[Decimal, Decimal]: [description]
+            DefaultDict[ProductPrice, ProductVolume]: [description]
         """
         return self.order_book_binner.order_books[order_side]
 
@@ -99,22 +95,22 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
         return self.stream_processor.matches
 
     @property
-    def received_cancellations(self) -> List[CoinbaseEvent]:
+    def received_cancellations(self) -> List[CoinbaseCancellation]:
         """
         received_cancellations [summary]
 
         Returns:
-            List[CoinbaseEvent]: [description]
+            List[CoinbaseCancellation]: [description]
         """
         return self.stream_processor.received_cancellations
 
     @property
-    def received_orders(self) -> List[CoinbaseEvent]:
+    def received_orders(self) -> List[CoinbaseOrder]:
         """
         received_orders [summary]
 
         Returns:
-            List[CoinbaseEvent]: [description]
+            List[CoinbaseOrder]: [description]
         """
         return self.stream_processor.received_orders
 

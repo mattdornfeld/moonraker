@@ -1,7 +1,7 @@
 """
  [summary]
 """
-from fakebase_tests import constants as tc
+from ... import constants as tc
 
 
 class TestPrice:

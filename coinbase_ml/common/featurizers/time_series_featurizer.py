@@ -7,12 +7,11 @@ from typing import Any, Callable, Generic, List, TypeVar
 from funcy import compose, partial
 import numpy as np
 
-from fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
-from fakebase.types import OrderSide
-
-from coinbase_ml.common.featurizers.types import Exchange
 from coinbase_ml.common.utils import stdev
 from coinbase_ml.common.utils.preprocessing_utils import NormalizedOperation
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+from coinbase_ml.fakebase.types import OrderSide, PreciseNumber
+from .types import Exchange
 
 Event = TypeVar("Event", CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder)
 
@@ -87,7 +86,9 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
                     operator = partial(
                         self._calc_op_for_attribute,
                         attribute,
-                        compose(float, _operator),
+                        compose(
+                            _operator, self._extract_value_from_list_of_precise_nums
+                        ),
                         order_side,
                     )
 
@@ -100,6 +101,21 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
 
                     self.match_operators.append(NormalizedOperation(operator, name))
                     self.order_operators.append(NormalizedOperation(operator, name))
+
+    @staticmethod
+    def _extract_value_from_list_of_precise_nums(
+        list_precise_nums: List[PreciseNumber],
+    ) -> List[float]:
+        """
+        _extract_value_from_list_of_precise_nums [summary]
+
+        Args:
+            list_precise_nums (List[PreciseNumber]): [description]
+
+        Returns:
+            List[float]: [description]
+        """
+        return [float(num.amount) for num in list_precise_nums]
 
     @staticmethod
     def _filter_events(

@@ -8,6 +8,7 @@ from typing import Dict, Generic, Type, TypeVar, Union
 
 from .precise_number import PreciseNumber
 from .volume import VOLUMES, BTC, Currency, ETH, Volume, USD
+from .utils import InvalidTypeError
 
 ProductVolumeSubType = TypeVar("ProductVolumeSubType", bound="Volume")
 QuoteVolumeSubType = TypeVar("QuoteVolumeSubType", bound="Volume")
@@ -113,6 +114,48 @@ class Price(
     max_value: Decimal
     min_value: Decimal
     product_id: ProductId[ProductVolumeSubType, QuoteVolumeSubType]
+
+    def __add__(self, other: ProductPrice) -> ProductPrice:
+        """
+        __add__ [summary]
+
+        Args:
+            other (ProductPrice): [description]
+
+        Raises:
+            InvalidTypeError: [description]
+
+        Returns:
+            ProductPrice: [description]
+        """
+        if isinstance(other, Price):
+            return_val = PRICES[self.product_id](self.amount + other.amount)
+        else:
+            raise InvalidTypeError(type(other), "other")
+
+        return return_val
+
+    def __truediv__(self, other: Union[Decimal, float]) -> ProductPrice:
+        """
+        __div__ [summary]
+
+        Args:
+            other (Union[Decimal, float]): [description]
+
+        Raises:
+            InvalidTypeError: [description]
+
+        Returns:
+            ProductPrice: [description]
+        """
+        if isinstance(other, Decimal):
+            return_val = PRICES[self.product_id](self.amount / other)
+        elif isinstance(other, (float, int)):
+            return_val = PRICES[self.product_id](self.amount / Decimal(other))
+        else:
+            raise InvalidTypeError(type(other), "other")
+
+        return return_val
 
     def __mul__(self, other: ProductVolume) -> QuoteVolume:
         """

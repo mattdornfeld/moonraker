@@ -28,14 +28,9 @@ GITLAB_PREFIX = (
     else "git+ssh://gitlab.com/moonraker"
 )
 
-DEPENDENCY_LINKS = [
-    f"{GITLAB_PREFIX}/fakebase@1c58fdf1efa3a7525e43da9da19452ec72584f4c#egg=fakebase-0.3"
-]
-
 INSTALL_REQUIRES = [
     "GitPython>=2.1.10,<3.0.0",
     "dnspython>=1.16.0, <2.0.0",
-    f"fakebase @ {DEPENDENCY_LINKS[0]}",
     "funcy>=1.11.0,<2.0.0",
     "google-cloud-storage>=1.15.0,<2.0.0",
     "incense>=0.0.10",
@@ -85,7 +80,6 @@ except subprocess.CalledProcessError:
 setup(
     author="Matthew Dornfeld",
     author_email="matt@firstorderlabs.co",
-    dependency_links=DEPENDENCY_LINKS,
     extras_require=dict(
         dev=["black>=19.3b0,<20.0"] + TESTS_REQUIRE, gpu=["tensorflow-gpu==2.0.0"]
     ),

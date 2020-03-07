@@ -9,10 +9,10 @@ from typing import Any, Dict, List, Optional, Union
 from sqlalchemy import BigInteger, Column, Float, String
 from sqlalchemy.orm import reconstructor
 
-from fakebase import constants as c
-from fakebase.orm.match import CoinbaseMatch
-from fakebase.orm.mixins import Base, MatchOrderEvent
-from fakebase.types import (
+from .. import constants as c
+from ..orm.match import CoinbaseMatch
+from ..orm.mixins import Base, MatchOrderEvent
+from ..types import (
     DoneReason,
     InvalidTypeError,
     OrderId,
@@ -28,7 +28,7 @@ from fakebase.types import (
 )
 
 
-class CoinbaseOrder(Base, MatchOrderEvent):  # pylint: disable=R0903,R0902
+class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
 
     """Model for Coinbase orders
     """
@@ -75,7 +75,18 @@ class CoinbaseOrder(Base, MatchOrderEvent):  # pylint: disable=R0903,R0902
             time_to_live (Optional[timedelta], optional): [description]. Defaults to timedelta.max.
             size (Optional[ProductVolume], optional): [description]. Defaults to None.
         """
-        super().__init__(
+        MatchOrderEvent.__init__(
+            self,
+            product_id=product_id,
+            side=side,
+            price=price,
+            size=size,
+            time=time,
+            **kwargs,
+        )
+
+        Base.__init__(  # pylint: disable=non-parent-init-called
+            self,
             product_id=product_id,
             side=side,
             price=price,
@@ -132,6 +143,8 @@ class CoinbaseOrder(Base, MatchOrderEvent):  # pylint: disable=R0903,R0902
     def init_on_load(self) -> None:
         """Summary
         """
+        self._set_typed_price()
+        self._set_typed_size()
         self._remaining_size = self.size.amount if self.size else None
         self.done_at = None
         self.done_reason = None

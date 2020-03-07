@@ -3,13 +3,14 @@
 """
 import pytest
 
-from fakebase import constants as c
-from fakebase.account import Account
-from fakebase.exchange import Exchange
-from fakebase.orm import CoinbaseMatch
-from fakebase.utils import set_seed
-from fakebase.types import DoneReason, Liquidity, OrderSide, OrderStatus
-from fakebase_tests import constants as tc
+from coinbase_ml.fakebase import constants as c
+from coinbase_ml.fakebase.account import Account
+from coinbase_ml.fakebase.exchange import Exchange
+from coinbase_ml.fakebase.orm import CoinbaseMatch
+from coinbase_ml.fakebase.utils import set_seed
+from coinbase_ml.fakebase.types import DoneReason, Liquidity, OrderSide, OrderStatus
+
+from .. import constants as tc
 
 
 @pytest.fixture(name="account")

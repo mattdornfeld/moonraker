@@ -4,15 +4,13 @@ tests for AccountFeaturizer
 from typing import Tuple
 
 import numpy as np
-
-from fakebase_tests import constants as ftc
-from fakebase_tests.test_exchange_unit import create_exchange  # pylint: disable=W0611
-from fakebase.account import Account
-from fakebase.exchange import Exchange
-
 import pytest
 
 from coinbase_ml.common.featurizers import AccountFeaturizer
+from coinbase_ml.fakebase.account import Account
+from coinbase_ml.fakebase.exchange import Exchange
+from ... import constants as ftc
+from ...fixtures import create_exchange  # pylint: disable=unused-import
 
 
 @pytest.fixture(name="account_featurizer")
@@ -42,7 +40,14 @@ def expected_account_funds() -> np.ndarray:
         np.ndarray: [description]
     """
     return (
-        np.array([ftc.TEST_WALLET_QUOTE_FUNDS, 0.0, ftc.TEST_WALLET_PRODUCT_FUNDS, 0.0])
+        np.array(
+            [
+                ftc.TEST_WALLET_QUOTE_FUNDS.amount,
+                0.0,
+                ftc.TEST_WALLET_PRODUCT_FUNDS.amount,
+                0.0,
+            ]
+        )
         .astype(float)
         .reshape(1, 4)
     )

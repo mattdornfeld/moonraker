@@ -29,9 +29,9 @@ from tensorflow.keras.models import Model
 
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
+from coinbase_ml.common import layers as l
 from coinbase_ml.common.observations import ActionSpace, ObservationSpace
 from coinbase_ml.common.utils import prod
-from coinbase_ml.train import layers as l
 from coinbase_ml.train.utils.config_utils import HyperParameters
 
 

@@ -6,9 +6,9 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any, Optional, TypeVar
 
-from fakebase.base_classes import AccountBase
-from fakebase.orm import CoinbaseOrder
-from fakebase.types import OrderStatus
+from coinbase_ml.fakebase.base_classes import AccountBase
+from coinbase_ml.fakebase.orm import CoinbaseOrder
+from coinbase_ml.fakebase.types import OrderStatus
 
 import coinbase_ml.common.actionizers as actionizers
 from coinbase_ml.common import constants as c
@@ -86,11 +86,13 @@ class Action(ActionBase):
     Action [summary]
     """
 
+    ORDER_TIME_TO_LIVE = timedelta(seconds=30)
+
     def __init__(self, actionizer: actionizers.Actionizer) -> None:
         super().__init__(actionizer)
         self.price = actionizer.price
         self.size = actionizer.size
-        self.time_to_live = c.ORDER_TIME_TO_LIVE
+        self.time_to_live = Action.ORDER_TIME_TO_LIVE
         self.time_in_force = "GTC"
 
     def __eq__(self, other: Any) -> bool:
