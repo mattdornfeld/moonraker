@@ -22,20 +22,25 @@ variables:
   echo 'export VERSION_TAG environment variable' && set -o allexport && if [ -f "semantic_version.env" ]; then source semantic_version.env; else VERSION_TAG=0.1.0-${CI_COMMIT_SHA}; fi && set +o allexport
   export VERSION_TAG
 
-build:run_tests:
+build:tests:
   extends: .base_test
 
-  image: registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:0.1.0-8b66cccc0d0ff7e222a5718dd08300e99a3172e1
+  image: tmaier/docker-compose
 
   script:
-    - make install
-    - make test
+    - docker login registry.gitlab.com -p $GITLAB_PASSWORD -u $GITLAB_USERNAME
+    - docker-compose up --abort-on-container-exit
 
   stage: build
 
+  services:
+    - docker:dind
+
   variables:
-    GITLAB_PASSWORD: $CI_TOKEN
-    GITLAB_USERNAME: $CI_USERNAME
+   GITLAB_PASSWORD: $CI_TOKEN
+   GITLAB_USERNAME: $CI_USERNAME
+   DOCKER_DRIVER: overlay2
+   DOCKER_HOST: tcp://docker:2375/
 
 build:build_gpu_image:
   extends: .build_image

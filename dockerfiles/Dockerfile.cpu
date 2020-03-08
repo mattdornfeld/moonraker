@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.0.0-experimental
 FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:0.1.0-8b66cccc0d0ff7e222a5718dd08300e99a3172e1
 
 ENV PYTHONPATH=/app
@@ -7,6 +6,5 @@ ADD ./ /app
 
 WORKDIR /app
 
-RUN --mount=type=secret,id=gitlab_credentials.ini \
-	make install && \
+RUN make install && \
 	chmod -R o+rx /usr/local/lib/python3.7/dist-packages/ray*
