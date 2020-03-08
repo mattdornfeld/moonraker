@@ -1,0 +1,14 @@
+
+# This docker-compose file is intended for running tests in Gitlab-CI
+# If you want to run tests locally please see the Makefile
+version: '3'
+services:
+  coinbase_ml_tests:
+    command: make test
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.cpu
+    network_mode: host
+    volumes:
+      - /tmp/coinbase_ml/docker-entrypoint-initdb.d:/tmp/coinbase_ml/docker-entrypoint-initdb.d
+      - /var/run/docker.sock:/var/run/docker.sock:ro

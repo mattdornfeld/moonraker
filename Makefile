@@ -1,10 +1,10 @@
 phony: build-image-cpu install install-dev install-gpu test test-mypy test-pylint
 
 build-image-cpu:
-    DOCKER_BUILDKIT=1 docker build --secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.cpu -t registry.gitlab.com/moonraker/coinbase_train/cpu:${TAG} .
+docker build -f dockerfiles/Dockerfile.cpu -t registry.gitlab.com/moonraker/coinbase_train/cpu:${TAG} .
 
 build-image-gpu:
-    DOCKER_BUILDKIT=1 docker build --secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.gpu -t registry.gitlab.com/moonraker/coinbase_train/gpu:${TAG} .
+	docker build -f dockerfiles/Dockerfile.gpu -t registry.gitlab.com/moonraker/coinbase_train/gpu:${TAG} .
 
 install:
 	pip3 install -e .
@@ -16,7 +16,7 @@ install-gpu:
 	pip3 install -e .[gpu]
 
 test:
-	python3 setup.py test --addopts "-m 'not integration_tests' --mypy --pylint --pylint-rcfile=setup.cfg"
+	python3 setup.py test --addopts "--mypy --pylint --pylint-rcfile=setup.cfg"
 
 test-integration:
 	python3 setup.py test --addopts "-m 'integration_tests'"
