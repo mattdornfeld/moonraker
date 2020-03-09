@@ -11,7 +11,7 @@ from coinbase_ml.common import constants as c
 from coinbase_ml.common.action import Action, ActionBase, NoTransaction
 from coinbase_ml.common.actionizers import Actionizer
 from coinbase_ml.common.featurizers import AccountFeaturizer
-from coinbase_ml.common.featurizers import Featurizer
+from coinbase_ml.common.featurizers import Featurizer, Metrics
 from coinbase_ml.common.reward import LogReturnRewardStrategy
 from coinbase_ml.fakebase.account import Account
 from coinbase_ml.fakebase.exchange import Exchange
@@ -167,7 +167,8 @@ class TestFeaturizer:
         portfolio_value = usd_funds + mid_price * btc_funds
 
         assert pytest.approx(
-            float(portfolio_value.amount), featurizer.get_info_dict()["portfolio_value"]
+            float(portfolio_value.amount),
+            featurizer.get_info_dict()[Metrics.PORTFOLIO_VALUE],
         )
 
     @staticmethod
@@ -177,32 +178,32 @@ class TestFeaturizer:
             (
                 fixture_ref("buy_transaction"),
                 {
-                    "num_buy_orders_placed": 1.0,
-                    "num_sell_orders_placed": 0.0,
-                    "num_no_transactions": 0.0,
+                    Metrics.NUM_BUY_ORDERS_PLACED: 1.0,
+                    Metrics.NUM_SELL_ORDERS_PLACED: 0.0,
+                    Metrics.NUM_NO_TRANSACTIONS: 0.0,
                 },
             ),
             (
                 fixture_ref("sell_transaction"),
                 {
-                    "num_buy_orders_placed": 0.0,
-                    "num_sell_orders_placed": 1.0,
-                    "num_no_transactions": 0.0,
+                    Metrics.NUM_BUY_ORDERS_PLACED: 0.0,
+                    Metrics.NUM_SELL_ORDERS_PLACED: 1.0,
+                    Metrics.NUM_NO_TRANSACTIONS: 0.0,
                 },
             ),
             (
                 fixture_ref("no_transaction"),
                 {
-                    "num_buy_orders_placed": 0.0,
-                    "num_sell_orders_placed": 0.0,
-                    "num_no_transactions": 1.0,
+                    Metrics.NUM_BUY_ORDERS_PLACED: 0.0,
+                    Metrics.NUM_SELL_ORDERS_PLACED: 0.0,
+                    Metrics.NUM_NO_TRANSACTIONS: 1.0,
                 },
             ),
         ],
     )
     def test_get_info_dict_num_orders_placed(
         account: Account,
-        expected_num_transactions: Dict[str, float],
+        expected_num_transactions: Dict[Metrics, float],
         featurizer: Featurizer[Exchange],
         transaction: ActionBase,
     ) -> None:
@@ -235,7 +236,7 @@ class TestFeaturizer:
         """
         place_orders_and_update(account, featurizer, no_transaction)
 
-        old_portfolio_value = featurizer.get_info_dict()["portfolio_value"]
+        old_portfolio_value = featurizer.get_info_dict()[Metrics.PORTFOLIO_VALUE]
         account.funds[
             tc.QUOTE_CURRENCY
         ].balance = tc.PRODUCT_ID.quote_volume_type.get_zero_volume()
@@ -245,9 +246,9 @@ class TestFeaturizer:
         account.exchange.step()
         featurizer.update_state_buffer(no_transaction)
 
-        portfolio_value = featurizer.get_info_dict()["portfolio_value"]
+        portfolio_value = featurizer.get_info_dict()[Metrics.PORTFOLIO_VALUE]
         expected_roi = (portfolio_value - old_portfolio_value) / old_portfolio_value
-        actual_roi = featurizer.get_info_dict()["roi"]
+        actual_roi = featurizer.get_info_dict()[Metrics.ROI]
 
         np.testing.assert_almost_equal(expected_roi, actual_roi)
 

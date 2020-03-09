@@ -12,6 +12,7 @@ import ray.cloudpickle as cloudpickle
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 from coinbase_ml.common import constants as cc
+from coinbase_ml.serve.metrics_recorder import Metrics
 from coinbase_ml.common import models
 from coinbase_ml.common.reward import REWARD_STRATEGIES
 from coinbase_ml.common.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
@@ -26,35 +27,12 @@ from coinbase_ml.train.utils.config_utils import EnvironmentConfigs, HyperParame
 LOGGER = logging.getLogger(__name__)
 
 
-def calc_return_value(
-    evaluation_metrics: Dict[str, float], return_value_key: str
-) -> float:
-    """
-    calc_return_value [summary]
-
-    Args:
-        evaluation_metrics (Dict[str, float]): [description]
-        return_value_key (str): [description]
-
-    Returns:
-        float: [description]
-    """
-    if return_value_key == "reward":
-        return_value = float(evaluation_metrics["episode_reward_mean"])
-    elif return_value_key == "roi":
-        return_value = float(evaluation_metrics["roi_mean"])
-    else:
-        raise ValueError
-
-    return return_value
-
-
 @SACRED_EXPERIMENT.automain
 def main(
     _run: Run,
     custom_model_names: List[str],
     hyper_params: Dict[str, Any],
-    return_value_key: str,
+    result_metric: Metrics,
     test_environment_configs: Dict[str, Any],
     train_environment_configs: Dict[str, Any],
     trainer_name: str,
@@ -66,7 +44,9 @@ def main(
     Args:
         _run (Run): [description]
         hyper_params (dict): [description]
-        return_value_key (str): [description]
+        result_metric (Metrics): Metric recorded as result in Sacred.
+            Note that what's actually recorded is the mean of that metric,
+            averaged over all episodes in an iteration.
         seed (int): [description]
         test_environment_configs (Dict[str, Any]): [description]
         train_environment_configs (Dict[str, Any]): [description]
@@ -74,6 +54,8 @@ def main(
     Returns:
         float: [description]
     """
+    result_metric_key = f"{result_metric.value}_mean"
+
     for configs in [test_environment_configs, train_environment_configs]:
         reward_strategy_name: str = configs.pop("reward_strategy_name")
         configs["reward_strategy"] = REWARD_STRATEGIES[reward_strategy_name]
@@ -101,7 +83,7 @@ def main(
     )
 
     checkpoint_dir = TemporaryDirectory()
-    best_iteration_reward = float("-inf")
+    best_iteration_result = float("-inf")
     best_results: Dict[str, Any] = {}
     for _ in range(hyper_params["num_iterations"]):
         results: Dict[str, Any] = trainer.train()
@@ -113,8 +95,13 @@ def main(
         if "best_checkpoint" not in locals():
             best_checkpoint = checkpoint
 
-        if results["evaluation"]["episode_reward_mean"] > best_iteration_reward:
-            best_iteration_reward = results["evaluation"]["episode_reward_mean"]
+        if (
+            results["evaluation"]["custom_metrics"][result_metric_key]
+            > best_iteration_result
+        ):
+            best_iteration_result = results["evaluation"]["custom_metrics"][
+                result_metric_key
+            ]
             best_checkpoint = checkpoint
             best_results = results
 
@@ -174,6 +161,4 @@ def main(
     _run.info["checkpoint_metadata_gcs_key"] = checkpoint_metadata_key
     _run.info["trainer_config_gcs_key"] = trainer_config_key
 
-    return calc_return_value(
-        best_results["evaluation"]["custom_metrics"], return_value_key
-    )
+    return float(best_results["evaluation"]["custom_metrics"][result_metric_key])

@@ -6,14 +6,18 @@ from datetime import datetime, timedelta
 
 from dateutil.tz import UTC
 
+from coinbase_ml.serve.metrics_recorder import Metrics
 from coinbase_ml.serve.experiment_configs.common import SACRED_EXPERIMENT
 
 # pylint: disable=unused-variable
 @SACRED_EXPERIMENT.named_config
 def staging():
     """
-    staging is the config that should be deployed from the master branch
+    This configuration will be used when a deploy is done from master
+    or a feature branch.
     """
+    result_metric = Metrics.ROI
+    result_metric_str = result_metric.value
     train_experiment_id = int(os.environ.get("TRAIN_EXPERIMENT_ID", "-1"))
 
     # exchange configs

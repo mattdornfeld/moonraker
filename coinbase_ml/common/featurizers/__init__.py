@@ -15,7 +15,7 @@ from coinbase_ml.common.types import StateAtTime
 from coinbase_ml.common.utils.preprocessing_utils import pad_to_length
 from coinbase_ml.fakebase.types import OrderSide
 from .account_featurizer import AccountFeaturizer
-from .info_dict_featurizer import InfoDictFeaturizer
+from .info_dict_featurizer import InfoDictFeaturizer, MetricsDict, Metrics
 from .order_book_featurizer import OrderBookFeaturizer
 from .time_series_featurizer import TimeSeriesFeaturizer
 from .types import Account, Exchange
@@ -108,7 +108,7 @@ class Featurizer(Generic[Exchange]):
 
         return self._reward_strategy.calculate_reward(self.state_buffer)
 
-    def get_info_dict(self) -> Dict[str, float]:
+    def get_info_dict(self) -> MetricsDict:
         """
         get_info_dict [summary]
 
@@ -116,7 +116,7 @@ class Featurizer(Generic[Exchange]):
             StateBufferIsEmpty: [description]
 
         Returns:
-            Dict[str, float]: [description]
+            MetricsDict: [description]
         """
         if not self.state_buffer:
             raise StateBufferIsEmpty

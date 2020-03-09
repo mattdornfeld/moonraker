@@ -15,8 +15,8 @@ import coinbase_ml.common.constants as cc
 from coinbase_ml.common.action import ActionBase
 from coinbase_ml.common.actionizers import Actionizer
 from coinbase_ml.common.featurizers import Featurizer
-from coinbase_ml.common.metrics import (
-    MetricNames,
+from coinbase_ml.serve.metrics_recorder import (
+    Metrics,
     MetricsRecorder,
     convert_to_sacred_log_format,
 )
@@ -45,6 +45,7 @@ class Controller:
         end_dt: datetime,
         num_time_steps: int,
         num_warmup_time_steps: int,
+        result_metric: Metrics,
         reward_strategy: Type[BaseRewardStrategy],
         start_dt: datetime,
         time_delta: timedelta,
@@ -56,6 +57,7 @@ class Controller:
             end_dt (datetime): [description]
             num_time_steps (int): [description]
             num_warmup_time_steps (int): [description]
+            result_metric (Metrics): [description]
             reward_strategy (Type[BaseRewardStrategy]): [description]
             start_dt (datetime): [description]
             time_delta (timedelta): [description]
@@ -81,6 +83,7 @@ class Controller:
         )
         self.metrics_recorder: Optional[MetricsRecorder] = None
         self.time_delta = time_delta
+        self.result_metric = result_metric
 
     def _step(self, action: ActionBase) -> None:
         """
@@ -164,11 +167,16 @@ class Controller:
             LOGGER.info("Canceling all remaining orders.")
             action.cancel_expired_orders(c.UTC_MAX)
 
-        return float(self.metrics_recorder.get_metrics()[MetricNames.ROI])
+        return float(
+            self.metrics_recorder.get_metrics()[  # pylint: disable=unsubscriptable-object
+                self.result_metric
+            ]
+        )
 
 
 @SACRED_EXPERIMENT.automain
 def main(
+    result_metric: Metrics,
     serving_run_end_dt: datetime,
     serving_run_start_dt: datetime,
     time_delta: Optional[timedelta],
@@ -178,6 +186,7 @@ def main(
     main is the entry point for the serve module
 
     Args:
+        result_metric (Metrics): Metric that will be recorded as result in Sacred
         serving_run_end_dt (datetime): [description]
         serving_run_start_dt (datetime): [description]
         time_delta (Optional[timedelta]): [description]
@@ -192,6 +201,7 @@ def main(
         end_dt=serving_run_end_dt,
         num_time_steps=train_experiment.config["num_time_steps"],
         num_warmup_time_steps=train_experiment.config["num_warmup_time_steps"],
+        result_metric=result_metric,
         reward_strategy=REWARD_STRATEGIES[
             train_experiment.config["reward_strategy_name"]
         ],

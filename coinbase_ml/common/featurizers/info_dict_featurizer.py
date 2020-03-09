@@ -1,6 +1,7 @@
 """
 InfoDictFeaturizer
 """
+from enum import Enum
 from typing import Deque, Dict, Optional
 
 import coinbase_ml.common.reward.base_reward_strategy as reward
@@ -9,6 +10,36 @@ from ..types import StateAtTime
 from ...fakebase.types import OrderSide
 
 StateBuffer = Deque[StateAtTime]
+
+
+class Metrics(Enum):
+    """
+    Metrics is an enum of quantities that are returned by the InfoDictFeaturizer.
+    Note that REWARD is not returned by the InfoDictFeaturizer but is included here
+    because
+    """
+
+    NUM_BUY_ORDERS_PLACED = "num_buy_orders_placed"
+    NUM_NO_TRANSACTIONS = "num_no_transactions"
+    NUM_SELL_ORDERS_PLACED = "num_sell_orders_placed"
+    PORTFOLIO_VALUE = "portolio_value"
+    REWARD = "reward"
+    ROI = "roi"
+
+
+class MetricsDict(Dict[Metrics, float]):
+    """
+    MetricsDict [summary]
+    """
+
+    def keys_to_str(self) -> Dict[str, float]:
+        """
+        MetricsDict [summary]
+
+        Returns:
+            Dict[str, float]: [description]
+        """
+        return {k.value: v for k, v in self.items()}  # pylint: disable=no-member
 
 
 class InfoDictFeaturizer:
@@ -85,7 +116,7 @@ class InfoDictFeaturizer:
 
         return portfolio_value
 
-    def get_info_dict(self, state_buffer: StateBuffer) -> Dict[str, float]:
+    def get_info_dict(self, state_buffer: StateBuffer) -> MetricsDict:
         """
         get_info_dict [summary]
 
@@ -93,15 +124,23 @@ class InfoDictFeaturizer:
             state_buffer (StateBuffer): [description]
 
         Returns:
-            Dict[str, float]: [description]
+            MetricsDict: [description]
         """
         portfolio_value = self._calc_portfolio_value(state_buffer)
 
-        return {
-            "num_buy_orders_placed": self._calc_num_buy_orders_placed(state_buffer),
-            "num_sell_orders_placed": self._calc_num_sell_orders_placed(state_buffer),
-            "num_no_transactions": self._calc_num_no_transactions(state_buffer),
-            "portfolio_value": portfolio_value,
-            "roi": (portfolio_value - self._initial_portfolio_value)
-            / self._initial_portfolio_value,
-        }
+        return MetricsDict(
+            {
+                Metrics.NUM_BUY_ORDERS_PLACED: self._calc_num_buy_orders_placed(
+                    state_buffer
+                ),
+                Metrics.NUM_NO_TRANSACTIONS: self._calc_num_no_transactions(
+                    state_buffer
+                ),
+                Metrics.NUM_SELL_ORDERS_PLACED: self._calc_num_sell_orders_placed(
+                    state_buffer
+                ),
+                Metrics.PORTFOLIO_VALUE: portfolio_value,
+                Metrics.ROI: (portfolio_value - self._initial_portfolio_value)
+                / self._initial_portfolio_value,
+            }
+        )
