@@ -199,7 +199,9 @@ class Environment(Env):  # pylint: disable=W0223
 
         return observation
 
-    def step(self, action: np.ndarray) -> Tuple[Observation, float, bool, Dict]:
+    def step(
+        self, action: np.ndarray
+    ) -> Tuple[Observation, float, bool, Dict[str, float]]:
         """Summary
 
         Args:
@@ -230,4 +232,4 @@ class Environment(Env):  # pylint: disable=W0223
 
         info_dict = self.featurizer.get_info_dict()
 
-        return observation, reward, self.episode_finished, info_dict
+        return observation, reward, self.episode_finished, info_dict.keys_to_str()

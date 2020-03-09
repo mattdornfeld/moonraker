@@ -5,6 +5,7 @@ from datetime import timedelta
 
 from dateutil import parser
 
+from coinbase_ml.common.featurizers import Metrics
 from coinbase_ml.train.utils.time_utils import (
     TimeInterval,
     generate_randomly_shifted_lookback_intervals,
@@ -14,7 +15,8 @@ from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
 # pylint: disable=unused-variable
 @SACRED_EXPERIMENT.named_config
 def staging():
-    """This configuration will be deployed on merge to master
+    """This configuration will be used when a deploy is done from master
+    or a feature branch.
     """
     custom_model_names = ["ActorValueModel"]
     trainer_name = "ppo"
@@ -23,7 +25,8 @@ def staging():
     num_time_steps = 100
     num_warmup_time_steps = 100
     optimizer_name = "Adam"
-    return_value_key = "roi"
+    result_metric = Metrics.ROI
+    result_metric_str = result_metric.value
     reward_strategy_name = "ProfitRewardStrategy"
     test_end_dt = "2019-10-20 19:00:00.00"
     test_start_dt = "2019-10-20 17:00:00.00"
