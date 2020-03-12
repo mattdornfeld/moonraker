@@ -6,7 +6,7 @@ from datetime import timedelta
 from dateutil import parser
 
 from coinbase_ml.common.featurizers import Metrics
-from coinbase_ml.train.utils.time_utils import (
+from coinbase_ml.common.utils.time_utils import (
     TimeInterval,
     generate_randomly_shifted_lookback_intervals,
 )

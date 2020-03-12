@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, DefaultDict, Generic, List, Optional, TypeVar
 
+from coinbase_ml.common.utils.time_utils import TimeInterval
 from ..orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from ..utils.exceptions import ExchangeFinishedException
 from ..types import OrderSide, ProductId, ProductPrice, ProductVolume
@@ -37,6 +38,9 @@ class ExchangeBase(Generic[Account]):
 
         self.interval_start_dt = start_dt - time_delta
         self._interval_end_dt = start_dt
+        self.step_interval = TimeInterval(
+            end_dt=self.interval_end_dt, start_dt=self.interval_start_dt
+        )
 
     @property
     def account(self) -> Optional[Account]:
@@ -164,3 +168,5 @@ class ExchangeBase(Generic[Account]):
         """
         if self.finished:
             raise ExchangeFinishedException
+
+        self.step_interval += self.time_delta

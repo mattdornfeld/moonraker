@@ -1,12 +1,8 @@
 """
  [summary]
 """
-from typing import Deque
-
 from coinbase_ml.common import constants as c
-from coinbase_ml.common.types import StateAtTime
-
-StateBuffer = Deque[StateAtTime]
+from coinbase_ml.common.types import StateBuffer
 
 
 class BaseRewardStrategy:

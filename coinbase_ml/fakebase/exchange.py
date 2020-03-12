@@ -11,20 +11,9 @@ from . import constants as c
 from .base_classes.exchange import ExchangeBase
 from .database_workers import DatabaseWorkers
 from .order_book import OrderBook
-from .orm import (
-    CoinbaseEvent,
-    CoinbaseCancellation,
-    CoinbaseMatch,
-    CoinbaseOrder,
-)
+from .orm import CoinbaseEvent, CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from .matching_engine import MatchingEngine
-from .types import (
-    OrderSide,
-    OrderStatus,
-    ProductId,
-    ProductPrice,
-    ProductVolume,
-)
+from .types import OrderSide, OrderStatus, ProductId, ProductPrice, ProductVolume
 
 
 class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
@@ -84,7 +73,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
                 and self.order_book == _other.order_book
             )
         else:
-            raise NotImplementedError
+            raise TypeError
 
         return return_val
 

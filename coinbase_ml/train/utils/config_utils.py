@@ -8,8 +8,8 @@ from datetime import timedelta
 from typing import List, Type
 
 from coinbase_ml.common.reward import BaseRewardStrategy
+from coinbase_ml.common.utils.time_utils import TimeInterval
 from coinbase_ml.fakebase.types import ProductVolume, QuoteVolume
-from coinbase_ml.train.utils.time_utils import TimeInterval
 
 
 @dataclass

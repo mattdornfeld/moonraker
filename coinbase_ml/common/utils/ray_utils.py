@@ -10,7 +10,9 @@ from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 def on_episode_end(info: Dict[str, Any]) -> None:
     """
-    on_episode_end [summary]
+    on_episode_end is run at the end of each episode.
+    It accepts as an argument a dict that contains info
+    about the episode run.
 
     Args:
         info (Dict[str, Any]): [description]

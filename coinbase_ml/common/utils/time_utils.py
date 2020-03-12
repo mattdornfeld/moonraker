@@ -3,9 +3,10 @@ time_utils is a submodule for generating lookback time intervals
 for the purpose of creating Fakebase simulation environments on
 different days
 """
+from __future__ import annotations
 from datetime import datetime, timedelta
 from random import random
-from typing import List
+from typing import Any, List
 
 
 class TimeInterval:
@@ -25,7 +26,7 @@ class TimeInterval:
         self.end_dt = end_dt
         self.start_dt = start_dt
 
-    def __add__(self, time_delta: timedelta) -> "TimeInterval":
+    def __add__(self, time_delta: timedelta) -> TimeInterval:
         """
         __add__ [summary]
 
@@ -38,6 +39,37 @@ class TimeInterval:
         return self.__class__(
             end_dt=self.end_dt + time_delta, start_dt=self.start_dt + time_delta
         )
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        __eq__ [summary]
+
+        Args:
+            other (Any): [description]
+
+        Raises:
+            TypeError: [description]
+
+        Returns:
+            bool: [description]
+        """
+        if isinstance(other, TimeInterval):
+            return_val = (self.end_dt == other.end_dt) and (
+                self.start_dt == other.start_dt
+            )
+        else:
+            raise TypeError
+
+        return return_val
+
+    def __hash__(self) -> int:
+        """
+        __hash__ [summary]
+
+        Returns:
+            int: [description]
+        """
+        return (self.end_dt, self.start_dt).__hash__()
 
     def __len__(self) -> timedelta:
         """
@@ -57,7 +89,7 @@ class TimeInterval:
         """
         return f"<{self.start_dt} - {self.end_dt}>"
 
-    def __sub__(self, time_delta: timedelta) -> "TimeInterval":
+    def __sub__(self, time_delta: timedelta) -> TimeInterval:
         """
         __sub__ [summary]
 

@@ -4,9 +4,10 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime, timedelta
 from random import getrandbits, uniform
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, DefaultDict, Dict, List, Optional, Union, cast
 from uuid import UUID
 
+from coinbase_ml.common.utils.time_utils import TimeInterval
 from .base_classes.account import AccountBase, Funds
 from .orm import CoinbaseMatch, CoinbaseOrder
 from .utils import generate_order_id
@@ -54,6 +55,9 @@ class Account(AccountBase["exchange.Exchange"]):
         super().__init__(exchange)
         self.profile_id = str(UUID(int=getrandbits(128)))
         self._funds: Dict[Currency, Funds] = {}
+        self.matches: DefaultDict[TimeInterval, List[CoinbaseMatch]] = DefaultDict(
+            lambda: []
+        )
         self._orders: Dict[OrderId, CoinbaseOrder] = {}
 
         for currency in self.currencies:
@@ -180,9 +184,9 @@ class Account(AccountBase["exchange.Exchange"]):
         if order_id not in self._orders:
             raise OrderNotFoundException
 
-        order_side = match.account_order_side
+        self.matches[self.exchange.step_interval].append(match)
 
-        if order_side == OrderSide.buy:
+        if match.account_order_side == OrderSide.buy:
             self._funds[match.quote_currency].balance -= (
                 match.price * match.size + match.fee
             )

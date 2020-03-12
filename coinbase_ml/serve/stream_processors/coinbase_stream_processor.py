@@ -9,11 +9,7 @@ from dateutil import parser
 
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.utils import convert_str_product_id
-from coinbase_ml.fakebase.orm import (
-    CoinbaseCancellation,
-    CoinbaseMatch,
-    CoinbaseOrder,
-)
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.types import OrderId, OrderStatus, OrderSide, OrderType
 from coinbase_ml.serve import constants as c
 from coinbase_ml.serve.order_book import OrderBookBinner
