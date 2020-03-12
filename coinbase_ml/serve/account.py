@@ -10,10 +10,7 @@ from dateutil.parser import parse
 from dateutil.tz import UTC
 
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common.utils import (
-    convert_str_product_id,
-    parse_if_not_none,
-)
+from coinbase_ml.common.utils import convert_str_product_id, parse_if_not_none
 from coinbase_ml.fakebase.base_classes.account import AccountBase, Funds
 from coinbase_ml.fakebase.orm import CoinbaseOrder
 from coinbase_ml.fakebase.types import (

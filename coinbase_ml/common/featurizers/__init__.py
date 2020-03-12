@@ -40,6 +40,7 @@ class Featurizer(Generic[Exchange]):
             reward_strategy (Type[BaseRewardStrategy]): [description]
             state_buffer_size (int): [description]
         """
+        self.exchange = exchange
         self.state_buffer: Deque[StateAtTime] = Deque(maxlen=state_buffer_size)
         self._account_featurizer = AccountFeaturizer[Account](exchange.account)
         self._order_book_featurizer = OrderBookFeaturizer[Exchange](exchange)
@@ -152,10 +153,9 @@ class Featurizer(Generic[Exchange]):
             exchange (Exchange): [description]
             state_buffer (Deque[StateAtTime]): [description]
         """
-        # Don't reset self._info_dict_featurizer since it doesn't point to an
-        # Exchange or Account object
-
+        self.exchange = exchange
         self._account_featurizer = AccountFeaturizer[Account](exchange.account)
+        self._info_dict_featurizer = InfoDictFeaturizer(self._reward_strategy)
         self._order_book_featurizer = OrderBookFeaturizer[Exchange](exchange)
         self._time_series_featurizer = TimeSeriesFeaturizer[Exchange](exchange)
         self.state_buffer = deepcopy(state_buffer)
@@ -178,12 +178,17 @@ class Featurizer(Generic[Exchange]):
         )
         time_series = self._time_series_featurizer.get_time_series_features()
 
+        step_interval = self.exchange.step_interval
+        account_matches = self.exchange.account.matches[step_interval]
+
         state = StateAtTime(
             account_funds=account_funds,
+            account_matches=account_matches,
             action=action,
             buy_order_book=buy_order_book,
             normalized_account_funds=normalized_account_funds,
             sell_order_book=sell_order_book,
+            time_interval=self.exchange.step_interval,
             time_series=time_series,
         )
 

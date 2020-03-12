@@ -2,6 +2,7 @@
 """
 import io
 import logging
+from pprint import pformat
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List
 
@@ -85,10 +86,18 @@ def main(
     checkpoint_dir = TemporaryDirectory()
     best_iteration_result = float("-inf")
     best_results: Dict[str, Any] = {}
-    for _ in range(hyper_params["num_iterations"]):
+    for iteration in range(hyper_params["num_iterations"]):
         results: Dict[str, Any] = trainer.train()
 
-        LOGGER.info(results)
+        LOGGER.info("iteration: %s", iteration)
+        LOGGER.info("train_metrics: %s", pformat(results["custom_metrics"]))
+        LOGGER.info("train_performance: %s", pformat(results["sampler_perf"]))
+        LOGGER.info(
+            "eval_metrics: %s", pformat(results["evaluation"]["custom_metrics"])
+        )
+        LOGGER.info(
+            "eval_performance: %s", pformat(results["evaluation"]["sampler_perf"])
+        )
 
         checkpoint: str = trainer.save(checkpoint_dir.name)
 
@@ -117,7 +126,9 @@ def main(
             SACRED_EXPERIMENT, results["evaluation"]["custom_metrics"], prefix="test"
         )
 
-    LOGGER.info(best_results)
+    LOGGER.info(
+        "best_eval_metrics: %s", pformat(best_results["evaluation"]["custom_metrics"])
+    )
 
     # upload best checkpoint
     checkpoint_key = f"{get_gcs_base_path(_run)}/rllib_checkpoint"

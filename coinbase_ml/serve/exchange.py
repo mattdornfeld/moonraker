@@ -8,11 +8,7 @@ from typing import TYPE_CHECKING, DefaultDict, List, Optional
 from dateutil.tz import UTC
 
 from coinbase_ml.fakebase.base_classes import ExchangeBase
-from coinbase_ml.fakebase.orm import (
-    CoinbaseCancellation,
-    CoinbaseMatch,
-    CoinbaseOrder,
-)
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.types import OrderSide, ProductId, ProductPrice, ProductVolume
 from coinbase_ml.serve.order_book import OrderBookBinner
 from coinbase_ml.serve.stream_processors.coinbase_stream_processor import (
@@ -52,7 +48,7 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
         )
 
     def bin_order_book_by_price(
-        self, order_side: OrderSide,
+        self, order_side: OrderSide
     ) -> DefaultDict[ProductPrice, ProductVolume]:
         """
         bin_order_book_by_price [summary]
