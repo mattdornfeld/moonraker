@@ -5,7 +5,7 @@ Attributes:
 """
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Generic, Optional, Union
+from typing import Any, Generic, Optional, Type, Union
 
 from sqlalchemy import Column, BigInteger, String, DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base
@@ -58,11 +58,19 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
             price (Optional[Price], optional): [description]. Defaults to None.
         """
         self._typed_price: Optional[ProductPrice] = None
+        self._typed_product_currency: Optional[Currency] = None
+        self._typed_product_id: Optional[ProductId[ProductVolume, QuoteVolume]] = None
+        self._typed_quote_currency: Optional[Currency] = None
+        self._product_volume_type: Optional[Type[ProductVolume]] = None
         self._product_id = str(product_id) if product_id else None
         self._price = price.amount if price else None
-        self.side = side
+        # self._quote_volume_type: Optional[Type[QuoteVolume]] = None
+        self._side = side.value if side else None
         self.time = time
+
+        self._set_typed_product_info()
         self._set_typed_price()
+        self._set_typed_side()
 
     def __repr__(self) -> str:
         """
@@ -72,6 +80,26 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
             str: [description]
         """
         return str(self.__dict__)
+
+    def _set_typed_product_info(self) -> None:
+        """
+        _set_typed_product_info [summary]
+        """
+        if self._product_id:
+            product_currency, quote_currency = self._product_id.split("-")
+            self._typed_product_currency = Currency.from_string(product_currency)
+            self._typed_quote_currency = Currency.from_string(quote_currency)
+            self._typed_product_id = ProductId[ProductVolume, QuoteVolume](
+                self._typed_product_currency, self._typed_quote_currency
+            )
+            self._product_volume_type = self._typed_product_id.product_volume_type
+            # self._quote_volume_type = self._typed_product_id.quote_volume_type
+        else:
+            self._typed_product_currency = None
+            self._typed_quote_currency = None
+            self._typed_product_id = None
+            self._product_volume_type = None
+            # self._quote_volume_type = None
 
     def _set_typed_price(self) -> None:
         """
@@ -83,6 +111,12 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
             else self.get_product_id().price_type(self._price)
         )
 
+    def _set_typed_side(self) -> None:
+        """
+        _set_typed_side [summary]
+        """
+        self._typed_side = OrderSide.from_string(self._side)
+
     def get_product_id(self) -> ProductId[ProductVolume, QuoteVolume]:
         """
         get_product_id returns the ProductId. This method exists because mypy doesn't like
@@ -91,9 +125,7 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
         Returns:
             ProductId[ProductVolume, QuoteVolume]: [description]
         """
-        return ProductId[ProductVolume, QuoteVolume](
-            self.product_currency, self.quote_currency
-        )
+        return self._typed_product_id
 
     @property
     def product_currency(self) -> Currency:
@@ -102,7 +134,7 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
         Returns:
             Currency: Description
         """
-        return Currency.__members__[self._product_id.split("-")[0]]
+        return self._typed_product_currency
 
     @property
     def price(self) -> Optional[ProductPrice]:
@@ -175,7 +207,7 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
         Returns:
             Currency: Description
         """
-        return Currency.__members__[self._product_id.split("-")[1]]
+        return self._typed_quote_currency
 
     @property
     def side(self) -> OrderSide:
@@ -185,7 +217,7 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
         Returns:
             OrderSide: [description]
         """
-        return OrderSide.__members__[self._side]
+        return self._typed_side
 
     @side.setter
     def side(self, value: Union[str, OrderSide]) -> None:
@@ -200,18 +232,19 @@ class CoinbaseEvent(Generic[ProductVolumeSubType, QuoteVolumeSubType]):
             InvalidTypeError: [description]
         """
         if isinstance(value, str):
-            str_value: str = value
-            if str_value in ["buy", "sell"]:
-                self._side = str_value
+            if value in [OrderSide.buy.value, OrderSide.sell.value]:
+                self._side = value
+                self._typed_side = OrderSide.from_string(self._side)
             else:
                 raise ValueError
 
         elif isinstance(value, OrderSide):
-            order_side_value: OrderSide = value
-            self._side = order_side_value.value
+            self._side = value.value
+            self._typed_side = value
 
         elif value is None:
             self._side = None
+            self._typed_side = None
 
         else:
             raise InvalidTypeError(type(value), "value")

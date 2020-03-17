@@ -55,9 +55,7 @@ class Account(AccountBase["exchange.Exchange"]):
         super().__init__(exchange)
         self.profile_id = str(UUID(int=getrandbits(128)))
         self._funds: Dict[Currency, Funds] = {}
-        self.matches: DefaultDict[TimeInterval, List[CoinbaseMatch]] = DefaultDict(
-            lambda: []
-        )
+        self.matches: DefaultDict[TimeInterval, List[CoinbaseMatch]] = DefaultDict(list)
         self._orders: Dict[OrderId, CoinbaseOrder] = {}
 
         for currency in self.currencies:
@@ -230,7 +228,7 @@ class Account(AccountBase["exchange.Exchange"]):
         ]:
             order = self._orders.pop(order_id)
             self._remove_holds(order)
-            if order.order_id in self.exchange.order_book[order.side].orders_dict:
+            if self.exchange.order_book[order.side].contains_order_id(order.order_id):
                 self.exchange.cancel_order(order)
         else:
             raise ValueError("Can only cancel 'open' or 'received' order.")

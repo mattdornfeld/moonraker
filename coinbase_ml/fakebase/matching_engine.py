@@ -8,9 +8,9 @@ from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 import coinbase_ml.fakebase.account as account_module
-from .order_book import OrderBook, OrderBookEmpty
-from .orm import CoinbaseOrder, CoinbaseMatch, CoinbaseCancellation
-from .types import (
+from coinbase_ml.fakebase.order_book import OrderBook, OrderBookEmpty
+from coinbase_ml.fakebase.orm import CoinbaseOrder, CoinbaseMatch, CoinbaseCancellation
+from coinbase_ml.fakebase.types import (
     DoneReason,
     Liquidity,
     OrderSide,
@@ -21,7 +21,7 @@ from .types import (
     ProductVolume,
     QuoteVolume,
 )
-from .utils.exceptions import OrderNotFoundException
+from coinbase_ml.fakebase.utils.exceptions import OrderNotFoundException
 
 
 class MatchingEngine:
@@ -52,7 +52,7 @@ class MatchingEngine:
 
         # For some reason occasionally orders will be added to
         # the order book twice. This ensure that doesn't happen.
-        if order.order_id in self.order_book[order.side].orders_dict:
+        if self.order_book[order.side].contains_order_id(order.order_id):
             return
 
         if order.order_id in self.account.orders:
@@ -61,14 +61,24 @@ class MatchingEngine:
             order.open_order()
 
         order_book_key = OrderBook.calculate_order_book_key(order)
+        price_interval, partition_key = order_book_key
 
-        # If two orders for the same price come in at the exact same time add a small
-        # random time interval to the newer order until they key is unique
-        while order_book_key in self.order_book[order.side]:
-            order.time += timedelta(microseconds=randint(-1000, 1000))
-            order_book_key = OrderBook.calculate_order_book_key(order)
+        if price_interval in self.order_book[order.side].partitions:
+            order_book_partition = self.order_book[order.side].partitions[
+                price_interval
+            ]
 
-        self.order_book[order.side].insert(key=order_book_key, value=order)
+            # If two orders for the same price come in at the exact same time add a small
+            # random time interval to the newer order until they key is unique
+            while partition_key in order_book_partition:
+                order.time += timedelta(microseconds=randint(-1000, 1000))
+                partition_key = order_book_partition.calculate_order_book_partition_key(
+                    order
+                )
+
+        self.order_book[order.side].insert(
+            key=(price_interval, partition_key), value=order
+        )
 
     def _create_match(
         self,
@@ -211,9 +221,9 @@ class MatchingEngine:
             CoinbaseOrder: [description]
         """
         _, maker_order = (
-            self.order_book[OrderSide.sell].min_item()
+            self.order_book[OrderSide.sell].min_partition().min_item()
             if taker_order_side == OrderSide.buy
-            else self.order_book[OrderSide.buy].max_item()
+            else self.order_book[OrderSide.buy].max_partition().max_item()
         )
 
         return maker_order
@@ -230,9 +240,12 @@ class MatchingEngine:
         Returns:
             ProductPrice: [description]
         """
-        return self.order_book[OrderSide.buy].max_key_or_default(
-            default_value=(product_id.zero_price, timedelta.min)
-        )[0]
+        try:
+            return_val = self.order_book[OrderSide.buy].max_partition().max_item()[0][0]
+        except OrderBookEmpty:
+            return_val = product_id.zero_price
+
+        return return_val
 
     def _get_min_sell_price(self, product_id: ProductId) -> ProductPrice:
         """
@@ -246,9 +259,14 @@ class MatchingEngine:
         Returns:
             ProductPrice: [description]
         """
-        return self.order_book[OrderSide.sell].min_key_or_default(
-            default_value=(product_id.max_price, timedelta.max)
-        )[0]
+        try:
+            return_val = (
+                self.order_book[OrderSide.sell].min_partition().min_item()[0][0]
+            )
+        except OrderBookEmpty:
+            return_val = product_id.max_price
+
+        return return_val
 
     def _match_market_order(  # pylint: disable=R0912
         self, market_order: CoinbaseOrder
@@ -415,7 +433,7 @@ class MatchingEngine:
             OrderNotFoundException: Description
         """
         if order.order_status == OrderStatus.open:
-            if order.order_id in self.order_book[order.side].orders_dict:
+            if self.order_book[order.side].contains_order_id(order.order_id):
                 order = self.order_book[order.side].pop_by_order_id(order.order_id)
             else:
                 raise OrderNotFoundException(order.order_id)
@@ -465,13 +483,10 @@ class MatchingEngine:
         Returns:
             None: [description]
         """
-        if (
-            cancellation_event.order_id
-            in self.order_book[cancellation_event.side].orders_dict
-        ):
-            order = self.order_book[cancellation_event.side].orders_dict[
-                cancellation_event.order_id
-            ]
+        order_id = cancellation_event.order_id
+        order_side = cancellation_event.side
+        if self.order_book[order_side].contains_order_id(order_id):
+            order = self.order_book[order_side].get_order_by_order_id(order_id)
             self.cancel_order(order)
         else:
             # Sometimes we'll get cancellations for orders not on the order book
@@ -489,18 +504,10 @@ class MatchingEngine:
             None: [description]
         """
         if order_event.order_type == OrderType.limit:
-            predicate = (
-                order_event.price
-                < self._get_min_sell_price(order_event.get_product_id())
-                if order_event.side == OrderSide.buy
-                else order_event.price
-                > self._get_max_buy_price(order_event.get_product_id())
-            )
-
-            if predicate:
-                self._add_order_to_order_book(order_event)
-            else:
+            if self.check_is_taker(order_event):
                 self._match_limit_order(order_event)
+            else:
+                self._add_order_to_order_book(order_event)
 
         elif order_event.order_type == OrderType.market:
             self._match_market_order(order_event)

@@ -9,8 +9,8 @@ from typing import Any, Optional, Union
 from sqlalchemy import Column, String, Float
 from sqlalchemy.orm import reconstructor
 
-from ..orm.mixins import Base, CoinbaseEvent
-from ..types import (
+from coinbase_ml.fakebase.orm.mixins import Base, CoinbaseEvent
+from coinbase_ml.fakebase.types import (
     InvalidTypeError,
     OrderId,
     OrderSide,
@@ -98,7 +98,9 @@ class CoinbaseCancellation(CoinbaseEvent, Base):  # pylint: disable=R0903
     def init_on_load(self) -> None:
         """Summary
         """
+        self._set_typed_product_info()
         self._set_typed_price()
+        self._set_typed_side()
 
     @property
     def order_id(self) -> OrderId:
@@ -121,7 +123,7 @@ class CoinbaseCancellation(CoinbaseEvent, Base):  # pylint: disable=R0903
         Returns:
             ProductVolume: Description
         """
-        return self.get_product_id().product_volume_type(self._remaining_size)
+        return self._product_volume_type(self._remaining_size)
 
     @remaining_size.setter
     def remaining_size(
@@ -137,13 +139,10 @@ class CoinbaseCancellation(CoinbaseEvent, Base):  # pylint: disable=R0903
             InvalidTypeError: [description]
         """
         if isinstance(value, Volume):
-            volume_value: ProductVolume = value
-            self._remaining_size = volume_value.amount
+            self._remaining_size = value.amount
         elif isinstance(value, float):
-            float_value: float = value
-            self._remaining_size = Decimal(float_value)
+            self._remaining_size = Decimal(value)
         elif isinstance(value, Decimal) or value is None:
-            optional_decimal_value: Optional[Decimal] = value
-            self._remaining_size = optional_decimal_value
+            self._remaining_size = value
         else:
             raise InvalidTypeError(type(value), "value")

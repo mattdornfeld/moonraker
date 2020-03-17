@@ -86,6 +86,7 @@ def main(
     checkpoint_dir = TemporaryDirectory()
     best_iteration_result = float("-inf")
     best_results: Dict[str, Any] = {}
+
     for iteration in range(hyper_params["num_iterations"]):
         results: Dict[str, Any] = trainer.train()
 

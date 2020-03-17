@@ -133,6 +133,7 @@ class TestFeaturizer:
         expected_order_book[2, 0] = (
             float(tc.TEST_ORDER_PRICE.amount) / c.PRICE_NORMALIZER
         )
+
         expected_order_book[2, 1] = (
             float(tc.TEST_ORDER_SIZE.amount) / c.SIZE_NORMALIZER / 0.5
         )

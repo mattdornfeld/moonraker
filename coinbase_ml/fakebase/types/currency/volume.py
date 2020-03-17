@@ -5,10 +5,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, Type, TypeVar, Union
+from typing import Dict, Optional, Type, TypeVar, Union
 
-from .precise_number import PreciseNumber
-from .utils import InvalidTypeError
+from coinbase_ml.fakebase.types.currency.precise_number import PreciseNumber
+from coinbase_ml.fakebase.types.currency.utils import (
+    InvalidTypeError,
+    get_precision_as_decimal,
+)
 
 VolumeSubType = TypeVar("VolumeSubType", bound="Volume")
 
@@ -21,6 +24,28 @@ class Currency(Enum):
     BTC = "BTC"
     ETH = "ETH"
     USD = "USD"
+
+    @staticmethod
+    def from_string(currency: str) -> Optional[Currency]:
+        """
+        from_string [summary]
+
+        Args:
+            currency (str): [description]
+
+        Returns:
+            Optional[Currency]: [description]
+        """
+        if currency == Currency.BTC.value:
+            return_val = Currency.BTC
+        elif currency == Currency.ETH.value:
+            return_val = Currency.ETH
+        elif currency == Currency.USD.value:
+            return_val = Currency.USD
+        else:
+            return_val = None
+
+        return return_val
 
     @property
     def volume_type(self) -> Type[Volume[VolumeSubType]]:
@@ -229,7 +254,7 @@ class USD(Volume["USD"]):
     currency = Currency.USD
     max_value = Decimal("1e10")
     min_value = Decimal("1e-2")
-    precision = 2
+    precision = get_precision_as_decimal(2)
 
 
 class BTC(Volume["BTC"]):
@@ -240,7 +265,7 @@ class BTC(Volume["BTC"]):
     currency = Currency.BTC
     max_value = Decimal("1e4")
     min_value = Decimal("1e-3")
-    precision = 8
+    precision = get_precision_as_decimal(8)
 
 
 class ETH(Volume["ETH"]):
@@ -252,7 +277,7 @@ class ETH(Volume["ETH"]):
     currency = Currency.ETH
     max_value = Decimal("1e4")
     min_value = Decimal("1e-3")
-    precision = 8
+    precision = get_precision_as_decimal(8)
 
 
 VOLUMES: Dict[Currency, Type[Volume]] = {

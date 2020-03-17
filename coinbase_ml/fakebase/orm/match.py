@@ -113,8 +113,10 @@ class CoinbaseMatch(MatchOrderEvent, Base):  # pylint: disable=R0903
     def init_on_load(self) -> None:
         """Summary
         """
+        self._set_typed_product_info()
         self._set_typed_price()
         self._set_typed_size()
+        self._set_typed_side()
 
     @property
     def account_order_side(self) -> OrderSide:
