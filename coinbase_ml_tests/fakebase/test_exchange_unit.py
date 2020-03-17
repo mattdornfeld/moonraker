@@ -87,9 +87,9 @@ class TestExchangeUnit:
         )
 
         exchange.step()
-        assert order.order_id in exchange.order_book[order.side].orders_dict
+        assert exchange.order_book[order.side].contains_order_id(order.order_id)
         exchange.cancel_order(order)
-        assert order.order_id not in exchange.order_book[order.side].orders_dict
+        assert not exchange.order_book[order.side].contains_order_id(order.order_id)
 
     @staticmethod
     def test_cancel_order_raise_exception(exchange: Exchange) -> None:
@@ -120,7 +120,6 @@ class TestExchangeUnit:
         """ """
         test_create_restore_checkpoint [summary]
         """
-
         restored_exchange = exchange.create_checkpoint().restore()
 
         assert exchange == restored_exchange
@@ -243,7 +242,7 @@ class TestExchangeUnit:
 
         exchange.step()
 
-        assert order.order_id in exchange.order_book[order.side].orders_dict
+        assert exchange.order_book[order.side].contains_order_id(order.order_id)
 
     @staticmethod
     def test_self_trade_prevention(account: Account, exchange: Exchange) -> None:

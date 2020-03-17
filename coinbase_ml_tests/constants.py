@@ -53,7 +53,7 @@ TEST_WALLET_PRODUCT_FUNDS = TEST_PRODUCT_TYPE("10.0")
 TEST_WALLET_QUOTE_FUNDS = TEST_QUOTE_TYPE("100000.00")
 
 
-POSTGRES_CONTAINER_NAME = "fakebase_tests_postgres"
+POSTGRES_CONTAINER_NAME = "coinbase_ml_tests_postgres"
 POSTGRES_IMAGE_NAME = "postgres:9.6"
 TEST_SQL_SRC_DIR = f"{os.getcwd()}/coinbase_ml_tests/data/moonraker.sql"
 TMP_SQL_DIR = "/tmp/coinbase_ml/docker-entrypoint-initdb.d"

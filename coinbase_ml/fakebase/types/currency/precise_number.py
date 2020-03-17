@@ -19,7 +19,7 @@ class PreciseNumber(Generic[PreciseNumberSubtype]):
     types.
     """
 
-    precision: int
+    precision: Decimal
 
     def __init__(self, value: Union[str, Decimal]) -> None:
         """
@@ -46,9 +46,7 @@ class PreciseNumber(Generic[PreciseNumberSubtype]):
         else:
             raise InvalidTypeError(type(value), "value")
 
-        self.amount = (
-            amount.quantize(self.get_precision_as_decimal()) if amount < inf else amount
-        )
+        self.amount = amount.quantize(self.precision) if amount < inf else amount
 
         self.float_amount = float(self.amount)
 
@@ -218,13 +216,3 @@ class PreciseNumber(Generic[PreciseNumberSubtype]):
             PreciseNumber: [description]
         """
         raise NotImplementedError
-
-    @classmethod
-    def get_precision_as_decimal(cls) -> Decimal:
-        """
-        get_precision_as_decimal [summary]
-
-        Returns:
-            Decimal: [description]
-        """
-        return Decimal("1." + "".join("0" for _ in range(cls.precision)))

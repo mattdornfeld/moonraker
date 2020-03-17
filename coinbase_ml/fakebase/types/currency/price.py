@@ -6,9 +6,16 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Dict, Generic, Type, TypeVar, Union
 
-from .precise_number import PreciseNumber
-from .volume import VOLUMES, BTC, Currency, ETH, Volume, USD
-from .utils import InvalidTypeError
+from coinbase_ml.fakebase.types.currency.precise_number import PreciseNumber
+from coinbase_ml.fakebase.types.currency.volume import (
+    VOLUMES,
+    BTC,
+    Currency,
+    ETH,
+    Volume,
+    USD,
+)
+from coinbase_ml.fakebase.types.currency.utils import InvalidTypeError
 
 ProductVolumeSubType = TypeVar("ProductVolumeSubType", bound="Volume")
 QuoteVolumeSubType = TypeVar("QuoteVolumeSubType", bound="Volume")
@@ -266,5 +273,8 @@ QuoteVolume = Volume[USD]
 
 ProductPrice = Price[ProductTypes, USD]
 
-PRICES: Dict[ProductId, Type[Price]] = {ProductId(Currency.BTC, Currency.USD): BTCUSD}
-ZERO_PRICES = {currency: Price("0.0") for currency, Price in PRICES.items()}
+PRICES: Dict[ProductId, Type[Price]] = {
+    ProductId(Currency.BTC, Currency.USD): BTCUSD,
+    ProductId(Currency.ETH, Currency.USD): ETHUSD,
+}
+ZERO_PRICES = {product_id: Price("0.0") for product_id, Price in PRICES.items()}

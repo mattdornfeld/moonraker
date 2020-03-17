@@ -99,6 +99,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         self._order_id = order_id
         self._order_status = order_status.value if order_status else None
         self._order_type = order_type.value if order_type else None
+        self._typed_order_status = order_status
         self.original_funds = funds
         self._remaining_size = None if size is None else size.amount
         self.done_at: Optional[datetime] = None
@@ -109,6 +110,8 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         self.reject_reason: Optional[RejectReason] = None
         self.time_in_force = time_in_force
         self.time_to_live = time_to_live
+
+        self._set_typed_order_type()
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -139,12 +142,32 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
     def __repr__(self) -> str:
         return str(self.__dict__)
 
+    def _set_order_status(self, order_status: OrderStatus) -> None:
+        """
+        _set_order_status [summary]
+
+        Args:
+            order_status (OrderStatus): [description]
+        """
+        self._order_status = order_status.value
+        self._typed_order_status = order_status
+
+    def _set_typed_order_type(self) -> None:
+        """
+        _set_typed_order_type [summary]
+        """
+        self._typed_order_type = OrderType.from_string(self._order_type)
+
     @reconstructor
     def init_on_load(self) -> None:
         """Summary
         """
+        self._set_typed_product_info()
         self._set_typed_price()
         self._set_typed_size()
+        self._set_typed_side()
+        self._set_typed_order_type()
+        self._typed_order_status = OrderStatus.from_string(self._order_status)
         self._remaining_size = self.size.amount if self.size else None
         self.done_at = None
         self.done_reason = None
@@ -166,7 +189,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         Returns:
             None: [description]
         """
-        self._order_status = OrderStatus.done.value
+        self._set_order_status(OrderStatus.done)
         self.done_at = done_at
         self.done_reason = done_reason
 
@@ -229,21 +252,18 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
             InvalidTypeError: [description]
         """
         if isinstance(value, Volume):
-            volume_value: QuoteVolume = value
-            self._funds = volume_value.amount
+            self._funds = value.amount
         elif isinstance(value, float):
-            float_value: float = value
-            self._funds = Decimal(float_value)
+            self._funds = Decimal(value)
         elif isinstance(value, Decimal) or value is None:
-            volume_optional_decimal: Optional[Decimal] = value
-            self._funds = volume_optional_decimal
+            self._funds = value
         else:
             raise InvalidTypeError(type(value), "value")
 
     def open_order(self) -> None:
         """Summary
         """
-        self._order_status = OrderStatus.open.value
+        self._set_order_status(OrderStatus.open)
 
     @property
     def order_id(self) -> OrderId:
@@ -267,7 +287,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         Returns:
             OrderStatus: [description]
         """
-        return OrderStatus.__members__[self._order_status]
+        return self._typed_order_status
 
     @property
     def order_type(self) -> OrderType:
@@ -277,7 +297,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         Returns:
             OrderType: [description]
         """
-        return OrderType.__members__[self._order_type]
+        return self._typed_order_type
 
     def reject_order(self, reject_reason: RejectReason) -> None:
         """Summary
@@ -285,7 +305,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         Args:
             reject_reason (RejectReason): Description
         """
-        self._order_status = OrderStatus.rejected.value
+        self._set_order_status(OrderStatus.rejected)
         self.reject_reason = reject_reason
 
     @property
@@ -297,7 +317,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
             Optional[ProductVolume]: [description]
         """
         return (
-            self.get_product_id().product_volume_type(self._remaining_size)
+            self._product_volume_type(self._remaining_size)
             if self._remaining_size is not None
             else None
         )
@@ -316,14 +336,11 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
             InvalidTypeError: [description]
         """
         if isinstance(value, Volume):
-            volume_value: ProductVolume = value
-            self._remaining_size = volume_value.amount
+            self._remaining_size = value.amount
         elif isinstance(value, float):
-            volume_float: float = value
-            self._remaining_size = Decimal(volume_float)
+            self._remaining_size = Decimal(value)
         elif isinstance(value, Decimal) or value is None:
-            volume_optional_decimal: Optional[Decimal] = value
-            self._remaining_size = volume_optional_decimal
+            self._remaining_size = value
         else:
             raise InvalidTypeError(type(value), "value")
 
