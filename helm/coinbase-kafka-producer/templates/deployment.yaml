@@ -1,0 +1,51 @@
+---
+{{$release_name := .Release.Name | trunc 63}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{$release_name}}
+  labels:
+    app: {{$release_name}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      pod-selector: {{$release_name}}
+  template:
+    metadata:
+      labels:
+        pod-selector: {{$release_name}}
+
+    spec:
+      {{- if .Values.node_group}}
+      nodeSelector:
+        node-group: {{.Values.node_group}}
+      {{- end}}
+      {{- if .Values.node_group}}
+      tolerations:
+        - key: node-group
+          operator: "Equal"
+          effect: "NoSchedule"
+          value: {{.Values.node_group}}
+      {{- end}}
+      imagePullSecrets:
+        - name: {{.Release.Name}}-registry-credentials
+      restartPolicy: Always
+      containers:
+
+        - name: coinbase-kafka-producer
+          command:
+            - python3
+            - coinbase_ml/serve/stream_processors/coinbase_stream_kafka_producer.py
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{.Values.kafkaHosts | quote}}
+            - name: KAFKA_TOPIC
+              value: {{$release_name}}
+          image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{.Chart.Version}}"
+          resources:
+            limits:
+              cpu: {{.Values.resources.num_cpus}}
+              memory: {{.Values.resources.memory}}
+
