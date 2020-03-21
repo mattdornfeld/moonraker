@@ -69,7 +69,7 @@ build:package_helm_charts:
 
   variables:
     HELM_ARGS: "--dependency-update"
-    CHART_NAME: coinbase-ml-train,coinbase-ml-serve
+    CHART_NAME: coinbase-ml-train,coinbase-ml-serve,coinbase-kafka-producer
 
 
 # build:deploy_helm_chart_dry_run:
@@ -119,6 +119,16 @@ deploy:delete_coinbase_train:
   variables:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
 
+deploy:delete_coinbase_kafka_producer:
+  environment:
+    name: staging/coinbase-kafka-producer-$CI_COMMIT_REF_NAME
+    action: stop
+
+  extends: .delete_helm_release
+
+  variables:
+    RELEASE_NAME: coinbase-kafka-producer-$CI_COMMIT_REF_NAME
+
 .helm_serve_deploy_args: &helm_serve_deploy_args |
   HELM_ARGS="--set gcp-service-account-secret.service_account_json=${SERVICE_ACCOUNT_JSON}
   --set gitlab-token-secret.CI_TOKEN=${CI_TOKEN}
@@ -158,3 +168,21 @@ deploy:delete_coinbase_serve:
 
   variables:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-serve
+
+.helm_coinbase_kafka_producer_deploy_args: &helm_coinbase_kafka_producer_deploy_args |
+  HELM_ARGS="--set moonraker-common.registry.password=${CI_TOKEN}
+  --set moonraker-common.registry.username=${CI_USERNAME}"
+
+deploy:deploy_coinbase_kafka_producer:
+  before_script:
+    - *version_tag_script
+    - *helm_coinbase_kafka_producer_deploy_args
+
+  environment:
+    name: staging/coinbase-kafka-producer-$CI_COMMIT_REF_NAME
+
+  extends: .deploy_helm_chart
+
+  variables:
+    CHART_NAME: coinbase-kafka-producer
+    RELEASE_NAME: coinbase-kafka-producer-$CI_COMMIT_REF_NAME

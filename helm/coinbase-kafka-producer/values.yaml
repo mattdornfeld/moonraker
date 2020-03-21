@@ -1,0 +1,4 @@
+kafkaHosts: "kafka-headless:9092"
+resources:
+  num_cpus: 0.25
+  memory: 200Mi

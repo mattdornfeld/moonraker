@@ -1,0 +1,4 @@
+dependencies:
+  - name: moonraker-common
+    repository: gs://moonraker-helm-repo
+    version: ~0.9.0
