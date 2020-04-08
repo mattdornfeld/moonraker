@@ -26,12 +26,14 @@ class CoinbaseKafkaStreamProducer(WebsocketClient):
     """
     [summary]
     """
+
     KAFKA_CLIENT_ID = "moonraker_coinbase_stream_producer"
 
-    def __init__(self,
-                 kafka_topic: str,
-                 kafka_bootstrap_servers: Optional[Union[str, List[str]]] = None,
-                 ) -> None:
+    def __init__(
+        self,
+        kafka_topic: str,
+        kafka_bootstrap_servers: Optional[Union[str, List[str]]] = None,
+    ) -> None:
         super(CoinbaseKafkaStreamProducer, self).__init__(
             channels=COINBASE_WEBSOCKET_CHANNELS,
             products=[str(cc.PRODUCT_ID)],
@@ -56,11 +58,17 @@ class CoinbaseKafkaStreamProducer(WebsocketClient):
         This function creates the topic for the producer and configures a 3 hour
         retention policy on the topic.
         """
-        admin_client = KafkaAdminClient(bootstrap_servers=self.kafka_bootstrap_servers,
-                                        client_id=self.KAFKA_CLIENT_ID)
+        admin_client = KafkaAdminClient(
+            bootstrap_servers=self.kafka_bootstrap_servers,
+            client_id=self.KAFKA_CLIENT_ID,
+        )
         topic_list = [
-            NewTopic(name=self.topic, num_partitions=1, replication_factor=1,
-                     topic_configs={'retention.ms': 3 * 60 * 60 * 1000})
+            NewTopic(
+                name=self.topic,
+                num_partitions=1,
+                replication_factor=1,
+                topic_configs={"retention.ms": 3 * 60 * 60 * 1000},
+            )
         ]
         try:
             LOGGER.info("Creating topics: %s", topic_list)
@@ -78,8 +86,11 @@ class CoinbaseKafkaStreamProducer(WebsocketClient):
 
 
 if __name__ == "__main__":
-    BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', "localhost:31090").split(',')
-    TOPIC = os.environ.get('KAFKA_TOPIC', "test-topic")
-    STREAM = CoinbaseKafkaStreamProducer(kafka_topic=TOPIC,
-                                         kafka_bootstrap_servers=BOOTSTRAP_SERVERS)
+    BOOTSTRAP_SERVERS = os.environ.get(
+        "KAFKA_BOOTSTRAP_SERVERS", "localhost:31090"
+    ).split(",")
+    TOPIC = os.environ.get("KAFKA_TOPIC", "test-topic")
+    STREAM = CoinbaseKafkaStreamProducer(
+        kafka_topic=TOPIC, kafka_bootstrap_servers=BOOTSTRAP_SERVERS
+    )
     STREAM.start()
