@@ -8,9 +8,9 @@ class TestVolume extends AnyFunSpec {
     it("Should have the following operations") {
       val vol = new BtcVolume(Right("1.0"))
 
-      assert((vol + vol).equal_to(vol * Right(2.0)))
-      assert((vol - vol).equal_to(BtcVolume.zeroVolume))
-      assert((vol / Right(0.5)).equal_to(vol + vol))
+      assert((vol + vol).equalTo(vol * Right(2.0)))
+      assert((vol - vol).equalTo(BtcVolume.zeroVolume))
+      assert((vol / Right(0.5)).equalTo(vol + vol))
       assert(!vol.isZero())
       assert(BtcVolume.zeroVolume.isZero())
     }
@@ -20,9 +20,9 @@ class TestVolume extends AnyFunSpec {
     it("Should have the following operations") {
       val vol = new UsdVolume(Right("1.0"))
 
-      assert((vol + vol).equal_to(vol * Right(2.0)))
-      assert((vol - vol).equal_to(UsdVolume.zeroVolume))
-      assert((vol / Right(0.5)).equal_to(vol + vol))
+      assert((vol + vol).equalTo(vol * Right(2.0)))
+      assert((vol - vol).equalTo(UsdVolume.zeroVolume))
+      assert((vol / Right(0.5)).equalTo(vol + vol))
       assert(!vol.isZero())
       assert(UsdVolume.zeroVolume.isZero())
     }

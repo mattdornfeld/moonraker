@@ -17,6 +17,8 @@ dist/
 account.json
 *.iml
 scala/target
+scala/project/target
 scala/coinbaseml/target
 scala/coinbaseml/project/target
+scala/coinbaseml/project/project
 .idea

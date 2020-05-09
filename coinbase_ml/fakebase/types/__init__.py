@@ -148,7 +148,7 @@ class OrderType(Enum):
     market = "market"
 
     def __str__(self) -> str:
-        return self.value
+        return str(self.value)
 
     @staticmethod
     def from_string(order_type: str) -> Optional[OrderType]:

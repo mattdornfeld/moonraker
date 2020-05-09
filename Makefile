@@ -1,5 +1,12 @@
 phony: build-image-cpu install install-dev install-gpu test test-mypy test-pylint
 
+build:
+	python3 -m grpc_tools.protoc \
+	-I scala/coinbaseml/src/main/protobuf \
+	-I scala/coinbaseml/target/protobuf_external \
+	--python_out=coinbase_ml/fakebase/protos \
+	--grpc_python_out=. scala/coinbaseml/src/main/protobuf/events.proto
+
 build-image-cpu:
 docker build -f dockerfiles/Dockerfile.cpu -t registry.gitlab.com/moonraker/coinbase_train/cpu:${TAG} .
 
