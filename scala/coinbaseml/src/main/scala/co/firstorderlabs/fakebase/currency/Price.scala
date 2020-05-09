@@ -1,34 +1,38 @@
 package co.firstorderlabs.fakebase.currency
 
 import java.math.{BigDecimal, MathContext}
-import Volume._
+
+import co.firstorderlabs.fakebase.currency.Volume._
+import co.firstorderlabs.fakebase.types.Types.ProductId
+import scalapb.TypeMapper
 
 /**Contains objects for representing exchange products and prices of those products.
   *
   */
 object Price {
-  type ProductId = String
-
   /**Trait inherited by companion objects of subclasses of Price
     *
     * @tparam A is a subclass of Volume. It will represent volumes of product currency.
     * @tparam B is a subclass of Volume. It will represent
     */
   trait ProductPriceCompanion[A <: Volume[A], B <: Volume[B]] {
+    type ProductVolume <: A
+    type QuoteVolume <: B
     val ProductVolume: VolumeCompanion[A]
     val QuoteVolume: VolumeCompanion[B]
-    val maxPrice: ProductPrice[A,B]
-    val minPrice: ProductPrice[A,B]
-    val zeroPrice: ProductPrice[A,B]
+    val maxPrice: ProductPrice[A, B]
+    val minPrice: ProductPrice[A, B]
+    val productId: ProductId
+    val zeroPrice: ProductPrice[A, B]
+
+    def getProductId(): ProductId = ProductId(ProductVolume.currency, QuoteVolume.currency)
   }
 
   abstract class ProductPrice[A <: Volume[A], B <: Volume[B]](
     mathContext: MathContext,
     value: Either[BigDecimal, String]
-  ) extends PreciseNumber[ProductPrice[A,B]](mathContext, value) {
-
-    type ProductVolume <: A
-    type QuoteVolume <: B
+  ) extends PreciseNumber[ProductPrice[A, B]](mathContext, value) {
+    val companion: ProductPriceCompanion[A, B]
 
     /**Creates new ProductPrice from this + that
       *
@@ -68,6 +72,7 @@ object Price {
   class BtcUsdPrice(value: Either[BigDecimal, String])
       extends ProductPrice[BtcVolume, UsdVolume](UsdVolume.mathContext, value) {
 
+    val companion = BtcUsdPrice
     type ProductVolume = BtcVolume
     type QuoteVolume = UsdVolume
 
@@ -94,11 +99,18 @@ object Price {
   }
 
   object BtcUsdPrice extends ProductPriceCompanion[BtcVolume, UsdVolume] {
+    type ProductVolume = BtcVolume
+    type QuoteVolume = UsdVolume
+
+    implicit val typeMapper = TypeMapper[String, BtcUsdPrice](
+      value => new BtcUsdPrice(Right(value))
+    )(volume => volume.amount.toString)
+
     val ProductVolume = BtcVolume
     val QuoteVolume = UsdVolume
     val maxPrice = new BtcUsdPrice(Right("1e10"))
     val minPrice = new BtcUsdPrice(Right("1e-2"))
-    val productId = new ProductId("BTC-USD")
+    val productId = getProductId
     val zeroPrice = new BtcUsdPrice(Right("0.0"))
   }
 }

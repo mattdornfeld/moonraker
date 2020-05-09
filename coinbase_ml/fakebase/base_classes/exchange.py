@@ -149,6 +149,7 @@ class ExchangeBase(Generic[Account]):
         """
         raise NotImplementedError
 
+    # pylint: disable=unused-argument
     def step(
         self,
         insert_cancellations: Optional[List[CoinbaseCancellation]] = None,

@@ -77,6 +77,7 @@ class DatabaseWorkers:
         Returns:
             Result: Description
         """
+        # pylint: disable=no-member
         sess = self._Session()
 
         orders: List[CoinbaseOrder] = (
@@ -96,6 +97,7 @@ class DatabaseWorkers:
         )
 
         sess.close()
+        # pylint: enable=no-member
 
         return Result(cancellations=cancellations, orders=orders)
 

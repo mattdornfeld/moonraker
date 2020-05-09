@@ -12,9 +12,9 @@ class TestPrice extends AnyFunSpec {
       val productVolume = new BtcVolume(Right("2.0"))
       val quoteVolume = new UsdVolume((Right("2.0")))
 
-      assert((price + price).equal_to(priceMultiple))
-      assert((price * productVolume).equal_to(quoteVolume))
-      assert((price - price).equal_to(BtcUsdPrice.zeroPrice))
+      assert((price + price).equalTo(priceMultiple))
+      assert((price * productVolume).equalTo(quoteVolume))
+      assert((price - price).equalTo(BtcUsdPrice.zeroPrice))
 
       // These operations only need to be tested once, since they are
       // the same for all subclasses of PreciseNumber.

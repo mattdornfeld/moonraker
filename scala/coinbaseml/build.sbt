@@ -3,11 +3,39 @@ name := "coinbaseml"
 organization := "co.firstorderlabs"
 version := "0.1.0"
 
+val doobieVersion = "0.8.8"
+val scalaTestVersion = "3.1.1"
+
+resolvers ++= Seq(
+  Resolver.sonatypeRepo("releases"),
+)
+
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0"
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.1"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.1" % "test"
+libraryDependencies += "org.scalactic" %% "scalactic" % scalaTestVersion
+libraryDependencies += "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
+libraryDependencies += "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
+libraryDependencies += "com.typesafe.akka" %% "akka-actor-typed" % "2.6.4"
+
+libraryDependencies ++= Seq(
+  "org.tpolecat" %% "doobie-core" % doobieVersion,
+  "org.tpolecat" %% "doobie-postgres"  % doobieVersion
+)
+
 libraryDependencies ++= Seq(
     "com.beachape" %% "enumeratum" % "1.5.15"
+)
+
+libraryDependencies ++= Seq(
+    "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
+    "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
+)
+
+libraryDependencies ++= Seq(
+  "com.chuusai" %% "shapeless" % "2.3.3"
+)
+
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
 )
 
 // Here, `libraryDependencies` is a set of dependencies, and by using `+=`,
