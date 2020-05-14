@@ -119,9 +119,9 @@ object Volume {
       */
     def /(that: Either[BigDecimal, Double]): BtcVolume = {
       that match {
-        case Left(that) => new BtcVolume(Left(this.amount.divide(that)))
+        case Left(that) => new BtcVolume(Left(this.amount.divide(that, _mathContext)))
         case Right(that) =>
-          new BtcVolume(Left(this.amount.divide(new BigDecimal(that))))
+          new BtcVolume(Left(this.amount.divide(new BigDecimal(that), _mathContext)))
       }
     }
   }
@@ -171,9 +171,9 @@ object Volume {
       */
     def /(that: Either[BigDecimal, Double]): UsdVolume = {
       that match {
-        case Left(that) => new UsdVolume(Left(this.amount.divide(that)))
+        case Left(that) => new UsdVolume(Left(this.amount.divide(that, _mathContext)))
         case Right(that) =>
-          new UsdVolume(Left(this.amount.divide(new BigDecimal(that))))
+          new UsdVolume(Left(this.amount.divide(new BigDecimal(that), _mathContext)))
       }
     }
   }

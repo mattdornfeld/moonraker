@@ -4,11 +4,13 @@ import java.math.BigDecimal
 import java.math.MathContext
 
 abstract class PreciseNumber[T <: PreciseNumber[T]](mathContext: MathContext, value: Either[BigDecimal, String]) extends Ordered[PreciseNumber[T]]{
+  protected val _mathContext = mathContext
   val amount = value match {
     case Left(value) => value.round(mathContext)
     case Right(value) => {
       if (value.length == 0) {
-        // ScalaPB needs to be able to successfully pass an empty string to subtypes of this class
+        // ScalaPB needs to be able to successfully pass an empty string to subtypes of this
+        // We interpret empty string as 0
         new BigDecimal("0").round(mathContext)
       }
       else {

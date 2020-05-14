@@ -7,7 +7,10 @@ import scalapb.TypeMapper
 object Types {
   case class Currency(currency: String) extends AnyVal
   case class OrderId(orderId: String) extends AnyVal
-  case class Datetime(instant: Instant) extends AnyVal
+  case class Datetime(instant: Instant) extends AnyVal {
+    override def toString: String = instant.toString
+  }
+  case class OrderRequestId(orderRequestId: String) extends AnyVal
   case class TradeId(tradeId: Long) extends AnyVal
 
   case class ProductId(productCurrency: Currency, quoteCurrency: Currency) {
@@ -42,14 +45,20 @@ object Types {
     )(orderId => orderId.orderId)
   }
 
+  object OrderRequestId {
+    implicit val typeMapper = TypeMapper[String, OrderRequestId](
+      value => OrderRequestId(value)
+    )(orderRequestId => orderRequestId.orderRequestId)
+  }
+
   object ProductId {
     implicit val typeMapper = TypeMapper[String, ProductId](
       value => ProductId.fromString(value)
     )(productId => productId.toString)
 
     def fromString(productId: String): ProductId = {
-      val productCurrency = Currency(productId.split("-")(0))
-      val quoteCurrency = Currency(productId.split("-")(1))
+      val productCurrency = if (productId.length > 0) Currency(productId.split("-")(0)) else Currency("")
+      val quoteCurrency = if (productId.length > 0) Currency(productId.split("-")(1)) else Currency("")
       ProductId(productCurrency, quoteCurrency)
     }
   }

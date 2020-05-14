@@ -23,6 +23,8 @@ service AccountService {
 }
 
 service ExchangeService {
+    rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
+    }
     rpc step (google.protobuf.Empty) returns (google.protobuf.Empty) {
     }
 }
@@ -113,7 +115,7 @@ message BuyLimitOrder {
     string size = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
     string time = 7 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     RejectReason rejectReason = 8;
-    BuyLimitOrderRequest request = 9;
+    string requestId = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 10 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 11;
 }
@@ -130,7 +132,7 @@ message BuyMarketOrder {
     OrderSide side = 5;
     string time = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     RejectReason rejectReason = 7;
-    BuyMarketOrderRequest request = 8;
+    string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 10;
 }
@@ -148,16 +150,20 @@ message Match {
     option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.MatchEvent";
 
     Liquidity liquidity = 1;
-    string maker_order_id = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
+    string makerOrderId = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
     string price = 3 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice"];
     string productId = 4 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
     OrderSide side = 5;
     string size = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
-    string taker_order_id = 7 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
+    string takerOrderId = 7 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
     string time = 8 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     int64 tradeId = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.TradeId"];
     Order makerOrder = 10;
     Order takerOrder = 11;
+}
+
+message MatchEvents {
+    repeated Match matchEvents = 1;
 }
 
 message SellLimitOrderRequest {
@@ -189,7 +195,7 @@ message SellLimitOrder {
     string size = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
     string time = 7 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     RejectReason rejectReason = 8;
-    SellLimitOrderRequest request = 9;
+    string requestId = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 10 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 11;
 }
@@ -206,7 +212,7 @@ message SellMarketOrder {
     string size = 5 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
     string time = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     RejectReason rejectReason = 7;
-    SellMarketOrderRequest request = 8;
+    string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 10;
 }

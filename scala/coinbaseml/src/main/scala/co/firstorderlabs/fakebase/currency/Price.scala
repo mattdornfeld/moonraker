@@ -1,6 +1,6 @@
 package co.firstorderlabs.fakebase.currency
 
-import java.math.{BigDecimal, MathContext}
+import java.math.{BigDecimal, MathContext, RoundingMode}
 
 import co.firstorderlabs.fakebase.currency.Volume._
 import co.firstorderlabs.fakebase.types.Types.ProductId
@@ -91,9 +91,9 @@ object Price {
 
     def /(that: Either[BigDecimal, Double]): BtcUsdPrice = {
       that match {
-        case Left(that) => new BtcUsdPrice(Left(this.amount.divide(that)))
+        case Left(that) => new BtcUsdPrice(Left(this.amount.divide(that, _mathContext)))
         case Right(that) =>
-          new BtcUsdPrice(Left(this.amount.divide(new BigDecimal(that))))
+          new BtcUsdPrice(Left(this.amount.divide(new BigDecimal(that), _mathContext)))
       }
     }
   }

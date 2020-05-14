@@ -7,6 +7,10 @@ from decimal import Decimal
 from enum import Enum
 from typing import NewType, Optional
 
+from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+    OrderSide as OrderSideProto,
+    Liquidity as LiquidityProto,
+)
 from coinbase_ml.fakebase.types.currency import (
     Currency,
     InvalidTypeError,
@@ -39,6 +43,7 @@ class Liquidity(Enum):
 
     maker = "M"
     taker = "T"
+    global_liquidity = "G"
 
     def __init__(self, liquidity: str) -> None:
         """
@@ -47,7 +52,11 @@ class Liquidity(Enum):
         Args:
             liquidity (str): [description]
         """
-        self._fee_fraction = {"M": Decimal("0.0050"), "T": Decimal("0.0050")}[liquidity]
+        self._fee_fraction = {
+            "M": Decimal("0.0050"),
+            "T": Decimal("0.0050"),
+            "G": Decimal("0.0"),
+        }[liquidity]
 
     @property
     def fee_fraction(self) -> Decimal:
@@ -59,6 +68,25 @@ class Liquidity(Enum):
         """
         return self._fee_fraction
 
+    @staticmethod
+    def from_proto(liquidity: LiquidityProto) -> Liquidity:
+        """
+        from_proto [summary]
+
+        Args:
+            liquidity (int): [description]
+
+        Returns:
+            Liquidity: [description]
+        """
+        return _LIQUIDITY_PROTO_MAPPING[liquidity]
+
+
+_LIQUIDITY_PROTO_MAPPING = {
+    LiquidityProto.Value("global"): Liquidity.global_liquidity,
+    LiquidityProto.maker: Liquidity.maker,
+    LiquidityProto.taker: Liquidity.taker,
+}
 
 OrderId = NewType("OrderId", str)
 
@@ -70,6 +98,19 @@ class OrderSide(Enum):
 
     buy = "buy"
     sell = "sell"
+
+    @staticmethod
+    def from_proto(order_side: OrderSideProto) -> OrderSide:
+        """
+        from_proto [summary]
+
+        Args:
+            order_side (OrderSideProto): [description]
+
+        Returns:
+            OrderSide: [description]
+        """
+        return _ORDER_SIDE_PROTO_MAPPING[order_side]
 
     @staticmethod
     def from_string(order_side: str) -> Optional[OrderSide]:
@@ -99,6 +140,12 @@ class OrderSide(Enum):
             OrderSide: [description]
         """
         return OrderSide.sell if self == OrderSide.buy else OrderSide.buy
+
+
+_ORDER_SIDE_PROTO_MAPPING = {
+    OrderSideProto.buy: OrderSide.buy,
+    OrderSideProto.sell: OrderSide.sell,
+}
 
 
 class OrderStatus(Enum):

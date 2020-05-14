@@ -4,7 +4,7 @@ import co.firstorderlabs.fakebase.Configs
 import co.firstorderlabs.fakebase.protos.fakebase.{Liquidity, Order, OrderSide, OrderStatus}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.fakebase.types.Types.{Datetime, OrderId, ProductId}
+import co.firstorderlabs.fakebase.types.Types.{Datetime, OrderId, OrderRequestId, ProductId}
 
 object Events {
   trait SpecifiesFunds {
@@ -100,6 +100,7 @@ object Events {
   trait OrderEvent extends Event {
     val orderId: OrderId
     val orderStatus: OrderStatus
+    val requestId: OrderRequestId
     val side: OrderSide
   }
 
@@ -112,7 +113,11 @@ object Events {
 
   trait LimitOrderEvent extends OrderEvent with SpecifiesSize {
     val price: ProductPrice
-    val request: Option[LimitOrderRequst]
+    var degeneracy = 0
+
+    def incrementDegeneracy: Unit = {
+      degeneracy += 1
+    }
   }
   trait MarketOrderEvent extends OrderEvent
 }

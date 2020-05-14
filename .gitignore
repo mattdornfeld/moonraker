@@ -1,4 +1,4 @@
-__pycache__/
+__pycache__
 *.pyc
 *.egg-info
 .venv
@@ -22,3 +22,5 @@ scala/coinbaseml/target
 scala/coinbaseml/project/target
 scala/coinbaseml/project/project
 .idea
+/scalapb
+coinbase_ml/fakebase/protos/fakebase_pb2*

@@ -7,7 +7,7 @@ import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, 
 import co.firstorderlabs.fakebase.currency.Volume.{Volume, VolumeCompanion}
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events._
-import co.firstorderlabs.fakebase.types.Types.{Currency, OrderId, TimeInterval}
+import co.firstorderlabs.fakebase.types.Types.{Currency, OrderId, OrderRequestId, TimeInterval}
 import io.grpc.Status
 
 import scala.collection.mutable.{HashMap, ListBuffer}
@@ -105,10 +105,11 @@ object Account {
   }
 
   class Account extends AccountServiceGrpc.AccountService {
+    private val orderRequests = new HashMap[OrderRequestId, OrderRequest]
     private val placedCancellations = new HashMap[TimeInterval, ListBuffer[Cancellation]] {
       override def default(key: TimeInterval) = new ListBuffer[Cancellation]
     }
-    private val placedOrders: HashMap[OrderId, OrderEvent] = new HashMap
+    private val placedOrders = new HashMap[OrderId, OrderEvent]
     private val matches = new HashMap[TimeInterval, ListBuffer[Match]] {
       override def default(key: TimeInterval) = new ListBuffer[Match]
     }
@@ -146,8 +147,15 @@ object Account {
       }
     }
 
+    def getOrderRequest[A <: OrderRequest](orderRequestId: OrderRequestId): Option[A] = {
+      if (orderRequests.contains(orderRequestId))
+        Some(orderRequests.get(orderRequestId).asInstanceOf[A])
+      else
+        None
+    }
+
     def getReceivedCancellations: Iterable[Cancellation] = {
-      for (cancellation <- placedCancellations(Server.exchange.currentTimeInterval))
+      for (cancellation <- placedCancellations(FakebaseServer.exchange.currentTimeInterval))
         yield cancellation
     }
 
@@ -158,7 +166,7 @@ object Account {
     }
 
     def processMatch(matchEvent: Match) = {
-      matches(Server.exchange.currentTimeInterval) += matchEvent
+      matches(FakebaseServer.exchange.currentTimeInterval) += matchEvent
       wallets.updateBalances(matchEvent)
     }
 
@@ -188,7 +196,7 @@ object Account {
         case order: LimitOrderEvent => {
           val cancellation = OrderUtils.cancellationFromOrder(order)
 
-          placedCancellations(Server.exchange.currentTimeInterval) += cancellation
+          placedCancellations(FakebaseServer.exchange.currentTimeInterval) += cancellation
 
           Future.successful(cancellation)
         }
@@ -204,15 +212,17 @@ object Account {
     override def placeBuyMarketOrder(
       buyMarketOrderRequest: BuyMarketOrderRequest
     ): Future[BuyMarketOrder] = {
+      val orderRequestId = storeOrderRequest(buyMarketOrderRequest)
+
       val buyMarketOrder = BuyMarketOrder(
         buyMarketOrderRequest.funds,
         OrderUtils.generateOrderId,
         OrderStatus.received,
         buyMarketOrderRequest.productId,
         OrderSide.buy,
-        Server.exchange.currentTimeInterval.endDt,
+        FakebaseServer.exchange.currentTimeInterval.endDt,
         RejectReason.notRejected,
-        Some(buyMarketOrderRequest)
+        orderRequestId
       )
 
       val rejectReason = OrderRejecter.isBuyMarketOrderInvalid(buyMarketOrder)
@@ -229,6 +239,8 @@ object Account {
     override def placeBuyLimitOrder(
       buylimitOrderRequest: BuyLimitOrderRequest
     ): Future[BuyLimitOrder] = {
+      val orderRequestId = storeOrderRequest(buylimitOrderRequest)
+
       val limitOrder = new BuyLimitOrder(
         OrderUtils.generateOrderId,
         OrderStatus.received,
@@ -236,9 +248,9 @@ object Account {
         buylimitOrderRequest.productId,
         OrderSide.buy,
         buylimitOrderRequest.size,
-        Server.exchange.currentTimeInterval.endDt,
+        FakebaseServer.exchange.currentTimeInterval.endDt,
         RejectReason.notRejected,
-        Some(buylimitOrderRequest)
+        orderRequestId
       )
 
       val rejectReason = OrderRejecter.isLimitOrderInvalid(limitOrder)
@@ -255,6 +267,8 @@ object Account {
     override def placeSellLimitOrder(
       sellLimitOrderRequest: SellLimitOrderRequest
     ): Future[SellLimitOrder] = {
+      val orderRequestId = storeOrderRequest(sellLimitOrderRequest)
+
       val sellLimitOrder = new SellLimitOrder(
         OrderUtils.generateOrderId,
         OrderStatus.received,
@@ -262,9 +276,9 @@ object Account {
         sellLimitOrderRequest.productId,
         OrderSide.sell,
         sellLimitOrderRequest.size,
-        Server.exchange.currentTimeInterval.endDt,
+        FakebaseServer.exchange.currentTimeInterval.endDt,
         RejectReason.notRejected,
-        Some(sellLimitOrderRequest)
+        orderRequestId
       )
 
       val rejectReason = OrderRejecter.isLimitOrderInvalid(sellLimitOrder)
@@ -281,15 +295,17 @@ object Account {
     override def placeSellMarketOrder(
       sellMarketOrderRequest: SellMarketOrderRequest
     ): Future[SellMarketOrder] = {
+      val orderRequestId = storeOrderRequest(sellMarketOrderRequest)
+
       val sellMarketOrder = SellMarketOrder(
         OrderUtils.generateOrderId,
         OrderStatus.received,
         sellMarketOrderRequest.productId,
         OrderSide.sell,
         sellMarketOrderRequest.size,
-        Server.exchange.currentTimeInterval.endDt,
+        FakebaseServer.exchange.currentTimeInterval.endDt,
         RejectReason.notRejected,
-        Some(sellMarketOrderRequest)
+        orderRequestId
       )
 
       val rejectReason = OrderRejecter.isSellMarketOrderInvalid(sellMarketOrder)
@@ -302,6 +318,12 @@ object Account {
       placedOrders.update(sellMarketOrder.orderId, sellMarketOrder)
 
       Future.successful(sellMarketOrder)
+    }
+
+    private def storeOrderRequest(orderRequest: OrderRequest): OrderRequestId = {
+      val orderRequestId = OrderRequestId(UUID.randomUUID().toString)
+      orderRequests.update(orderRequestId, orderRequest)
+      orderRequestId
     }
   }
 
@@ -394,7 +416,8 @@ object Account {
     private def violatesPostOnly(
       limitOrder: LimitOrderEvent
     ): Option[RejectReason] = {
-      val violatesPostOnly = Server.exchange.checkIsTaker(limitOrder) && limitOrder.request.get.postOnly
+      val orderRequest = FakebaseServer.account.getOrderRequest[LimitOrderRequst](limitOrder.requestId)
+      val violatesPostOnly = FakebaseServer.exchange.checkIsTaker(limitOrder) && orderRequest.get.postOnly
       if (violatesPostOnly) Some(RejectReason.postOnly) else None
     }
 

@@ -14,7 +14,7 @@ object OrderUtils {
             order.productId,
             order.side,
             order.remainingSize,
-            Server.exchange.currentTimeInterval.endDt
+            FakebaseServer.exchange.currentTimeInterval.endDt
           )
     }
 
@@ -32,7 +32,7 @@ object OrderUtils {
   }
 
   def openOrder(order: LimitOrderEvent): LimitOrderEvent = {
-    order match {
+    val updatedOrder = order match {
       case order: BuyLimitOrder =>
         order.update(
           _.orderStatus := OrderStatus.open
@@ -42,31 +42,33 @@ object OrderUtils {
           _.orderStatus := OrderStatus.open
         )
     }
+    updatedOrder.degeneracy = order.degeneracy
+    updatedOrder
   }
 
   def setOrderStatusToDone[A <: OrderEvent](order: A, doneReason: DoneReason): A = {
     val updatedOrder = order match {
       case order: BuyLimitOrder =>
         order.update(
-          _.doneAt := Server.exchange.currentTimeInterval.startDt,
+          _.doneAt := FakebaseServer.exchange.currentTimeInterval.startDt,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: BuyMarketOrder =>
         order.update(
-          _.doneAt := Server.exchange.currentTimeInterval.startDt,
+          _.doneAt := FakebaseServer.exchange.currentTimeInterval.startDt,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: SellLimitOrder =>
         order.update(
-          _.doneAt := Server.exchange.currentTimeInterval.startDt,
+          _.doneAt := FakebaseServer.exchange.currentTimeInterval.startDt,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: SellMarketOrder =>
         order.update(
-          _.doneAt := Server.exchange.currentTimeInterval.startDt,
+          _.doneAt := FakebaseServer.exchange.currentTimeInterval.startDt,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
