@@ -10,7 +10,7 @@ from coinbase_ml.fakebase.account import Account
 from coinbase_ml.fakebase.exchange import Exchange
 from coinbase_ml.fakebase.utils import set_seed
 
-from . import constants as tc
+from coinbase_ml_tests import constants as tc
 
 
 @fixture_plus(unpack_into="account,exchange")

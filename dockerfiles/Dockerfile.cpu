@@ -7,4 +7,5 @@ ADD ./ /app
 WORKDIR /app
 
 RUN make install && \
+	make build-python-protos && \
 	chmod -R o+rx /usr/local/lib/python3.7/dist-packages/ray*

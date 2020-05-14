@@ -1,0 +1,5 @@
+# rm all __pycache__ and pyc files
+find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | xargs rm -rf
+
+# rm all generated protos
+rm -rf coinbase_ml/fakebase/protos/fakebase_pb2* scalapb/*

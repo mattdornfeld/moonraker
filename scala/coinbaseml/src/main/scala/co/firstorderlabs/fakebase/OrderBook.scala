@@ -79,10 +79,10 @@ object OrderBook {
     }
   }
 
-  def getOrderBookKey(order: LimitOrderEvent, degeneracy: Int = 0): OrderBookKey = {
+def getOrderBookKey(order: LimitOrderEvent): OrderBookKey = {
     order.side match {
-      case OrderSide.buy => OrderBookKey(order.price, Duration.between(Instant.MAX, order.time.instant), degeneracy)
-      case OrderSide.sell => OrderBookKey(order.price, Duration.between(order.time.instant, Instant.MIN), degeneracy)
+      case OrderSide.buy => OrderBookKey(order.price, Duration.between(Instant.MAX, order.time.instant), order.degeneracy)
+      case OrderSide.sell => OrderBookKey(order.price, Duration.between(order.time.instant, Instant.MIN), order.degeneracy)
     }
   }
 }

@@ -1,14 +1,18 @@
 """
 CoinbaseMatch orm
 """
+from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from dateutil import parser
 from sqlalchemy import BigInteger, Column, String
 from sqlalchemy.orm import reconstructor
 
-from ..orm.mixins import Base, MatchOrderEvent
-from ..types import (
+from coinbase_ml.common import constants as c
+from coinbase_ml.fakebase.protos.fakebase_pb2 import Match
+from coinbase_ml.fakebase.orm.mixins import Base, MatchOrderEvent
+from coinbase_ml.fakebase.types import (
     Liquidity,
     OrderId,
     OrderSide,
@@ -148,6 +152,29 @@ class CoinbaseMatch(MatchOrderEvent, Base):  # pylint: disable=R0903
 
         return self.get_product_id().quote_volume_type(
             fee_fraction * self.usd_volume.amount
+        )
+
+    @staticmethod
+    def from_proto(match: Match) -> CoinbaseMatch:
+        """
+        from_proto [summary]
+
+        Args:
+            match (Match): [description]
+
+        Returns:
+            CoinbaseMatch: [description]
+        """
+        return CoinbaseMatch(
+            product_id=c.PRODUCT_ID,
+            maker_order_id=OrderId(match.makerOrderId),
+            taker_order_id=OrderId(match.takerOrderId),
+            trade_id=match.tradeId,
+            side=OrderSide.from_proto(match.side),
+            time=parser.parse(match.time),
+            liquidity=Liquidity.from_proto(match.liquidity),
+            price=c.PRODUCT_ID.price_type(match.price),
+            size=c.PRODUCT_ID.product_volume_type(match.size),
         )
 
     @property

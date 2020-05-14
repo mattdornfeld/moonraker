@@ -17,9 +17,9 @@ object Configs {
   val postgresUsername = "postgres"
 
   //Time configs
-  val timeDelta = Duration.ofMinutes(10)
+  val timeDelta = Duration.ofMinutes(30)
   val startTime = Datetime(Instant.parse("2019-11-20T19:20:50.63Z"))
-  val endTime = Datetime(Instant.parse("2019-11-20T19:40:50.63Z"))
+  val endTime = Datetime(Instant.parse("2019-11-21T20:40:50.63Z"))
 
   val feeFraction = Map[Liquidity, BigDecimal](
     Liquidity.maker -> new BigDecimal("0.005"),

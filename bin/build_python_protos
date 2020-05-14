@@ -1,0 +1,20 @@
+SCALAPB_PACKAGE_DIR=./
+FAKEBASE_PROTOS_DIR=./coinbase_ml/fakebase/protos
+
+mkdir -p scalapb
+
+python3 -m grpc_tools.protoc \
+    -I scala/coinbaseml/src/main/protobuf \
+    --mypy_out=$SCALAPB_PACKAGE_DIR \
+    --python_out=$SCALAPB_PACKAGE_DIR \
+    --grpc_python_out=$SCALAPB_PACKAGE_DIR \
+    scala/coinbaseml/src/main/protobuf/scalapb/scalapb.proto
+
+python3 -m grpc_tools.protoc \
+    -I scala/coinbaseml/src/main/protobuf \
+    --mypy_out=$FAKEBASE_PROTOS_DIR \
+    --python_out=$FAKEBASE_PROTOS_DIR \
+    --grpc_python_out=$FAKEBASE_PROTOS_DIR \
+    scala/coinbaseml/src/main/protobuf/fakebase.proto \
+
+2to3 -w $FAKEBASE_PROTOS_DIR

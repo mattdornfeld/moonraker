@@ -1,6 +1,6 @@
 package co.firstorderlabs.fakebase
 
-import java.math.BigDecimal
+import java.math.{BigDecimal, RoundingMode}
 import java.util.UUID
 
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
@@ -23,8 +23,8 @@ class MatchingEngine {
 
     if (order.orderStatus.isopen) orderBooks(order.side).removeByOrderId(order.orderId)
 
-    if (Server.account.belongsToAccount(order))
-      Server.account.closeOrder(order, DoneReason.cancelled).get
+    if (FakebaseServer.account.belongsToAccount(order))
+      FakebaseServer.account.closeOrder(order, DoneReason.cancelled).get
     else
       OrderUtils.setOrderStatusToDone(order, DoneReason.cancelled)
   }
@@ -46,41 +46,44 @@ class MatchingEngine {
     }
   }
 
-  def processEvents(events: List[Event]) = {
+  def processEvents(events: List[Event]): Unit = {
     events.foreach(
-      event =>
+      event => {
         event match {
           case cancellation: Cancellation => processCancellation(cancellation)
           case order: OrderEvent               => processOrder(order)
-      }
+      }}
     )
   }
 
   @tailrec
-  private def addToOrderBook(order: LimitOrderEvent, degeneracy: Int = 0): Unit = {
+  private def addToOrderBook(order: LimitOrderEvent): Unit = {
     if (orderBooks(order.side).getOrderByOrderId(order.orderId).isEmpty) {
-      val orderBookKey = OrderBook.getOrderBookKey(order, degeneracy)
+      val orderBookKey = OrderBook.getOrderBookKey(order)
+
       if (orderBooks(order.side).getOrderByOrderBookKey(orderBookKey).isEmpty) {
-        val updatedOrder = if (Server.account.belongsToAccount(order))
-          Server.account.openOrder(order.orderId).get
+        val updatedOrder = if (FakebaseServer.account.belongsToAccount(order))
+          FakebaseServer.account.openOrder(order.orderId).get
         else
           OrderUtils.openOrder(order)
 
        orderBooks(order.side).update(orderBookKey, updatedOrder)
+
       } else {
-        addToOrderBook(order, degeneracy+1)
+        order.incrementDegeneracy
+        addToOrderBook(order)
       }
     }
   }
 
   private def checkForSelfTrade(makerOrder: LimitOrderEvent, takerOrder: OrderEvent): Boolean = {
     List(makerOrder, takerOrder)
-      .map(Server.account.belongsToAccount)
+      .map(FakebaseServer.account.belongsToAccount)
       .forall(_ == true)
   }
 
   private def getLiquidity(makerOrder: LimitOrderEvent, takerOrder: OrderEvent): Liquidity = {
-    (Server.account.belongsToAccount(makerOrder), Server.account.belongsToAccount(takerOrder)) match {
+    (FakebaseServer.account.belongsToAccount(makerOrder), FakebaseServer.account.belongsToAccount(takerOrder)) match {
       case (true, false) => Liquidity.maker
       case (false, true) => Liquidity.taker
       case (false, false) => Liquidity.global
@@ -91,7 +94,7 @@ class MatchingEngine {
   private def processMatchedMakerOrder(makerOrder: LimitOrderEvent, liquidity: Liquidity): LimitOrderEvent = {
     if (makerOrder.remainingSize.isZero) {
       if (liquidity.ismaker) {
-        Server.account.closeOrder(makerOrder, DoneReason.filled).get
+        FakebaseServer.account.closeOrder(makerOrder, DoneReason.filled).get
       } else {
         OrderUtils.setOrderStatusToDone(makerOrder, DoneReason.filled)
       }
@@ -109,7 +112,7 @@ class MatchingEngine {
 
     if (isFilled) {
       if (liquidity.istaker) {
-        Server.account.closeOrder(takerOrder, DoneReason.filled).get
+        FakebaseServer.account.closeOrder(takerOrder, DoneReason.filled).get
       } else {
         OrderUtils.setOrderStatusToDone(takerOrder, DoneReason.filled)
       }
@@ -142,7 +145,7 @@ class MatchingEngine {
     matches += matchEvent
 
     if (!liquidity.isglobal) {
-      Server.account.processMatch(matchEvent)
+      FakebaseServer.account.processMatch(matchEvent)
     }
   }
 
@@ -176,14 +179,16 @@ class MatchingEngine {
                                                 takerOrder: BuyMarketOrder
   ): ProductVolume = {
     val takerOrderDesiredVolume = new ProductVolume(
-      Left(takerOrder.funds.amount.divide(makerOrder.price.amount))
+      Left(takerOrder.funds.amount.divide(makerOrder.price.amount, ProductVolume.mathContext))
     )
     val filledVolume =
       List(takerOrderDesiredVolume, makerOrder.remainingSize).min
+
     val takerOrderRemainingFunds = List(
       QuoteVolume.zeroVolume,
       takerOrder.remainingFunds - makerOrder.price * filledVolume
     ).max
+
     val makerOrderRemainingSize = List(
       ProductVolume.zeroVolume,
       makerOrder.remainingSize - filledVolume
@@ -304,7 +309,7 @@ class MatchingEngine {
       return
     }
 
-    if (order.remainingSize >= ProductVolume.zeroVolume) {
+    if (order.remainingSize > ProductVolume.zeroVolume) {
       val makerOrder = getBestMakerOrder(order)
 
       makerOrder match {
@@ -336,7 +341,7 @@ class MatchingEngine {
     }
   }
 
-  private def processOrder(order: OrderEvent) = {
+  private def processOrder(order: OrderEvent): Unit = {
     order match {
       case order: LimitOrderEvent  => processLimitOrder(order)
       case order: MarketOrderEvent => processMarketOrder(order)
@@ -357,7 +362,7 @@ object SlippageProtection {
         priceSlippagePoints = (
           (makerOrderPrice.amount
             .subtract(firstMatchPrice.amount))
-            .divide(firstMatchPrice.amount)
+            .divide(firstMatchPrice.amount, 6, RoundingMode.HALF_UP)
             .abs
         )
       }
