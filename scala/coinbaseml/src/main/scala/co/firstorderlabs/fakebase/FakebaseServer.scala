@@ -10,8 +10,6 @@ import io.grpc.netty.NettyServerBuilder
 import scala.concurrent.ExecutionContext
 
 object FakebaseServer {
-  val account = new Account
-  val exchange = new Exchange
   private val logger = Logger.getLogger(classOf[FakebaseServer].getName)
   private val port = 9090
 
@@ -30,8 +28,8 @@ class FakebaseServer(executionContext: ExecutionContext) {self =>
       .forPort(FakebaseServer.port)
       .maxInboundMessageSize(100 * 1000 * 1000)
       .maxInboundMetadataSize(100 * 1000 * 1000)
-      .addService(AccountServiceGrpc.bindService(FakebaseServer.account, executionContext))
-      .addService(ExchangeServiceGrpc.bindService(FakebaseServer.exchange, executionContext))
+      .addService(AccountServiceGrpc.bindService(Account, executionContext))
+      .addService(ExchangeServiceGrpc.bindService(Exchange, executionContext))
       .build
       .start
 

@@ -18,10 +18,10 @@ object Types {
       productCurrency.currency + "-" + quoteCurrency.currency
   }
 
-  case class TimeInterval(startDt: Datetime, endDt: Datetime) {
+  case class TimeInterval(startTime: Datetime, endTime: Datetime) {
     def +(duration: Duration): TimeInterval = {
-      val startDt = Datetime(this.startDt.instant.plus(duration))
-      val endDt = Datetime(this.endDt.instant.plus(duration))
+      val startDt = Datetime(this.startTime.instant.plus(duration))
+      val endDt = Datetime(this.endTime.instant.plus(duration))
       TimeInterval(startDt, endDt)
     }
   }
@@ -66,5 +66,4 @@ object Types {
   object TradeId {
     implicit val typeMapper = TypeMapper[Long, TradeId](value => TradeId(value))(tradeId => tradeId.tradeId)
   }
-
 }

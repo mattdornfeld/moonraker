@@ -15,6 +15,6 @@ python3 -m grpc_tools.protoc \
     --mypy_out=$FAKEBASE_PROTOS_DIR \
     --python_out=$FAKEBASE_PROTOS_DIR \
     --grpc_python_out=$FAKEBASE_PROTOS_DIR \
-    scala/coinbaseml/src/main/protobuf/fakebase.proto \
+    scala/coinbaseml/src/main/protobuf/fakebase.proto
 
-2to3 -w $FAKEBASE_PROTOS_DIR
+2to3 -n -w $FAKEBASE_PROTOS_DIR

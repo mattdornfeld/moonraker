@@ -171,6 +171,15 @@ class PreciseNumber(Generic[PreciseNumberSubtype]):
         """
         return "<{} {}>".format(self.__class__.__name__, self.amount)
 
+    def __str__(self) -> str:
+        """
+        __str__ [summary]
+
+        Returns:
+            str: [description]
+        """
+        return str(self.amount)
+
     def is_too_large(self) -> bool:
         """
         is_too_large returns True if amount is less than min
