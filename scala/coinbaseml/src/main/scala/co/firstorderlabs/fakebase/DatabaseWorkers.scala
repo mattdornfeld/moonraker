@@ -11,7 +11,7 @@ import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume, productId}
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events.Event
-import co.firstorderlabs.fakebase.types.Types.{Datetime, OrderId, OrderRequestId, ProductId, TimeInterval}
+import co.firstorderlabs.fakebase.types.Types._
 import doobie.implicits._
 import doobie.implicits.legacy.instant._
 import doobie.{Meta, Query0, Transactor}
@@ -29,45 +29,94 @@ case class QueryResult(buyLimitOrders: List[BuyLimitOrder],
 
 class QueryResultComparator extends Comparator[QueryResult] {
     def compare(result1: QueryResult, result2: QueryResult): Int = {
-      result1.timeInterval.startDt.instant compareTo result2.timeInterval.startDt.instant
+      result1.timeInterval.startTime.instant compareTo result2.timeInterval.startTime.instant
     }
 }
 
-final case class BoundedTrieMap[K, V](maxSize: Int) {
-  private val trieMap = new TrieMap[K, V]
+final case class BoundedTrieMap[K, V](maxSize: Int, trieMap: Option[TrieMap[K, V]] = None) {
+  private val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
+
+  def addAll(xs: IterableOnce[(K, V)]): Unit = {
+    _trieMap.addAll(xs)
+  }
+
+  def clear: Unit = _trieMap.clear
 
   @tailrec
-  def get(key: K): V = {
-    val value = trieMap.get(key)
+  def remove(key: K): V = {
+    val value = _trieMap.remove(key)
     if (value.isDefined) {
       value.get
     } else {
       Thread.sleep(1)
-      get(key)
+      remove(key)
     }
+  }
+
+  def iterator: Iterator[(K, V)] = {
+    _trieMap.iterator
   }
 
   @tailrec
   def put(key: K, value: V): Option[V] = {
-    if (trieMap.size >= maxSize) {
+    if (size >= maxSize) {
+      Thread.sleep(10)
       put(key, value)
     } else {
-      Thread.sleep(1)
-      trieMap.put(key, value)
+      _trieMap.put(key, value)
     }
   }
 
-  def size: Int = trieMap.size
-}
+  def size: Int = _trieMap.size
 
-class DatabaseWorkers extends Thread {
-  override def run() = {
-    DatabaseWorkers.timeIntervalQueue.parallelStream.forEach(DatabaseWorkers.populateQueryResultQueue)
+  override def clone: BoundedTrieMap[K, V] = {
+    BoundedTrieMap(maxSize, Some(_trieMap.clone))
   }
 }
 
-object DatabaseWorkers {
-  // TODO: Convert get/put to meta to save space
+class DatabaseWorkers extends Thread {
+  private var paused = false
+
+  def pauseWorker: Unit = synchronized {
+    paused = true
+  }
+
+  def unpauseWorker: Unit = synchronized {
+    paused = false
+    notify
+  }
+
+  @tailrec
+  final def isPaused: Boolean = {
+    Thread.sleep(10)
+    val threadState = synchronized {getState}
+    if (threadState.compareTo(Thread.State.WAITING) == 0) {
+      true
+    } else {
+      isPaused
+    }
+  }
+
+  override def run(): Unit = populateQueryResultQueue
+
+  @tailrec
+  private def populateQueryResultQueue: Unit = {
+    if (paused) synchronized{wait}
+    if (!DatabaseWorkers.timeIntervalQueue.isEmpty) {
+      val timeInterval = DatabaseWorkers.timeIntervalQueue.take
+      DatabaseWorkers.populateQueryResultMap(timeInterval)
+      DatabaseWorkers.logger.fine(s"retrieved data for timeInterval ${timeInterval}")
+    } else {
+      Thread.sleep(10)
+    }
+    populateQueryResultQueue
+  }
+}
+
+case class DatabaseWorkersCheckpoint(timeIntervalQueue: LinkedBlockingQueue[TimeInterval]) extends Checkpoint
+
+object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
+  // Specify how to convert from JDBC supported data types to custom data types
   implicit val dateTimeConverter: Meta[Datetime] = Meta[Instant].timap(value => Datetime(value))(value => value.instant)
   implicit val doneReasonConverter: Meta[DoneReason] = Meta[Int].timap(value => DoneReason.fromValue(value))(value => value.value)
   implicit val orderIdConverter: Meta[OrderId] = Meta[String].timap(value => OrderId(value))(value => value.orderId)
@@ -84,7 +133,6 @@ object DatabaseWorkers {
   implicit val buyMarketOrderRequestConverter: Meta[BuyMarketOrderRequest] = Meta[String].timap(_ => new BuyMarketOrderRequest())(_ => "")
 
   implicit val contextShift = IO.contextShift(ExecutionContext.global)
-//  val queryResultQueue = new PriorityBlockingQueue[QueryResult](Configs.maxResultsQueueSize, new QueryResultComparator())
   private val logger = Logger.getLogger(DatabaseWorkers.toString)
   private val queryResultMap = new BoundedTrieMap[TimeInterval, QueryResult](Configs.maxResultsQueueSize)
   private val transactor = Transactor.fromDriverManager[IO](
@@ -93,33 +141,67 @@ object DatabaseWorkers {
     Configs.postgresUsername,
     Configs.postgresPassword,
   )
-  private val timeIntervalQueue = createTimeIntervalQueue(Configs.startTime, Configs.endTime, Configs.timeDelta)
+  private val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
+  private val workers = for(_ <- (1 to Configs.numDatabaseWorkers)) yield new DatabaseWorkers
+  workers.foreach(w => w.start)
+
+  override def checkpoint: DatabaseWorkersCheckpoint = {
+    val checkpointTimeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
+    populateTimeIntervalQueue(
+      Exchange.simulationMetadata.get.checkpointTimeInterval.startTime,
+      Exchange.simulationMetadata.get.endTime,
+      Exchange.simulationMetadata.get.timeDelta,
+      checkpointTimeIntervalQueue)
+    DatabaseWorkersCheckpoint(checkpointTimeIntervalQueue)
+  }
+
+  override def clear: Unit = {
+    queryResultMap.clear
+    timeIntervalQueue.clear
+  }
+
+  override def restore(checkpoint: DatabaseWorkersCheckpoint): Unit = {
+    pauseWorkers
+    clear
+    timeIntervalQueue.addAll(checkpoint.timeIntervalQueue)
+    unpauseWorkers
+  }
 
   def getQueryResult(timeInterval: TimeInterval): QueryResult = {
-    queryResultMap.get(timeInterval)
+    queryResultMap.remove(timeInterval)
   }
 
   def getResultMapSize: Int = queryResultMap.size
 
-  private def createTimeIntervalQueue(startTime: Datetime, endTime: Datetime, timeDelta: Duration): LinkedBlockingQueue[TimeInterval] = {
-    val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]()
-
-    var intervalStartTime = startTime
-    var intervalEndTime = timeDelta.addTo(intervalStartTime.instant).asInstanceOf[Instant]
-    while (endTime.instant.isAfter(intervalStartTime.instant)) {
-      timeIntervalQueue.add(
-        TimeInterval(intervalStartTime, Datetime(intervalEndTime))
-      )
-
-      intervalStartTime = Datetime(intervalEndTime)
-      intervalEndTime = timeDelta.addTo(intervalEndTime).asInstanceOf[Instant]
-    }
-
-    timeIntervalQueue
-
+  def start(startTime: Datetime,
+            endTime: Datetime,
+            timeDelta: Duration): Unit = {
+    pauseWorkers
+    clear
+    populateTimeIntervalQueue(startTime, endTime, timeDelta, timeIntervalQueue)
+    unpauseWorkers
+    logger.info(s"DatabaseWorkers started for ${startTime}-${endTime} with timeDelta ${timeDelta}")
   }
 
-  private def populateQueryResultQueue(timeInterval: TimeInterval): Unit = {
+  private def executeQuery[A <: Event](query: Query0[A]): List[A] = {
+    query
+      .stream
+      .compile
+      .toList
+      .transact(transactor)
+      .unsafeRunSync
+  }
+
+  private def pauseWorkers: Unit = {
+    workers.foreach(w => w.pauseWorker)
+    workers.foreach(w => w.isPaused)
+  }
+
+  private def unpauseWorkers: Unit = {
+    workers.foreach(w => w.unpauseWorker)
+  }
+
+  private def populateQueryResultMap(timeInterval: TimeInterval): Unit = {
     //TODO: Try adding below queries to single transaction
     val queryResult = QueryResult(
       executeQuery(queryBuyLimitOrders(productId, timeInterval)),
@@ -135,13 +217,17 @@ object DatabaseWorkers {
     queryResultMap.put(timeInterval, queryResult)
   }
 
-  private def executeQuery[A <: Event](query: Query0[A]): List[A] = {
-    query
-      .stream
-      .compile
-      .toList
-      .transact(transactor)
-      .unsafeRunSync
+  @tailrec
+  private def populateTimeIntervalQueue(startTime: Datetime,
+                                        endTime: Datetime,
+                                        timeDelta: Duration,
+                                        timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
+                                       ): Unit = {
+    if (endTime.instant.isAfter(startTime.instant)) {
+      val intervalEndTime = Datetime(startTime.instant.plus(timeDelta))
+      timeIntervalQueue.put(TimeInterval(startTime, intervalEndTime))
+      populateTimeIntervalQueue(intervalEndTime, endTime, timeDelta, timeIntervalQueue)
+    }
   }
 
   private def queryCancellations(productId: ProductId, timeInterval: TimeInterval): Query0[Cancellation] = {
@@ -153,7 +239,7 @@ object DatabaseWorkers {
             remaining_size,
             time
           FROM coinbase_cancellations
-          WHERE time BETWEEN ${timeInterval.startDt.toString}::timestamp and ${timeInterval.endDt.toString}::timestamp
+          WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp and ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
        """
       .query[Cancellation]
@@ -173,7 +259,7 @@ object DatabaseWorkers {
             ${Instant.EPOCH.toString}::timestamp,
             ${DoneReason.notDone.value}
           FROM coinbase_orders
-          WHERE time BETWEEN ${timeInterval.startDt.toString}::timestamp AND ${timeInterval.endDt.toString}::timestamp
+          WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp AND ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.limit.name}
           AND side = ${OrderSide.buy.name}
@@ -194,7 +280,7 @@ object DatabaseWorkers {
             ${Instant.EPOCH.toString}::timestamp,
             ${DoneReason.notDone.value}
           FROM coinbase_orders
-          WHERE time BETWEEN ${timeInterval.startDt.toString}::timestamp AND ${timeInterval.endDt.toString}::timestamp
+          WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp AND ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.market.name}
           AND side = ${OrderSide.buy.name}
@@ -216,7 +302,7 @@ object DatabaseWorkers {
             ${Instant.EPOCH.toString}::timestamp,
             ${DoneReason.notDone.value}
           FROM coinbase_orders
-          WHERE time BETWEEN ${timeInterval.startDt.toString}::timestamp and ${timeInterval.endDt.toString}::timestamp
+          WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp and ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.limit.name}
           AND side = ${OrderSide.sell.name}
@@ -237,7 +323,7 @@ object DatabaseWorkers {
             ${Instant.EPOCH.toString}::timestamp,
             ${DoneReason.notDone.value}
           FROM coinbase_orders
-          WHERE time BETWEEN ${timeInterval.startDt.toString}::timestamp and ${timeInterval.endDt.toString}::timestamp
+          WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp and ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.market.name}
           AND side = ${OrderSide.sell.name}

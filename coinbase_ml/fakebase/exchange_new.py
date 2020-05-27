@@ -1,32 +1,34 @@
 """Simulates the Coinbase Pro exchange
 """
 from __future__ import annotations
+import asyncio
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Any, DefaultDict, Dict, List, Optional, Type
+from typing import Any, Coroutine, DefaultDict, Dict, List, Optional, Type
 
 from google.protobuf.empty_pb2 import Empty
+from google.protobuf.duration_pb2 import Duration
 
 import coinbase_ml.fakebase.account as _account
+from coinbase_ml.fakebase.protos.fakebase_pb2 import SimulationParams
 from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import ExchangeServiceStub
 from coinbase_ml.fakebase import constants as c
 from coinbase_ml.fakebase.base_classes.exchange import ExchangeBase
 from coinbase_ml.fakebase.database_workers import DatabaseWorkers
-from coinbase_ml.fakebase.order_book import OrderBook
 from coinbase_ml.fakebase.orm import (
     CoinbaseEvent,
     CoinbaseCancellation,
     CoinbaseMatch,
     CoinbaseOrder,
 )
-from coinbase_ml.fakebase.matching_engine import MatchingEngine
 from coinbase_ml.fakebase.types import (
     OrderSide,
     OrderStatus,
     ProductId,
     ProductPrice,
     ProductVolume,
+    QuoteVolume,
 )
 
 
@@ -172,10 +174,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Returns:
             List[CoinbaseMatch]: [description]
         """
-        return [
-            CoinbaseMatch.from_proto(m)
-            for m in self.stub.getMatches(Empty()).matchEvents
-        ]
+        match_events = asyncio.run(self.stub.getMatches(Empty()))
+        return [CoinbaseMatch.from_proto(m) for m in match_events.matchEvents]
 
     @property
     def received_cancellations(self) -> List[CoinbaseCancellation]:
@@ -208,7 +208,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self._received_orders = value
 
     @property
-    def order_book(self) -> Dict[OrderSide, OrderBook]:
+    def order_book(self) -> Dict[OrderSide, "OrderBook"]:
         """
         order_book [summary]
 
@@ -217,13 +217,41 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """
 
     @order_book.setter
-    def order_book(self, value: Dict[OrderSide, OrderBook]) -> None:
+    def order_book(self, value: Dict[OrderSide, "OrderBook"]) -> None:
         """
         order_book [summary]
 
         Args:
             value (Dict[OrderSide, OrderBook]): [description]
         """
+
+    def start(
+        self,
+        initial_product_funds: ProductVolume,
+        initial_quote_funds: QuoteVolume,
+        num_warmup_time_steps: int,
+    ) -> None:
+        """
+        start [summary]
+
+        Args:
+            initial_product_funds (ProductVolume): [description]
+            initial_quote_funds (QuoteVolume): [description]
+            num_warmup_time_steps (int): [description]
+        """
+        message = SimulationParams(
+            startTime=self.start_dt.isoformat() + "Z",
+            endTime=self.end_dt.isoformat() + "Z",
+            timeDelta=Duration(seconds=int(self.time_delta.total_seconds())),
+            numWarmUpSteps=num_warmup_time_steps,
+            initialProductFunds=str(initial_product_funds),
+            initialQuoteFunds=str(initial_quote_funds),
+        )
+
+        self.stub.start(message)
+
+    def reset(self) -> None:
+        self.stub.reset(Empty())
 
     def step(
         self,
@@ -281,6 +309,9 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self.received_cancellations.sort(key=lambda event: event.time)
 
         self.stub.step(Empty())
+
+    def stop(self) -> None:
+        self.stub.stop(Empty())
 
     def stop_database_workers(self) -> None:
         """Summary

@@ -263,3 +263,4 @@ extend google.protobuf.OneofOptions {
   // Extension number officially assigned by protobuf-global-extension-registry@google.com
   optional OneofOptions oneof = 1020;
 }
+

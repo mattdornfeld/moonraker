@@ -3,6 +3,7 @@ package co.firstorderlabs.fakebase
 import java.math.{BigDecimal, RoundingMode}
 import java.util.UUID
 
+import co.firstorderlabs.fakebase.Account.Account
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
@@ -13,21 +14,30 @@ import co.firstorderlabs.fakebase.types.Types._
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-class MatchingEngine {
-  val orderBooks: Map[OrderSide, OrderBook] =
-    Map(OrderSide.buy -> new OrderBook, OrderSide.sell -> new OrderBook)
+case class MatchingEngineCheckpoint(buyOrderBookCheckpoint: OrderBookCheckpoint,
+                                    matches: ListBuffer[Match],
+                                    sellOrderBookCheckpoint: OrderBookCheckpoint) extends Checkpoint
+
+object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
   val matches = new ListBuffer[Match]
+  val orderBooks = Map[OrderSide, OrderBook](OrderSide.buy -> new OrderBook, OrderSide.sell -> new OrderBook)
 
   def cancelOrder(order: OrderEvent): OrderEvent = {
     require(List(OrderStatus.open, OrderStatus.received).contains(order.orderStatus), "can only cancel open or received orders")
 
     if (order.orderStatus.isopen) orderBooks(order.side).removeByOrderId(order.orderId)
 
-    if (FakebaseServer.account.belongsToAccount(order))
-      FakebaseServer.account.closeOrder(order, DoneReason.cancelled).get
+    if (Account.belongsToAccount(order))
+      Account.closeOrder(order, DoneReason.cancelled).get
     else
       OrderUtils.setOrderStatusToDone(order, DoneReason.cancelled)
   }
+
+  def checkpoint: MatchingEngineCheckpoint = MatchingEngineCheckpoint(
+    orderBooks(OrderSide.buy).checkpoint,
+    matches.clone,
+    orderBooks(OrderSide.sell).checkpoint
+  )
 
   def checkIsTaker(order: LimitOrderEvent): Boolean = {
     order match {
@@ -46,6 +56,12 @@ class MatchingEngine {
     }
   }
 
+  def clear: Unit = {
+    orderBooks(OrderSide.buy).clear
+    orderBooks(OrderSide.sell).clear
+    matches.clear
+  }
+
   def processEvents(events: List[Event]): Unit = {
     events.foreach(
       event => {
@@ -56,14 +72,21 @@ class MatchingEngine {
     )
   }
 
+  def restore(checkpoint: MatchingEngineCheckpoint): Unit = {
+    clear
+    orderBooks(OrderSide.buy).restore(checkpoint.buyOrderBookCheckpoint)
+    orderBooks(OrderSide.sell).restore(checkpoint.sellOrderBookCheckpoint)
+    matches.addAll(checkpoint.matches.iterator)
+  }
+
   @tailrec
   private def addToOrderBook(order: LimitOrderEvent): Unit = {
     if (orderBooks(order.side).getOrderByOrderId(order.orderId).isEmpty) {
       val orderBookKey = OrderBook.getOrderBookKey(order)
 
       if (orderBooks(order.side).getOrderByOrderBookKey(orderBookKey).isEmpty) {
-        val updatedOrder = if (FakebaseServer.account.belongsToAccount(order))
-          FakebaseServer.account.openOrder(order.orderId).get
+        val updatedOrder = if (Account.belongsToAccount(order))
+          Account.openOrder(order.orderId).get
         else
           OrderUtils.openOrder(order)
 
@@ -78,12 +101,12 @@ class MatchingEngine {
 
   private def checkForSelfTrade(makerOrder: LimitOrderEvent, takerOrder: OrderEvent): Boolean = {
     List(makerOrder, takerOrder)
-      .map(FakebaseServer.account.belongsToAccount)
+      .map(Account.belongsToAccount)
       .forall(_ == true)
   }
 
   private def getLiquidity(makerOrder: LimitOrderEvent, takerOrder: OrderEvent): Liquidity = {
-    (FakebaseServer.account.belongsToAccount(makerOrder), FakebaseServer.account.belongsToAccount(takerOrder)) match {
+    (Account.belongsToAccount(makerOrder), Account.belongsToAccount(takerOrder)) match {
       case (true, false) => Liquidity.maker
       case (false, true) => Liquidity.taker
       case (false, false) => Liquidity.global
@@ -94,7 +117,7 @@ class MatchingEngine {
   private def processMatchedMakerOrder(makerOrder: LimitOrderEvent, liquidity: Liquidity): LimitOrderEvent = {
     if (makerOrder.remainingSize.isZero) {
       if (liquidity.ismaker) {
-        FakebaseServer.account.closeOrder(makerOrder, DoneReason.filled).get
+        Account.closeOrder(makerOrder, DoneReason.filled).get
       } else {
         OrderUtils.setOrderStatusToDone(makerOrder, DoneReason.filled)
       }
@@ -112,7 +135,7 @@ class MatchingEngine {
 
     if (isFilled) {
       if (liquidity.istaker) {
-        FakebaseServer.account.closeOrder(takerOrder, DoneReason.filled).get
+        Account.closeOrder(takerOrder, DoneReason.filled).get
       } else {
         OrderUtils.setOrderStatusToDone(takerOrder, DoneReason.filled)
       }
@@ -145,7 +168,7 @@ class MatchingEngine {
     matches += matchEvent
 
     if (!liquidity.isglobal) {
-      FakebaseServer.account.processMatch(matchEvent)
+      Account.processMatch(matchEvent)
     }
   }
 

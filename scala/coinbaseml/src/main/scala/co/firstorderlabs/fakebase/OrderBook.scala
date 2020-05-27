@@ -7,14 +7,32 @@ import co.firstorderlabs.fakebase.types.Events.{Event, OrderEvent, LimitOrderEve
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Types.OrderId
 
-import scala.collection.mutable
+import scala.collection.mutable.{HashMap, TreeMap}
 import scala.math.Ordering
+
+case class OrderBookCheckpoint(orderIdLookup: HashMap[OrderId, LimitOrderEvent],
+                               priceTimeTree: TreeMap[OrderBookKey, LimitOrderEvent]) extends Checkpoint
 
 case class OrderBookKey(price: ProductPrice, time: Duration, degeneracy: Int)
 
-class OrderBook {
-  private val priceTimeTree = new mutable.TreeMap[OrderBookKey, LimitOrderEvent]()(OrderBook.OrderBookKeyOrdering)
-  private val orderIdLookup = new mutable.HashMap[OrderId, LimitOrderEvent]
+class OrderBook extends Checkpointable[OrderBookCheckpoint] {
+  private val orderIdLookup = new HashMap[OrderId, LimitOrderEvent]
+  private val priceTimeTree = new TreeMap[OrderBookKey, LimitOrderEvent]()(OrderBook.OrderBookKeyOrdering)
+
+  override def checkpoint: OrderBookCheckpoint = {
+    OrderBookCheckpoint(orderIdLookup.clone, priceTimeTree.clone)
+  }
+
+  override def clear: Unit = {
+    orderIdLookup.clear
+    priceTimeTree.clear
+  }
+
+  override def restore(checkpoint: OrderBookCheckpoint): Unit = {
+    clear
+    orderIdLookup.addAll(checkpoint.orderIdLookup.iterator)
+    priceTimeTree.addAll(checkpoint.priceTimeTree.iterator)
+  }
 
   def getOrderByOrderBookKey(orderBookKey: OrderBookKey): Option[LimitOrderEvent] = priceTimeTree.get(orderBookKey)
 

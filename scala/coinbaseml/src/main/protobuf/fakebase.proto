@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "scalapb/scalapb.proto";
 
@@ -25,7 +26,13 @@ service AccountService {
 service ExchangeService {
     rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
     }
+    rpc reset (google.protobuf.Empty) returns (google.protobuf.Empty) {
+    }
+    rpc start (SimulationStartRequest) returns (google.protobuf.Empty) {
+    }
     rpc step (google.protobuf.Empty) returns (google.protobuf.Empty) {
+    }
+    rpc stop (google.protobuf.Empty) returns (google.protobuf.Empty) {
     }
 }
 
@@ -215,4 +222,13 @@ message SellMarketOrder {
     string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 10;
+}
+
+message SimulationStartRequest {
+    string startTime = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
+    string endTime = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
+    google.protobuf.Duration timeDelta = 3;
+    int32 numWarmUpSteps = 4;
+    string initialProductFunds = 5 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
+    string initialQuoteFunds = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume"];
 }
