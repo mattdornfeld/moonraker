@@ -45,8 +45,6 @@ object Exchange
   var simulationMetadata: Option[SimulationMetadata] = None
   private var receivedEvents: List[Event] = List()
 
-  databaseWorkers.start
-
   def cancelOrder(order: OrderEvent): OrderEvent = matchingEngine.cancelOrder(order)
 
   def checkIsTaker(limitOrder: LimitOrderEvent): Boolean = {

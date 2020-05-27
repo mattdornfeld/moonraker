@@ -7,6 +7,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import NewType, Optional
 
+import coinbase_ml.fakebase.protos.fakebase_pb2 as fakebase_pb2
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     OrderSide as OrderSideProto,
     Liquidity as LiquidityProto,
@@ -69,12 +70,12 @@ class Liquidity(Enum):
         return self._fee_fraction
 
     @staticmethod
-    def from_proto(liquidity: LiquidityProto) -> Liquidity:
+    def from_proto(liquidity: "fakebase_pb2.LiquidityValue") -> Liquidity:
         """
         from_proto [summary]
 
         Args:
-            liquidity (int): [description]
+            fakebase_pb2.LiquidityValue (int): [description]
 
         Returns:
             Liquidity: [description]
@@ -100,12 +101,12 @@ class OrderSide(Enum):
     sell = "sell"
 
     @staticmethod
-    def from_proto(order_side: OrderSideProto) -> OrderSide:
+    def from_proto(order_side: "fakebase_pb2.OrderSideValue") -> OrderSide:
         """
         from_proto [summary]
 
         Args:
-            order_side (OrderSideProto): [description]
+            fakebase_pb2.OrderSideValue (OrderSideProto): [description]
 
         Returns:
             OrderSide: [description]
