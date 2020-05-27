@@ -4,7 +4,7 @@
 version: '3'
 services:
   coinbase_ml_tests:
-    command: make test
+    command: make build-python-protos test
     build:
       context: .
       dockerfile: dockerfiles/Dockerfile.cpu

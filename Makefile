@@ -32,13 +32,13 @@ test:
 	python3 setup.py test --addopts "${PYTEST_IGNORE} --mypy --pylint --pylint-rcfile=setup.cfg"
 
 test-integration:
-	python3 setup.py test --addopts "-m 'integration_tests'"
+	python3 setup.py test --addopts "${PYTEST_IGNORE} -m 'integration_tests'"
 
 test-mypy:
-	python3 setup.py test --addopts "-m mypy --mypy"
+	python3 setup.py test --addopts "${PYTEST_IGNORE} -m mypy --mypy"
 
 test-pylint:
 	python3 setup.py test --addopts "${PYTEST_IGNORE} -m pylint --pylint --pylint-rcfile=setup.cfg"
 
 test-unit:
-	python3 setup.py test --addopts "-m 'not integration_tests'"
+	python3 setup.py test --addopts "${PYTEST_IGNORE} -m 'not integration_tests'"
