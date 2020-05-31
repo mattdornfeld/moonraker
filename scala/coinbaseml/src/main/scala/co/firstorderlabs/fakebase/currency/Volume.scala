@@ -1,7 +1,6 @@
 package co.firstorderlabs.fakebase.currency
 
-import java.math.{BigDecimal, MathContext}
-import java.util.UUID
+import java.math.{BigDecimal, RoundingMode}
 
 import co.firstorderlabs.fakebase.types.Types.Currency
 import scalapb.TypeMapper
@@ -18,22 +17,22 @@ object Volume {
     */
   trait VolumeCompanion[T <: Volume[T]] {
     val currency: Currency
-    val mathContext: MathContext
     val maxVolume: T
     val minVolume: T
+    val scale: Int
     val zeroVolume: T
   }
 
   /**Abstract class used to define operations on volumes of currency
     *
-    * @param mathContext is used to define the precision of the currency
+    * @param scale is the number of decimal points of the currency
     * @param value is the numerical value of the volume
     * @tparam T is a subclass of Volume. It will represent the volume
     *           of a particular currency.
     */
-  abstract class Volume[T <: Volume[T]](mathContext: MathContext,
+  abstract class Volume[T <: Volume[T]](scale: Int,
                                         value: Either[BigDecimal, String])
-      extends PreciseNumber[T](mathContext, value) {
+      extends PreciseNumber[T](scale, value) {
 
     val companion: VolumeCompanion[T]
 
@@ -79,7 +78,7 @@ object Volume {
     * @param value
     */
   class BtcVolume(value: Either[BigDecimal, String])
-      extends Volume[BtcVolume](BtcVolume.mathContext, value) {
+      extends Volume[BtcVolume](BtcVolume.scale, value) {
 
     override val companion = BtcVolume
 
@@ -119,9 +118,9 @@ object Volume {
       */
     def /(that: Either[BigDecimal, Double]): BtcVolume = {
       that match {
-        case Left(that) => new BtcVolume(Left(this.amount.divide(that, _mathContext)))
+        case Left(that) => new BtcVolume(Left(this.amount.divide(that, _scale, RoundingMode.HALF_UP)))
         case Right(that) =>
-          new BtcVolume(Left(this.amount.divide(new BigDecimal(that), _mathContext)))
+          new BtcVolume(Left(this.amount.divide(new BigDecimal(that), _scale, RoundingMode.HALF_UP)))
       }
     }
   }
@@ -131,7 +130,7 @@ object Volume {
     * @param value is the numerical value of the volume
     */
   class UsdVolume(value: Either[BigDecimal, String])
-      extends Volume[UsdVolume](UsdVolume.mathContext, value) {
+      extends Volume[UsdVolume](UsdVolume.scale, value) {
 
     override val companion = UsdVolume
 
@@ -171,9 +170,9 @@ object Volume {
       */
     def /(that: Either[BigDecimal, Double]): UsdVolume = {
       that match {
-        case Left(that) => new UsdVolume(Left(this.amount.divide(that, _mathContext)))
+        case Left(that) => new UsdVolume(Left(this.amount.divide(that, _scale, RoundingMode.HALF_UP)))
         case Right(that) =>
-          new UsdVolume(Left(this.amount.divide(new BigDecimal(that), _mathContext)))
+          new UsdVolume(Left(this.amount.divide(new BigDecimal(that), RoundingMode.HALF_UP)))
       }
     }
   }
@@ -186,9 +185,9 @@ object Volume {
       value => new BtcVolume(Right(value))
     )(volume => volume.amount.toString)
     val currency = Currency("BTC")
-    val mathContext = new MathContext(8)
     val maxVolume = new BtcVolume(Right("1e4"))
     val minVolume = new BtcVolume(Right("1e-3"))
+    val scale = 8
     val zeroVolume = new BtcVolume(Right("0.0"))
   }
 
@@ -200,9 +199,9 @@ object Volume {
       value => new UsdVolume(Right(value))
     )(volume => volume.amount.toString)
     val currency = Currency("USD")
-    val mathContext = new MathContext(2)
     val maxVolume = new UsdVolume(Right("1e10"))
     val minVolume = new UsdVolume(Right("1e-2"))
+    val scale = 2
     val zeroVolume = new UsdVolume(Right("0.0"))
   }
 }

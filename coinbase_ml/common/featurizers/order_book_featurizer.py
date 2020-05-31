@@ -1,14 +1,19 @@
 """
 order_book_featurizer
 """
-from typing import DefaultDict, Generic, Tuple
+from typing import Generic, Tuple
 
 import numpy as np
 
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.featurizers.types import Exchange
 from coinbase_ml.common.utils.preprocessing_utils import min_max_normalization
-from coinbase_ml.fakebase.types import OrderSide, ProductPrice, ProductVolume
+from coinbase_ml.fakebase.types import (
+    BinnedOrderBook,
+    OrderSide,
+    ProductPrice,
+    ProductVolume,
+)
 
 
 class OrderBookFeaturizer(Generic[Exchange]):
@@ -45,14 +50,12 @@ class OrderBookFeaturizer(Generic[Exchange]):
         )
 
     @staticmethod
-    def _price_volume_dict_to_array(
-        price_volume_dict: DefaultDict[ProductPrice, ProductVolume]
-    ) -> np.ndarray:
+    def _price_volume_dict_to_array(price_volume_dict: BinnedOrderBook) -> np.ndarray:
         """
         _price_volume_dict_to_array [summary]
 
         Args:
-            price_volume_dict (DefaultDict[ProductPrice, ProductVolume]): [description]
+            price_volume_dict (BinnedOrderBook): [description]
 
         Returns:
             np.ndarray: [description]

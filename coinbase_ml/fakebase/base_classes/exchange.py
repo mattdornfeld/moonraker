@@ -3,12 +3,12 @@ Base classes for Account and Exchange
 """
 from __future__ import annotations
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, DefaultDict, Generic, List, Optional, TypeVar
+from typing import TYPE_CHECKING, Generic, List, Optional, TypeVar
 
 from coinbase_ml.common.utils.time_utils import TimeInterval
 from ..orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from ..utils.exceptions import ExchangeFinishedException
-from ..types import OrderSide, ProductId, ProductPrice, ProductVolume
+from ..types import BinnedOrderBook, OrderSide, ProductId
 
 if TYPE_CHECKING:
     # To avoid circular import account on the submodule level
@@ -62,9 +62,7 @@ class ExchangeBase(Generic[Account]):
         """
         self._account = value
 
-    def bin_order_book_by_price(
-        self, order_side: OrderSide
-    ) -> DefaultDict[ProductPrice, ProductVolume]:
+    def bin_order_book_by_price(self, order_side: OrderSide) -> BinnedOrderBook:
         """
         bin_order_book_by_price [summary]
 
@@ -75,7 +73,7 @@ class ExchangeBase(Generic[Account]):
             NotImplementedError: [description]
 
         Returns:
-            DefaultDict[ProductPrice, ProductVolume]: [description]
+            BinnedOrderBook: [description]
         """
         raise NotImplementedError
 

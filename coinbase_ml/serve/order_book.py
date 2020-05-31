@@ -2,15 +2,14 @@
  [summary]
 """
 import logging
-from collections import defaultdict
 from threading import Lock
-from typing import DefaultDict, Dict, Iterator, List, Tuple
+from typing import Dict, Iterator, List, Tuple
 
 from coinbase_ml.fakebase.types import OrderSide, ProductId, ProductPrice, ProductVolume
 
 LOGGER = logging.getLogger(__name__)
 
-BinnedOrderBook = DefaultDict[ProductPrice, ProductVolume]
+BinnedOrderBook = Dict[ProductPrice, ProductVolume]
 OrderBookChanges = List[Tuple[str, str, str]]
 OrderBookSnapshot = List[Tuple[str, str]]
 OrderBookLevel = Tuple[ProductPrice, ProductVolume]
@@ -65,8 +64,7 @@ class OrderBookBinner:
         try:
             for order_side in [OrderSide.buy, OrderSide.sell]:
                 snapshot = order_book_snapshots[order_side]
-                self.order_books[order_side] = defaultdict(
-                    self.product_id.product_volume_type.get_zero_volume,
+                self.order_books[order_side] = dict(
                     self._create_snapshot_generator(snapshot),
                 )
         finally:

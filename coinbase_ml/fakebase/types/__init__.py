@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import NewType, Optional
+from typing import Dict, NewType, Optional
 
 import coinbase_ml.fakebase.protos.fakebase_pb2 as fakebase_pb2
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
@@ -25,6 +25,8 @@ from coinbase_ml.fakebase.types.currency import (
     QuoteVolumeSubType,
     Volume,
 )
+
+BinnedOrderBook = Dict[ProductPrice, ProductVolume]
 
 
 class DoneReason(Enum):

@@ -202,7 +202,7 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
                                                 takerOrder: BuyMarketOrder
   ): ProductVolume = {
     val takerOrderDesiredVolume = new ProductVolume(
-      Left(takerOrder.funds.amount.divide(makerOrder.price.amount, ProductVolume.mathContext))
+      Left(takerOrder.funds.amount.divide(makerOrder.price.amount, ProductVolume.scale, RoundingMode.HALF_UP))
     )
     val filledVolume =
       List(takerOrderDesiredVolume, makerOrder.remainingSize).min
