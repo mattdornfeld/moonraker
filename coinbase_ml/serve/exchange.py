@@ -3,13 +3,17 @@ Serving Exchange makes a connection to the Coinbase websocket feed,
 pulls in orders, cancellations, matches, and the binned order book.
 """
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, DefaultDict, List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from dateutil.tz import UTC
 
 from coinbase_ml.fakebase.base_classes import ExchangeBase
 from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
-from coinbase_ml.fakebase.types import OrderSide, ProductId, ProductPrice, ProductVolume
+from coinbase_ml.fakebase.types import (
+    BinnedOrderBook,
+    OrderSide,
+    ProductId,
+)
 from coinbase_ml.serve.order_book import OrderBookBinner
 from coinbase_ml.serve.stream_processors.coinbase_stream_processor import (
     CoinbaseStreamProcessor,
@@ -47,9 +51,7 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
             order_book_binner=self.order_book_binner
         )
 
-    def bin_order_book_by_price(
-        self, order_side: OrderSide
-    ) -> DefaultDict[ProductPrice, ProductVolume]:
+    def bin_order_book_by_price(self, order_side: OrderSide) -> BinnedOrderBook:
         """
         bin_order_book_by_price [summary]
 
@@ -57,7 +59,7 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
             order_side (OrderSide): [description]
 
         Returns:
-            DefaultDict[ProductPrice, ProductVolume]: [description]
+            BinnedOrderBook: [description]
         """
         return self.order_book_binner.order_books[order_side]
 

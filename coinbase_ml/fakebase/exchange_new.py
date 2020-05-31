@@ -11,7 +11,13 @@ from google.protobuf.empty_pb2 import Empty
 from google.protobuf.duration_pb2 import Duration
 
 import coinbase_ml.fakebase.account as _account
-from coinbase_ml.fakebase.protos.fakebase_pb2 import SimulationParams
+from coinbase_ml.common import constants as cc
+from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+    ExchangeInfo,
+    OrderBooksRequest,
+    OrderBooks,
+    SimulationStartRequest,
+)
 from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import ExchangeServiceStub
 from coinbase_ml.fakebase import constants as c
 from coinbase_ml.fakebase.base_classes.exchange import ExchangeBase
@@ -23,6 +29,7 @@ from coinbase_ml.fakebase.orm import (
     CoinbaseOrder,
 )
 from coinbase_ml.fakebase.types import (
+    BinnedOrderBook,
     OrderSide,
     OrderStatus,
     ProductId,
@@ -65,6 +72,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             time_delta=self.time_delta,
         )
 
+        self._order_books: Dict[OrderSide, BinnedOrderBook] = {}
         self._received_cancellations: List[CoinbaseCancellation] = []
         self._received_orders: List[CoinbaseOrder] = []
         self.account = _account.Account(self)
@@ -87,7 +95,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
                 and self.interval_start_dt == _other.interval_start_dt
                 and self.time_delta == _other.time_delta
                 and self.account == _other.account
-                and self.order_book == _other.order_book
             )
         else:
             raise TypeError
@@ -121,9 +128,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """
         self._account = value
 
-    def bin_order_book_by_price(
-        self, order_side: OrderSide
-    ) -> DefaultDict[ProductPrice, ProductVolume]:
+    def bin_order_book_by_price(self, order_side: OrderSide) -> BinnedOrderBook:
         """
         bin_order_book_by_price [summary]
 
@@ -133,14 +138,26 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Returns:
             DefaultDict[ProductPrice, ProductVolume]: [description]
         """
-        price_volume_dict: DefaultDict[ProductPrice, ProductVolume] = defaultdict(
-            self.product_id.product_volume_type.get_zero_volume
-        )
+        if len(self._order_books) == 0:
+            response: OrderBooks = self.stub.getOrderBooks(
+                OrderBooksRequest(orderBookDepth=cc.ORDER_BOOK_DEPTH)
+            )
+            self._order_books = {
+                OrderSide.buy: {
+                    cc.PRODUCT_ID.price_type(price): cc.PRODUCT_ID.product_volume_type(
+                        volume
+                    )
+                    for (price, volume) in response.buyOrderBook.items()
+                },
+                OrderSide.sell: {
+                    cc.PRODUCT_ID.price_type(price): cc.PRODUCT_ID.product_volume_type(
+                        volume
+                    )
+                    for (price, volume) in response.sellOrderBook.items()
+                },
+            }
 
-        for _, order in self.order_book[order_side].items():
-            price_volume_dict[order.price] += order.remaining_size
-
-        return price_volume_dict
+        return self._order_books[order_side]
 
     def cancel_order(self, order: CoinbaseOrder) -> None:
         """
@@ -150,22 +167,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             order (CoinbaseOrder): [description]
         """
 
-    def create_checkpoint(self) -> ExchangeCheckpoint:
-        """Summary
-
-        Returns:
-            ExchangeCheckpoint: Description
-        """
-        return ExchangeCheckpoint(
-            account=self.account,
-            current_dt=self.interval_start_dt,
-            end_dt=self.end_dt,
-            order_book=self.order_book,
-            product_id=self.product_id,
-            time_delta=self.time_delta,
-            exchange_class=self.__class__,
-        )
-
     @property
     def matches(self) -> List[CoinbaseMatch]:
         """
@@ -174,8 +175,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Returns:
             List[CoinbaseMatch]: [description]
         """
-        match_events = asyncio.run(self.stub.getMatches(Empty()))
-        return [CoinbaseMatch.from_proto(m) for m in match_events.matchEvents]
+        match_events = self.stub.getMatches(Empty()).matchEvents
+        return [CoinbaseMatch.from_proto(m) for m in match_events]
 
     @property
     def received_cancellations(self) -> List[CoinbaseCancellation]:
@@ -207,24 +208,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """
         self._received_orders = value
 
-    @property
-    def order_book(self) -> Dict[OrderSide, "OrderBook"]:
-        """
-        order_book [summary]
-
-        Returns:
-            Dict[OrderSide, OrderBook]: [description]
-        """
-
-    @order_book.setter
-    def order_book(self, value: Dict[OrderSide, "OrderBook"]) -> None:
-        """
-        order_book [summary]
-
-        Args:
-            value (Dict[OrderSide, OrderBook]): [description]
-        """
-
     def start(
         self,
         initial_product_funds: ProductVolume,
@@ -239,7 +222,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             initial_quote_funds (QuoteVolume): [description]
             num_warmup_time_steps (int): [description]
         """
-        message = SimulationParams(
+        self._order_books = {}
+        message = SimulationStartRequest(
             startTime=self.start_dt.isoformat() + "Z",
             endTime=self.end_dt.isoformat() + "Z",
             timeDelta=Duration(seconds=int(self.time_delta.total_seconds())),
@@ -251,6 +235,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self.stub.start(message)
 
     def reset(self) -> None:
+        self._order_books = {}
         self.stub.reset(Empty())
 
     def step(
@@ -270,6 +255,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             insert_orders (Optional[List[CoinbaseOrder]], optional): Defaults to None
         """
         super().step(insert_cancellations, insert_orders)
+        self._order_books = {}
         insert_cancellations = (
             [] if insert_cancellations is None else insert_cancellations
         )
@@ -317,65 +303,3 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """Summary
         """
         self.database_workers.stop_workers()
-
-
-class ExchangeCheckpoint:
-
-    """Summary
-    """
-
-    def __init__(
-        self,
-        account: "_account.Account",
-        current_dt: datetime,
-        end_dt: datetime,
-        order_book: Dict[OrderSide, OrderBook],
-        product_id: ProductId,
-        time_delta: timedelta,
-        exchange_class: Type[Exchange] = Exchange,
-    ):
-        """
-        __init__ [summary]
-
-        Args:
-            account (Account): [description]
-            current_dt (datetime): [description]
-            end_dt (datetime): [description]
-            order_book (Dict[OrderSide, OrderBook]): [description]
-            product_id (ProductId): [description]
-            time_delta (timedelta): [description]
-            exchange_class (Type[Exchange], optional): [description]. Defaults to Exchange.
-
-        Raises:
-            TypeError: [description]
-        """
-        if not issubclass(exchange_class, Exchange):
-            raise TypeError(f"{exchange_class} is not a subclass of Exchange")
-
-        self._account = account.copy()
-        self._current_dt = current_dt
-        self._end_dt = end_dt
-        self._exchange_class = exchange_class
-        self._order_book = deepcopy(order_book)
-        self._product_id = product_id
-        self._time_delta = time_delta
-
-    def restore(self) -> Exchange:
-        """
-        restore [summary]
-
-        Returns:
-            Exchange: [description]
-        """
-        exchange = self._exchange_class(
-            end_dt=self._end_dt,
-            product_id=self._product_id,
-            start_dt=self._current_dt + self._time_delta,
-            time_delta=self._time_delta,
-        )
-        account = self._account.copy()
-        account.exchange = exchange
-        exchange.account = account
-        exchange.order_book = deepcopy(self._order_book)
-
-        return exchange

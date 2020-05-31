@@ -24,13 +24,17 @@ service AccountService {
 }
 
 service ExchangeService {
+    rpc getExchangeInfo (google.protobuf.Empty) returns (ExchangeInfo) {
+    }
     rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
     }
-    rpc reset (google.protobuf.Empty) returns (google.protobuf.Empty) {
+    rpc getOrderBooks (OrderBooksRequest) returns (OrderBooks) {
     }
-    rpc start (SimulationStartRequest) returns (google.protobuf.Empty) {
+    rpc reset (google.protobuf.Empty) returns (ExchangeInfo) {
     }
-    rpc step (google.protobuf.Empty) returns (google.protobuf.Empty) {
+    rpc start (SimulationStartRequest) returns (ExchangeInfo) {
+    }
+    rpc step (google.protobuf.Empty) returns (ExchangeInfo) {
     }
     rpc stop (google.protobuf.Empty) returns (google.protobuf.Empty) {
     }
@@ -76,6 +80,15 @@ enum RejectReason {
     priceTooSmall = 6;
     sizeTooLarge = 7;
     sizeTooSmall = 8;
+}
+
+message OrderBooksRequest {
+    int32 orderBookDepth = 1;
+}
+
+message OrderBooks {
+    map<string, string> buyOrderBook = 1;
+    map<string, string> sellOrderBook = 2;
 }
 
 message CancellationRequest {
@@ -222,6 +235,11 @@ message SellMarketOrder {
     string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 10;
+}
+
+message ExchangeInfo {
+    string intervalStartTime = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
+    string intervalEndTime = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
 }
 
 message SimulationStartRequest {

@@ -1,10 +1,9 @@
 """Simulates the Coinbase Pro exchange
 """
 from __future__ import annotations
-from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Any, DefaultDict, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 import coinbase_ml.fakebase.account as _account
 from . import constants as c
@@ -13,7 +12,14 @@ from .database_workers import DatabaseWorkers
 from .order_book import OrderBook
 from .orm import CoinbaseEvent, CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from .matching_engine import MatchingEngine
-from .types import OrderSide, OrderStatus, ProductId, ProductPrice, ProductVolume
+from .types import (
+    BinnedOrderBook,
+    OrderSide,
+    OrderStatus,
+    ProductId,
+    ProductPrice,
+    ProductVolume,
+)
 
 
 class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
@@ -119,7 +125,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
 
     def bin_order_book_by_price(
         self, order_side: OrderSide
-    ) -> DefaultDict[ProductPrice, ProductVolume]:
+    ) -> Dict[ProductPrice, ProductVolume]:
         """
         bin_order_book_by_price [summary]
 
@@ -127,14 +133,15 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             order_side (OrderSide): [description]
 
         Returns:
-            DefaultDict[ProductPrice, ProductVolume]: [description]
+            BinnedOrderBook: [description]
         """
-        price_volume_dict: DefaultDict[ProductPrice, ProductVolume] = defaultdict(
-            self.product_id.product_volume_type.get_zero_volume
-        )
+        price_volume_dict: BinnedOrderBook = {}
 
         for _, order in self.order_book[order_side].items():
-            price_volume_dict[order.price] += order.remaining_size
+            if order.price not in price_volume_dict:
+                price_volume_dict[order.price] = order.remaining_size
+            else:
+                price_volume_dict[order.price] += order.remaining_size
 
         return price_volume_dict
 

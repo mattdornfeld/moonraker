@@ -1,6 +1,6 @@
 package co.firstorderlabs.fakebase.currency
 
-import java.math.{BigDecimal, MathContext, RoundingMode}
+import java.math.{BigDecimal, RoundingMode}
 
 import co.firstorderlabs.fakebase.currency.Volume._
 import co.firstorderlabs.fakebase.types.Types.ProductId
@@ -29,9 +29,9 @@ object Price {
   }
 
   abstract class ProductPrice[A <: Volume[A], B <: Volume[B]](
-    mathContext: MathContext,
+    scale: Int,
     value: Either[BigDecimal, String]
-  ) extends PreciseNumber[ProductPrice[A, B]](mathContext, value) {
+  ) extends PreciseNumber[ProductPrice[A, B]](scale, value) {
     val companion: ProductPriceCompanion[A, B]
 
     /**Creates new ProductPrice from this + that
@@ -70,7 +70,7 @@ object Price {
   }
 
   class BtcUsdPrice(value: Either[BigDecimal, String])
-      extends ProductPrice[BtcVolume, UsdVolume](UsdVolume.mathContext, value) {
+      extends ProductPrice[BtcVolume, UsdVolume](UsdVolume.scale, value) {
 
     val companion = BtcUsdPrice
     type ProductVolume = BtcVolume
@@ -91,9 +91,9 @@ object Price {
 
     def /(that: Either[BigDecimal, Double]): BtcUsdPrice = {
       that match {
-        case Left(that) => new BtcUsdPrice(Left(this.amount.divide(that, _mathContext)))
+        case Left(that) => new BtcUsdPrice(Left(this.amount.divide(that, _scale, RoundingMode.HALF_UP)))
         case Right(that) =>
-          new BtcUsdPrice(Left(this.amount.divide(new BigDecimal(that), _mathContext)))
+          new BtcUsdPrice(Left(this.amount.divide(new BigDecimal(that), _scale, RoundingMode.HALF_UP)))
       }
     }
   }
