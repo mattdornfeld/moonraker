@@ -9,8 +9,12 @@ from typing import Dict, NewType, Optional
 
 import coinbase_ml.fakebase.protos.fakebase_pb2 as fakebase_pb2
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+    DoneReason as DoneReasonProto,
     OrderSide as OrderSideProto,
+    OrderStatus as OrderStatusProto,
+    OrderType as OrderTypeProto,
     Liquidity as LiquidityProto,
+    RejectReason as RejectReasonProto,
 )
 from coinbase_ml.fakebase.types.currency import (
     Currency,
@@ -34,8 +38,29 @@ class DoneReason(Enum):
     DoneReason contains the different reasons an order can be done
     """
 
+    not_done = "not_done"
     cancelled = "cancelled"
     filled = "filled"
+
+    @staticmethod
+    def from_proto(done_reason: "fakebase_pb2.DoneReasonValue") -> DoneReason:
+        """
+        from_proto [summary]
+
+        Args:
+            done_reason (fakebase_pb2.DoneReasonValue): [description]
+
+        Returns:
+            DoneReason: [description]
+        """
+        return _DONE_REASON_PROTO_MAPPING[done_reason]
+
+
+_DONE_REASON_PROTO_MAPPING = {
+    DoneReasonProto.notDone: DoneReason.not_done,
+    DoneReasonProto.cancelled: DoneReason.cancelled,
+    DoneReasonProto.filled: DoneReason.filled,
+}
 
 
 class Liquidity(Enum):
@@ -77,7 +102,7 @@ class Liquidity(Enum):
         from_proto [summary]
 
         Args:
-            fakebase_pb2.LiquidityValue (int): [description]
+            liquidity (fakebase_pb2.LiquidityValue): [description]
 
         Returns:
             Liquidity: [description]
@@ -108,7 +133,7 @@ class OrderSide(Enum):
         from_proto [summary]
 
         Args:
-            fakebase_pb2.OrderSideValue (OrderSideProto): [description]
+            order_side (fakebase_pb2.OrderSideValue): [description]
 
         Returns:
             OrderSide: [description]
@@ -163,6 +188,19 @@ class OrderStatus(Enum):
     rejected = "rejected"
 
     @staticmethod
+    def from_proto(order_status: "fakebase_pb2.OrderStatusValue") -> OrderStatus:
+        """
+        from_proto [summary]
+
+        Args:
+            order_status (fakebase_pb2.OrderStatusValue): [description]
+
+        Returns:
+            OrderStatus: [description]
+        """
+        return _ORDER_STATUS_PROTO_MAPPING[order_status]
+
+    @staticmethod
     def from_string(order_status: str) -> Optional[OrderStatus]:
         """
         from_string [summary]
@@ -189,6 +227,15 @@ class OrderStatus(Enum):
         return return_val
 
 
+_ORDER_STATUS_PROTO_MAPPING = {
+    OrderStatusProto.done: OrderStatus.done,
+    OrderStatusProto.open: OrderStatus.open,
+    OrderStatusProto.pending: OrderStatus.pending,
+    OrderStatusProto.received: OrderStatus.received,
+    OrderStatusProto.rejected: OrderStatus.rejected,
+}
+
+
 class OrderType(Enum):
     """
     OrderType encapsulates the possible order types
@@ -199,6 +246,19 @@ class OrderType(Enum):
 
     def __str__(self) -> str:
         return str(self.value)
+
+    @staticmethod
+    def from_proto(order_proto: "fakebase_pb2.OrderTypeValue") -> OrderType:
+        """
+        from_proto [summary]
+
+        Args:
+            order_proto (fakebase_pb2.OrderTypeValue): [description]
+
+        Returns:
+            OrderType: [description]
+        """
+        return _ORDER_TYPE_PROTO_MAPPING[order_proto]
 
     @staticmethod
     def from_string(order_type: str) -> Optional[OrderType]:
@@ -221,6 +281,12 @@ class OrderType(Enum):
         return return_val
 
 
+_ORDER_TYPE_PROTO_MAPPING = {
+    OrderTypeProto.limit: OrderType.limit,
+    OrderTypeProto.market: OrderType.market,
+}
+
+
 class RejectReason(Enum):
     """
     RejectReason encapsulates the possible reasons an order can be rejected
@@ -234,3 +300,28 @@ class RejectReason(Enum):
     price_too_small = "price_too_small"
     size_too_large = "size_too_large"
     size_too_small = "size_too_small"
+
+    @staticmethod
+    def from_proto(reject_reason: "fakebase_pb2.RejectReasonValue") -> RejectReason:
+        """
+        from_proto [summary]
+
+        Args:
+            reject_reason (fakebase_pb2.RejectReasonValue): [description]
+
+        Returns:
+            RejectReason: [description]
+        """
+        return _REJECT_REASON_PROTO_MAPPING[reject_reason]
+
+
+_REJECT_REASON_PROTO_MAPPING = {
+    RejectReasonProto.fundsTooLarge: RejectReason.funds_too_large,
+    RejectReasonProto.fundsTooSmall: RejectReason.funds_too_small,
+    RejectReasonProto.insufficientFunds: RejectReason.insufficient_funds,
+    RejectReasonProto.postOnly: RejectReason.post_only,
+    RejectReasonProto.priceTooLarge: RejectReason.price_too_large,
+    RejectReasonProto.priceTooSmall: RejectReason.price_too_small,
+    RejectReasonProto.sizeTooLarge: RejectReason.size_too_large,
+    RejectReasonProto.sizeTooSmall: RejectReason.size_too_small,
+}

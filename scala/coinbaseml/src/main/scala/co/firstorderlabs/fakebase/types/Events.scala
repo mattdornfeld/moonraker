@@ -1,7 +1,7 @@
 package co.firstorderlabs.fakebase.types
 
 import co.firstorderlabs.fakebase.Configs
-import co.firstorderlabs.fakebase.protos.fakebase.{Liquidity, Order, OrderSide, OrderStatus}
+import co.firstorderlabs.fakebase.protos.fakebase.{Liquidity, MatchEvents, Order, OrderSide, OrderStatus}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.types.Types.{Datetime, OrderId, OrderRequestId, ProductId}
@@ -10,6 +10,10 @@ object Events {
   trait SpecifiesFunds {
     val funds: ProductPrice.QuoteVolume
     private var _remainingFunds: Option[ProductPrice.QuoteVolume] = None
+
+    def copySpecifiesFundsVars(that: SpecifiesFunds): Unit = {
+      setRemainingFunds(that.remainingFunds)
+    }
 
     def remainingFunds: ProductPrice.QuoteVolume = {
       if (_remainingFunds.isEmpty) _remainingFunds = Some(funds)
@@ -24,6 +28,10 @@ object Events {
   trait SpecifiesSize {
     val size: ProductPrice.ProductVolume
     private var _remainingSize: Option[ProductPrice.ProductVolume] = None
+
+    def copySpecifiesSizeVars(that: SpecifiesSize): Unit = {
+      setRemainingSize(that.remainingSize)
+    }
 
     def remainingSize: ProductPrice.ProductVolume = {
       if (_remainingSize.isEmpty) _remainingSize = Some(size)
@@ -102,18 +110,33 @@ object Events {
     val orderStatus: OrderStatus
     val requestId: OrderRequestId
     val side: OrderSide
+    val matchEvents: Option[MatchEvents]
   }
 
   trait BuyOrderEvent extends OrderEvent {
     var holds: QuoteVolume = QuoteVolume.zeroVolume
+
+    def copyBuyOrderEventVars(that: BuyOrderEvent): Unit = {
+      holds = that.holds
+    }
   }
+
   trait SellOrderEvent extends OrderEvent with SpecifiesSize {
     var holds: ProductVolume = ProductVolume.zeroVolume
+
+    def copySellOrderEventVars(that: SellOrderEvent): Unit = {
+      holds = that.holds
+    }
+
   }
 
   trait LimitOrderEvent extends OrderEvent with SpecifiesSize {
     val price: ProductPrice
     var degeneracy = 0
+
+    def copyLimitOrderEventVars(that: LimitOrderEvent): Unit = {
+      degeneracy = that.degeneracy
+    }
 
     def incrementDegeneracy: Unit = {
       degeneracy += 1

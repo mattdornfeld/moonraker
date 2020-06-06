@@ -1,19 +1,15 @@
 """Simulates the Coinbase Pro exchange
 """
 from __future__ import annotations
-import asyncio
-from collections import defaultdict
-from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Any, Coroutine, DefaultDict, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 from google.protobuf.empty_pb2 import Empty
 from google.protobuf.duration_pb2 import Duration
 
-import coinbase_ml.fakebase.account as _account
+import coinbase_ml.fakebase.account_new as _account
 from coinbase_ml.common import constants as cc
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
-    ExchangeInfo,
     OrderBooksRequest,
     OrderBooks,
     SimulationStartRequest,
@@ -22,18 +18,11 @@ from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import ExchangeServiceStub
 from coinbase_ml.fakebase import constants as c
 from coinbase_ml.fakebase.base_classes.exchange import ExchangeBase
 from coinbase_ml.fakebase.database_workers import DatabaseWorkers
-from coinbase_ml.fakebase.orm import (
-    CoinbaseEvent,
-    CoinbaseCancellation,
-    CoinbaseMatch,
-    CoinbaseOrder,
-)
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.types import (
     BinnedOrderBook,
     OrderSide,
-    OrderStatus,
     ProductId,
-    ProductPrice,
     ProductVolume,
     QuoteVolume,
 )
@@ -100,13 +89,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             raise TypeError
 
         return return_val
-
-    def _add_account_orders_to_received_orders_list(self) -> None:
-        """Summary
-        """
-        for order in self.account.orders.values():
-            if order.order_status == OrderStatus.received:
-                self.received_orders.append(order)
 
     @property
     def account(self) -> _account.Account:
@@ -289,14 +271,15 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             self._received_cancellations = insert_cancellations
             self._received_orders = insert_orders
 
-        self._add_account_orders_to_received_orders_list()
-
         self.received_orders.sort(key=lambda event: event.time)
         self.received_cancellations.sort(key=lambda event: event.time)
 
         self.stub.step(Empty())
 
     def stop(self) -> None:
+        """
+        stop [summary]
+        """
         self.stub.stop(Empty())
 
     def stop_database_workers(self) -> None:

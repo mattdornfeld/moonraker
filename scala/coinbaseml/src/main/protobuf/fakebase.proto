@@ -13,6 +13,12 @@ package co.firstorderlabs.fakebase.protos;
 service AccountService {
     rpc cancelOrder (CancellationRequest) returns (Cancellation) {
     }
+    rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
+    }
+    rpc getOrders (google.protobuf.Empty) returns (Orders) {
+    }
+    rpc getWallets (google.protobuf.Empty) returns (Wallets) {
+    }
     rpc placeBuyLimitOrder (BuyLimitOrderRequest) returns (BuyLimitOrder) {
     }
     rpc placeBuyMarketOrder (BuyMarketOrderRequest) returns (BuyMarketOrder) {
@@ -82,6 +88,20 @@ enum RejectReason {
     sizeTooSmall = 8;
 }
 
+message Wallet {
+    string id = 1;
+    string balance = 2;
+    string holds = 3;
+}
+
+message Wallets {
+    map<string, Wallet> wallets = 1;
+}
+
+message Orders {
+    map<string, Order> orders=1;
+}
+
 message OrderBooksRequest {
     int32 orderBookDepth = 1;
 }
@@ -138,6 +158,7 @@ message BuyLimitOrder {
     string requestId = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 10 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 11;
+    MatchEvents matchEvents = 12;
 }
 
 message BuyMarketOrder {
@@ -155,6 +176,7 @@ message BuyMarketOrder {
     string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 10;
+    MatchEvents matchEvents = 12;
 }
 
 message Order {
@@ -218,6 +240,7 @@ message SellLimitOrder {
     string requestId = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 10 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 11;
+    MatchEvents matchEvents = 12;
 }
 
 message SellMarketOrder {
@@ -235,6 +258,7 @@ message SellMarketOrder {
     string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderRequestId"];
     string doneAt = 9 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     DoneReason doneReason = 10;
+    MatchEvents matchEvents = 12;
 }
 
 message ExchangeInfo {

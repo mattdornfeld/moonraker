@@ -45,6 +45,6 @@ abstract class PreciseNumber[T <: PreciseNumber[T]](scale: Int, value: Either[Bi
 
   override def toString: String = {
     val className = this.getClass.getSimpleName
-    s"<$className ${amount} - ${hashCode}>"
+    s"<$className ${amount}>"
   }
 }

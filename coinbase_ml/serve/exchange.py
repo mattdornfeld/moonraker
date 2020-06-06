@@ -9,11 +9,7 @@ from dateutil.tz import UTC
 
 from coinbase_ml.fakebase.base_classes import ExchangeBase
 from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
-from coinbase_ml.fakebase.types import (
-    BinnedOrderBook,
-    OrderSide,
-    ProductId,
-)
+from coinbase_ml.fakebase.types import BinnedOrderBook, OrderSide, ProductId
 from coinbase_ml.serve.order_book import OrderBookBinner
 from coinbase_ml.serve.stream_processors.coinbase_stream_processor import (
     CoinbaseStreamProcessor,
