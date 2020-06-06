@@ -100,18 +100,6 @@ class AccountBase(Generic[Exchange]):
         """
         raise NotImplementedError
 
-    def get_accounts(self) -> Dict[str, Dict[str, str]]:
-        """
-        get_accounts [summary]
-
-        Raises:
-            NotImplementedError: [description]
-
-        Returns:
-            Dict[str, Dict[str, str]]: [description]
-        """
-        raise NotImplementedError
-
     @property
     def orders(self) -> Dict[OrderId, CoinbaseOrder]:
         """

@@ -119,6 +119,7 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
   // Specify how to convert from JDBC supported data types to custom data types
   implicit val dateTimeConverter: Meta[Datetime] = Meta[Instant].timap(value => Datetime(value))(value => value.instant)
   implicit val doneReasonConverter: Meta[DoneReason] = Meta[Int].timap(value => DoneReason.fromValue(value))(value => value.value)
+  implicit val matchEvents: Meta[MatchEvents] = Meta[String].timap(_ => MatchEvents())(_ => "")
   implicit val orderIdConverter: Meta[OrderId] = Meta[String].timap(value => OrderId(value))(value => value.orderId)
   implicit val orderRequestIdConverter: Meta[OrderRequestId] = Meta[String].timap(value => OrderRequestId(value))(value => value.orderRequestId)
   implicit val orderSideConverter: Meta[OrderSide] = Meta[String].timap(value => OrderSide.fromName(value).get)(value => value.name)
@@ -257,7 +258,8 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
             ${RejectReason.notRejected.value},
             '',
             ${Instant.EPOCH.toString}::timestamp,
-            ${DoneReason.notDone.value}
+            ${DoneReason.notDone.value},
+            ''
           FROM coinbase_orders
           WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp AND ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
@@ -278,7 +280,8 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
             ${RejectReason.notRejected.value},
             '',
             ${Instant.EPOCH.toString}::timestamp,
-            ${DoneReason.notDone.value}
+            ${DoneReason.notDone.value},
+            ''
           FROM coinbase_orders
           WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp AND ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
@@ -300,7 +303,8 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
             ${RejectReason.notRejected.value},
             '',
             ${Instant.EPOCH.toString}::timestamp,
-            ${DoneReason.notDone.value}
+            ${DoneReason.notDone.value},
+            ''
           FROM coinbase_orders
           WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp and ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
@@ -321,7 +325,8 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
             ${RejectReason.notRejected.value},
             '',
             ${Instant.EPOCH.toString}::timestamp,
-            ${DoneReason.notDone.value}
+            ${DoneReason.notDone.value},
+            ''
           FROM coinbase_orders
           WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp and ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}

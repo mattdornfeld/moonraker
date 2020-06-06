@@ -4,10 +4,32 @@ import java.util.UUID
 
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Types.OrderId
-import co.firstorderlabs.fakebase.types.Events.{LimitOrderEvent, OrderEvent}
+import co.firstorderlabs.fakebase.types.Events.{
+  BuyOrderEvent,
+  SellOrderEvent,
+  SpecifiesFunds,
+  SpecifiesSize,
+  LimitOrderEvent,
+  OrderEvent}
 
 object OrderUtils {
-    def cancellationFromOrder(order: LimitOrderEvent): Cancellation = {
+  def addMatchToOrder[A <: OrderEvent](order: A, matchEvent: Match): A = {
+    val matchEvents = order.matchEvents.get.addMatchEvents(matchEvent)
+    val updatedOrder = order match {
+      case order: BuyLimitOrder =>
+        order.update(_.matchEvents := matchEvents)
+      case order: BuyMarketOrder =>
+        order.update(_.matchEvents := matchEvents)
+      case order: SellLimitOrder =>
+        order.update(_.matchEvents := matchEvents)
+      case order: SellMarketOrder =>
+        order.update(_.matchEvents := matchEvents)
+    }
+
+    copyVars(order, updatedOrder)
+    updatedOrder.asInstanceOf[A]
+  }
+  def cancellationFromOrder(order: LimitOrderEvent): Cancellation = {
       Cancellation(
             order.orderId,
             order.price,
@@ -17,6 +39,25 @@ object OrderUtils {
             Exchange.simulationMetadata.get.currentTimeInterval.endTime
           )
     }
+
+  def copyVars[A <: OrderEvent](order: A, updatedOrder: A): A = {
+    (order, updatedOrder) match {
+      case (order: SpecifiesFunds, updatedOrder: SpecifiesFunds) => updatedOrder.copySpecifiesFundsVars(order)
+      case (order: SpecifiesSize, updatedOrder: SpecifiesSize) => updatedOrder.copySpecifiesSizeVars(order)
+    }
+
+    (order, updatedOrder) match {
+      case (order: BuyOrderEvent, updatedOrder: BuyOrderEvent) => updatedOrder.copyBuyOrderEventVars(order)
+      case (order: SellOrderEvent, updatedOrder: SellOrderEvent) => updatedOrder.copySellOrderEventVars(order)
+    }
+
+    (order, updatedOrder) match {
+      case (order: LimitOrderEvent, updatedOrder: LimitOrderEvent) => updatedOrder.copyLimitOrderEventVars(order)
+      case _ => None
+    }
+
+    updatedOrder
+  }
 
   def generateOrderId: OrderId = OrderId(UUID.randomUUID.toString)
 
@@ -42,8 +83,35 @@ object OrderUtils {
           _.orderStatus := OrderStatus.open
         )
     }
-    updatedOrder.degeneracy = order.degeneracy
-    updatedOrder
+
+    copyVars(order, updatedOrder)
+  }
+
+  def rejectOrder[A <: OrderEvent](order: A, rejectReason: RejectReason): A = {
+    val updatedOrder = order match {
+      case order: BuyLimitOrder =>
+        order.update(
+          _.rejectReason := rejectReason,
+          _.orderStatus := OrderStatus.rejected
+        )
+      case order: BuyMarketOrder =>
+        order.update(
+          _.rejectReason := rejectReason,
+          _.orderStatus := OrderStatus.rejected
+        )
+      case order: SellLimitOrder =>
+        order.update(
+          _.rejectReason := rejectReason,
+          _.orderStatus := OrderStatus.rejected
+        )
+      case order: SellMarketOrder =>
+        order.update(
+          _.rejectReason := rejectReason,
+          _.orderStatus := OrderStatus.rejected
+        )
+    }
+    copyVars(order, updatedOrder)
+    updatedOrder.asInstanceOf[A]
   }
 
   def setOrderStatusToDone[A <: OrderEvent](order: A, doneReason: DoneReason): A = {
@@ -73,6 +141,7 @@ object OrderUtils {
           _.orderStatus := OrderStatus.done
         )
     }
+    copyVars(order, updatedOrder)
     updatedOrder.asInstanceOf[A]
   }
 }

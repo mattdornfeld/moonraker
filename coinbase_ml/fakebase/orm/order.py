@@ -6,13 +6,21 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
+from dateutil import parser
 from sqlalchemy import BigInteger, Column, Float, String
 from sqlalchemy.orm import reconstructor
 
-from .. import constants as c
-from ..orm.match import CoinbaseMatch
-from ..orm.mixins import Base, MatchOrderEvent
-from ..types import (
+import coinbase_ml.common.constants as cc
+from coinbase_ml.fakebase import constants as c
+from coinbase_ml.fakebase.orm.match import CoinbaseMatch
+from coinbase_ml.fakebase.orm.mixins import Base, MatchOrderEvent
+from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+    BuyLimitOrder,
+    BuyMarketOrder,
+    SellLimitOrder,
+    SellMarketOrder,
+)
+from coinbase_ml.fakebase.types import (
     DoneReason,
     InvalidTypeError,
     OrderId,
@@ -225,6 +233,71 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         """
         s = sum([match.size.amount for match in self.matches], c.ZERO_DECIMAL)
         return self.get_product_id().product_volume_type(s)
+
+    @staticmethod
+    def from_proto(
+        order_proto: Union[
+            BuyLimitOrder, BuyMarketOrder, SellLimitOrder, SellMarketOrder
+        ]
+    ) -> CoinbaseOrder:
+        """
+        from_proto
+
+        Args:
+            order_proto (Union[ BuyLimitOrder, BuyMarketOrder, SellLimitOrder, SellMarketOrder ])
+
+        Returns:
+            CoinbaseOrder
+        """
+        funds = (
+            cc.PRODUCT_ID.quote_volume_type(order_proto.funds)
+            if isinstance(order_proto, BuyMarketOrder)
+            else None
+        )
+
+        price = (
+            cc.PRODUCT_ID.price_type(order_proto.price)
+            if isinstance(order_proto, (BuyLimitOrder, SellLimitOrder))
+            else None
+        )
+
+        size = (
+            cc.PRODUCT_ID.product_volume_type(order_proto.size)
+            if isinstance(order_proto, (BuyLimitOrder, SellLimitOrder, SellMarketOrder))
+            else None
+        )
+
+        order_type = (
+            OrderType.limit
+            if isinstance(order_proto, (BuyLimitOrder, SellLimitOrder))
+            else OrderType.market
+        )
+
+        order_status = OrderStatus.from_proto(order_proto.orderStatus)
+
+        order = CoinbaseOrder(
+            funds=funds,
+            order_id=OrderId(order_proto.orderId),
+            order_type=order_type,
+            price=price,
+            product_id=cc.PRODUCT_ID,
+            order_status=order_status,
+            side=OrderSide.from_proto(order_proto.side),
+            size=size,
+            time=parser.parse(order_proto.time),
+        )
+
+        order.matches = [
+            CoinbaseMatch.from_proto(match)
+            for match in order_proto.matchEvents.matchEvents
+        ]
+
+        order.done_reason = DoneReason.from_proto(order_proto.doneReason)
+
+        if order_status is OrderStatus.rejected:
+            order.reject_order(RejectReason.from_proto(order_proto.rejectReason))
+
+        return order
 
     @property
     def funds(self) -> Optional[QuoteVolume]:

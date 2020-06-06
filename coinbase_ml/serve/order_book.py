@@ -65,7 +65,7 @@ class OrderBookBinner:
             for order_side in [OrderSide.buy, OrderSide.sell]:
                 snapshot = order_book_snapshots[order_side]
                 self.order_books[order_side] = dict(
-                    self._create_snapshot_generator(snapshot),
+                    self._create_snapshot_generator(snapshot)
                 )
         finally:
             self.book_lock.release()

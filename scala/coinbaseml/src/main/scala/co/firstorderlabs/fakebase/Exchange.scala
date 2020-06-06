@@ -151,6 +151,8 @@ object Exchange
       s"There are ${DatabaseWorkers.getResultMapSize.toString} entries in the results map queue"
     )
 
+    Account.step
+
     val queryResult =
       DatabaseWorkers.getQueryResult(simulationMetadata.get.currentTimeInterval)
     receivedEvents = (Account.getReceivedOrders.toList

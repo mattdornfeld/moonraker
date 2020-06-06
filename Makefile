@@ -2,6 +2,7 @@ phony: build build-image-cpu install install-dev install-gpu test test-mypy test
 
 PYTEST_IGNORE = --ignore=coinbase_ml/fakebase/protos \
 	--ignore=coinbase_ml/fakebase/exchange_new.py \
+	--ignore=coinbase_ml/fakebase/account_new.py \
 	--ignore=scalapb
 
 build-scala:
