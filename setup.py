@@ -11,7 +11,7 @@ LOGGER = logging.getLogger(__name__)
 GRPC_REQUIRES = [
     "2to3",
     "grpcio>=1.28.0,<2.0.0",
-    "grpcio-tools>=1.28.0,<2.0.0",
+    "grpcio-tools>=1.28.0,<1.30.0",
     "mypy-protobuf",
 ]
 
@@ -46,7 +46,7 @@ SETUP_REQUIRES = ["cython", "pytest-runner>=5.1,<6.0"]
 TESTS_REQUIRE = [
     "docker>=3.3.0,<4.0.0",
     "pytest>=4.0.2,<5.0.0",
-    "pytest-cases>=1.11.1,<2.0.0",
+    "pytest-cases>=1.11.1,<1.13.0",
     "pytest-mypy>=0.4.0,<0.5.0",
     "pytest-pylint>=0.14.1,<0.15",
     "wrapt==1.11.2",

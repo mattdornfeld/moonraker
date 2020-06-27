@@ -1,8 +1,6 @@
 phony: build build-image-cpu install install-dev install-gpu test test-mypy test-pylint
 
 PYTEST_IGNORE = --ignore=coinbase_ml/fakebase/protos \
-	--ignore=coinbase_ml/fakebase/exchange_new.py \
-	--ignore=coinbase_ml/fakebase/account_new.py \
 	--ignore=scalapb
 
 build-scala:
@@ -21,7 +19,7 @@ clean:
 	chmod u+x bin/clean && bin/clean
 
 install:
-	pip3 install -e .[grpc]
+	pip3 install --upgrade pip && pip3 install -e .[grpc]
 
 install-dev:
 	pip3 install -e .[dev,grpc] && cp bin/pre-commit .git/hooks/ && chmod u+x .git/hooks/pre-commit

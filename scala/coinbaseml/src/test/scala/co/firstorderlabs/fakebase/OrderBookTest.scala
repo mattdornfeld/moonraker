@@ -1,6 +1,6 @@
 package co.firstorderlabs.fakebase
 
-import co.firstorderlabs.fakebase.TestData._
+import co.firstorderlabs.fakebase.TestData.OrdersData._
 import org.scalatest.funspec.AnyFunSpec
 
 class OrderBookTest extends AnyFunSpec {

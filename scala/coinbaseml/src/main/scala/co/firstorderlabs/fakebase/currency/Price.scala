@@ -78,12 +78,12 @@ object Price {
 
     def +(
       that: ProductPrice[BtcVolume, UsdVolume]
-    ): ProductPrice[BtcVolume, UsdVolume] =
+    ): BtcUsdPrice =
       new BtcUsdPrice(Left(this.amount.add(that.amount)))
 
     def -(
       that: ProductPrice[BtcVolume, UsdVolume]
-    ): ProductPrice[BtcVolume, UsdVolume] =
+    ): BtcUsdPrice =
       new BtcUsdPrice(Left(this.amount.subtract(that.amount)))
 
     def *(that: BtcVolume): UsdVolume =

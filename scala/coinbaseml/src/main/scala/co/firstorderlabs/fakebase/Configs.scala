@@ -1,15 +1,15 @@
 package co.firstorderlabs.fakebase
 
 import java.math.BigDecimal
-import java.time.{Duration, Instant}
 
-import co.firstorderlabs.fakebase.protos.fakebase.Liquidity
-import co.firstorderlabs.fakebase.types.Types.Datetime
+import co.firstorderlabs.fakebase.protos.fakebase.{Liquidity, StepRequest}
 import com.google.protobuf.empty.Empty
 
 import scala.util.Properties.envOrElse
 
 object Configs {
+  var isTest = false
+
   //Database configs
   val maxResultsQueueSize = 50
   val numDatabaseWorkers = 4
@@ -24,4 +24,5 @@ object Configs {
   )
 
   val emptyProto = new Empty
+  val emptyStepRequest = new StepRequest
 }

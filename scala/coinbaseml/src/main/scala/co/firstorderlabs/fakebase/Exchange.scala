@@ -3,7 +3,6 @@ package co.firstorderlabs.fakebase
 import java.time.Duration
 import java.util.logging.Logger
 
-import co.firstorderlabs.fakebase.Account.Account
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
@@ -74,6 +73,11 @@ object Exchange
     matchingEngine.orderBooks(side)
   }
 
+  override def checkpoint(request: Empty): Future[Empty] = {
+    simulationMetadata.get.checkpoint = Some(Checkpointer.createCheckpoint)
+    Future.successful(Configs.emptyProto)
+  }
+
   override def getExchangeInfo(request: Empty): Future[ExchangeInfo] = Future.successful(getExchangeInfo)
 
   override def getMatches(request: Empty): Future[MatchEvents] = {
@@ -105,7 +109,7 @@ object Exchange
   }
 
   override def start(request: SimulationStartRequest): Future[ExchangeInfo] = {
-    require(!simulationInProgress, "simulation is already in progress")
+    if (simulationInProgress) stop(Configs.emptyProto)
 
     simulationMetadata = Some(
       SimulationMetadata(
@@ -129,14 +133,16 @@ object Exchange
     Account.initializeWallets
     Account.addFunds(request.initialQuoteFunds)
     Account.addFunds(request.initialProductFunds)
-    (1 to request.numWarmUpSteps) foreach (_ => step(Configs.emptyProto))
 
-    simulationMetadata.get.checkpoint = Some(Checkpointer.createCheckpoint)
+    if (request.numWarmUpSteps > 0) {
+      (1 to request.numWarmUpSteps) foreach (_ => step(Configs.emptyStepRequest))
+      checkpoint(Configs.emptyProto)
+    }
 
     Future.successful(getExchangeInfo)
   }
 
-  override def step(request: Empty): Future[ExchangeInfo] = {
+  override def step(request: StepRequest): Future[ExchangeInfo] = {
     failIfNoSimulationInProgress
     simulationMetadata.get.incrementCurrentTimeInterval
     require(
@@ -147,7 +153,7 @@ object Exchange
     logger.info(
       s"Stepped to time interval ${simulationMetadata.get.currentTimeInterval}"
     )
-    logger.info(
+    logger.fine(
       s"There are ${DatabaseWorkers.getResultMapSize.toString} entries in the results map queue"
     )
 
@@ -155,8 +161,11 @@ object Exchange
 
     val queryResult =
       DatabaseWorkers.getQueryResult(simulationMetadata.get.currentTimeInterval)
+
     receivedEvents = (Account.getReceivedOrders.toList
       ++ Account.getReceivedCancellations.toList
+      ++ request.insertOrders.map(OrderUtils.orderEventFromSealedOneOf).flatten
+      ++ request.insertCancellations
       ++ queryResult.buyLimitOrders
       ++ queryResult.buyMarketOrders
       ++ queryResult.sellLimitOrders
@@ -178,7 +187,6 @@ object Exchange
   }
 
   override def stop(request: Empty): Future[Empty] = {
-    failIfNoSimulationInProgress
     Checkpointer.clear
     simulationMetadata = None
     logger.info("simulation stopped")

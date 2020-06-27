@@ -38,9 +38,6 @@ class ExchangeBase(Generic[Account]):
 
         self.interval_start_dt = start_dt - time_delta
         self._interval_end_dt = start_dt
-        self.step_interval = TimeInterval(
-            end_dt=self.interval_end_dt, start_dt=self.interval_start_dt
-        )
 
     @property
     def account(self) -> Optional[Account]:
@@ -168,4 +165,12 @@ class ExchangeBase(Generic[Account]):
         if self.finished:
             raise ExchangeFinishedException
 
-        self.step_interval += self.time_delta
+    @property
+    def step_interval(self) -> TimeInterval:
+        """
+        step_interval [summary]
+
+        Returns:
+            TimeInterval: [description]
+        """
+        return TimeInterval(self._interval_end_dt, self.interval_start_dt)

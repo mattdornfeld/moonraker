@@ -29,23 +29,6 @@ service AccountService {
     }
 }
 
-service ExchangeService {
-    rpc getExchangeInfo (google.protobuf.Empty) returns (ExchangeInfo) {
-    }
-    rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
-    }
-    rpc getOrderBooks (OrderBooksRequest) returns (OrderBooks) {
-    }
-    rpc reset (google.protobuf.Empty) returns (ExchangeInfo) {
-    }
-    rpc start (SimulationStartRequest) returns (ExchangeInfo) {
-    }
-    rpc step (google.protobuf.Empty) returns (ExchangeInfo) {
-    }
-    rpc stop (google.protobuf.Empty) returns (google.protobuf.Empty) {
-    }
-}
-
 enum DoneReason {
     notDone = 0;
     cancelled = 1;
@@ -88,46 +71,9 @@ enum RejectReason {
     sizeTooSmall = 8;
 }
 
-message Wallet {
-    string id = 1;
-    string balance = 2;
-    string holds = 3;
-}
-
-message Wallets {
-    map<string, Wallet> wallets = 1;
-}
-
-message Orders {
-    map<string, Order> orders=1;
-}
-
-message OrderBooksRequest {
-    int32 orderBookDepth = 1;
-}
-
-message OrderBooks {
-    map<string, string> buyOrderBook = 1;
-    map<string, string> sellOrderBook = 2;
-}
-
-message CancellationRequest {
-    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
-}
-
-message Cancellation {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.Event";
-
-    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
-    string price = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice"];
-    string productId = 3 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
-    OrderSide side = 4;
-    string remainingSize = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
-    string time = 7 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
-}
-
 message BuyLimitOrderRequest {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.LimitOrderRequst";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.BuyOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.LimitOrderRequest";
 
     string price = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice"];
     string productId = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
@@ -136,7 +82,8 @@ message BuyLimitOrderRequest {
 }
 
 message BuyMarketOrderRequest {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.OrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.BuyOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.MarketOrderRequest";
 
     string funds = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume"];
     string productId = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
@@ -179,6 +126,21 @@ message BuyMarketOrder {
     MatchEvents matchEvents = 12;
 }
 
+message CancellationRequest {
+    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
+}
+
+message Cancellation {
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.Event";
+
+    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
+    string price = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice"];
+    string productId = 3 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
+    OrderSide side = 4;
+    string remainingSize = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
+    string time = 7 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
+}
+
 message Order {
     oneof sealed_value {
         BuyLimitOrder buyLimitOrder = 1;
@@ -186,6 +148,10 @@ message Order {
         SellLimitOrder sellLimitOrder = 3;
         SellMarketOrder sellMarketOrder = 4;
     }
+}
+
+message Orders {
+    map<string, Order> orders=1;
 }
 
 message Match {
@@ -209,7 +175,8 @@ message MatchEvents {
 }
 
 message SellLimitOrderRequest {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.LimitOrderRequst";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.LimitOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.SellOrderRequest";
 
     string price = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice"];
     string productId = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
@@ -218,7 +185,8 @@ message SellLimitOrderRequest {
 }
 
 message SellMarketOrderRequest {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.OrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.MarketOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.SellOrderRequest";
 
     string productId = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
     string size = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
@@ -261,9 +229,47 @@ message SellMarketOrder {
     MatchEvents matchEvents = 12;
 }
 
+message Wallet {
+    string id = 1;
+    string balance = 2;
+    string holds = 3;
+}
+
+message Wallets {
+    map<string, Wallet> wallets = 1;
+}
+
+service ExchangeService {
+    rpc checkpoint (google.protobuf.Empty) returns (google.protobuf.Empty){
+    }
+    rpc getExchangeInfo (google.protobuf.Empty) returns (ExchangeInfo) {
+    }
+    rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
+    }
+    rpc getOrderBooks (OrderBooksRequest) returns (OrderBooks) {
+    }
+    rpc reset (google.protobuf.Empty) returns (ExchangeInfo) {
+    }
+    rpc start (SimulationStartRequest) returns (ExchangeInfo) {
+    }
+    rpc step (StepRequest) returns (ExchangeInfo) {
+    }
+    rpc stop (google.protobuf.Empty) returns (google.protobuf.Empty) {
+    }
+}
+
 message ExchangeInfo {
     string intervalStartTime = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     string intervalEndTime = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
+}
+
+message OrderBooksRequest {
+    int32 orderBookDepth = 1;
+}
+
+message OrderBooks {
+    map<string, string> buyOrderBook = 1;
+    map<string, string> sellOrderBook = 2;
 }
 
 message SimulationStartRequest {
@@ -273,4 +279,9 @@ message SimulationStartRequest {
     int32 numWarmUpSteps = 4;
     string initialProductFunds = 5 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
     string initialQuoteFunds = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume"];
+}
+
+message StepRequest {
+    repeated Order insertOrders = 1;
+    repeated Cancellation insertCancellations = 2;
 }
