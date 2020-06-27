@@ -3,9 +3,11 @@ package co.firstorderlabs.fakebase
 import java.math.{BigDecimal, RoundingMode}
 import java.util.UUID
 
-import co.firstorderlabs.fakebase.Account.Account
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events._
 import co.firstorderlabs.fakebase.types.Exceptions.SelfTrade
@@ -14,18 +16,27 @@ import co.firstorderlabs.fakebase.types.Types._
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-case class MatchingEngineCheckpoint(buyOrderBookCheckpoint: OrderBookCheckpoint,
-                                    matches: ListBuffer[Match],
-                                    sellOrderBookCheckpoint: OrderBookCheckpoint) extends Checkpoint
+case class MatchingEngineCheckpoint(
+  buyOrderBookCheckpoint: OrderBookCheckpoint,
+  matches: ListBuffer[Match],
+  sellOrderBookCheckpoint: OrderBookCheckpoint
+) extends Checkpoint
 
 object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
   val matches = new ListBuffer[Match]
-  val orderBooks = Map[OrderSide, OrderBook](OrderSide.buy -> new OrderBook, OrderSide.sell -> new OrderBook)
+  val orderBooks = Map[OrderSide, OrderBook](
+    OrderSide.buy -> new OrderBook,
+    OrderSide.sell -> new OrderBook
+  )
 
   def cancelOrder(order: OrderEvent): OrderEvent = {
-    require(List(OrderStatus.open, OrderStatus.received).contains(order.orderStatus), "can only cancel open or received orders")
+    require(
+      List(OrderStatus.open, OrderStatus.received).contains(order.orderStatus),
+      "can only cancel open or received orders"
+    )
 
-    if (order.orderStatus.isopen) orderBooks(order.side).removeByOrderId(order.orderId)
+    if (order.orderStatus.isopen)
+      orderBooks(order.side).removeByOrderId(order.orderId)
 
     if (Account.belongsToAccount(order))
       Account.closeOrder(order, DoneReason.cancelled).get
@@ -63,13 +74,12 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
   }
 
   def processEvents(events: List[Event]): Unit = {
-    events.foreach(
-      event => {
-        event match {
-          case cancellation: Cancellation => processCancellation(cancellation)
-          case order: OrderEvent               => processOrder(order)
-      }}
-    )
+    events.foreach(event => {
+      event match {
+        case cancellation: Cancellation => processCancellation(cancellation)
+        case order: OrderEvent          => processOrder(order)
+      }
+    })
   }
 
   def restore(checkpoint: MatchingEngineCheckpoint): Unit = {
@@ -85,13 +95,13 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
       val orderBookKey = OrderBook.getOrderBookKey(order)
 
       if (orderBooks(order.side).getOrderByOrderBookKey(orderBookKey).isEmpty) {
-        val updatedOrder = if (Account.belongsToAccount(order))
-          Account.openOrder(order.orderId).get
-        else
-          OrderUtils.openOrder(order)
+        val updatedOrder =
+          if (Account.belongsToAccount(order))
+            Account.openOrder(order.orderId).get
+          else
+            OrderUtils.openOrder(order)
 
-       orderBooks(order.side).update(orderBookKey, updatedOrder)
-
+        orderBooks(order.side).update(orderBookKey, updatedOrder)
       } else {
         order.incrementDegeneracy
         addToOrderBook(order)
@@ -99,39 +109,44 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
     }
   }
 
-  private def checkForSelfTrade(makerOrder: LimitOrderEvent, takerOrder: OrderEvent): Boolean = {
+  private def checkForSelfTrade(makerOrder: LimitOrderEvent,
+                                takerOrder: OrderEvent): Boolean = {
     List(makerOrder, takerOrder)
       .map(Account.belongsToAccount)
       .forall(_ == true)
   }
 
-  private def getLiquidity(makerOrder: LimitOrderEvent, takerOrder: OrderEvent): Liquidity = {
+  private def getLiquidity(makerOrder: LimitOrderEvent,
+                           takerOrder: OrderEvent): Liquidity = {
     (Account.belongsToAccount(makerOrder), Account.belongsToAccount(takerOrder)) match {
-      case (true, false) => Liquidity.maker
-      case (false, true) => Liquidity.taker
+      case (true, false)  => Liquidity.maker
+      case (false, true)  => Liquidity.taker
       case (false, false) => Liquidity.global
-      case (true, true) => throw new SelfTrade
+      case (true, true)   => throw new SelfTrade
     }
   }
 
-  private def processMatchedMakerOrder(makerOrder: LimitOrderEvent, liquidity: Liquidity): LimitOrderEvent = {
+  private def processMatchedMakerOrder(
+    makerOrder: LimitOrderEvent,
+    liquidity: Liquidity
+  ): LimitOrderEvent = {
     if (makerOrder.remainingSize.isZero) {
       if (liquidity.ismaker) {
         Account.closeOrder(makerOrder, DoneReason.filled).get
       } else {
         OrderUtils.setOrderStatusToDone(makerOrder, DoneReason.filled)
       }
-    }
-    else {
+    } else {
       makerOrder
     }
   }
 
-  private def processMatchedTakerOrder(takerOrder: OrderEvent, liquidity: Liquidity): OrderEvent = {
+  private def processMatchedTakerOrder(takerOrder: OrderEvent,
+                                       liquidity: Liquidity): OrderEvent = {
     val isFilled = takerOrder match {
-      case takerOrder: SpecifiesSize => takerOrder.remainingSize.isZero
+      case takerOrder: SpecifiesSize  => takerOrder.remainingSize.isZero
       case takerOrder: SpecifiesFunds => takerOrder.remainingFunds.isZero
-      }
+    }
 
     if (isFilled) {
       if (liquidity.istaker) {
@@ -146,10 +161,8 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
 
   private def createMatch(filledVolume: ProductVolume,
                           makerOrder: LimitOrderEvent,
-                          takerOrder: OrderEvent) = {
+                          takerOrder: OrderEvent): Unit = {
     val liquidity = getLiquidity(makerOrder, takerOrder)
-    val updatedMakerOrder = processMatchedMakerOrder(makerOrder, liquidity)
-    val updatedTakerOrder = processMatchedTakerOrder(takerOrder, liquidity)
 
     val matchEvent = Match(
       liquidity,
@@ -161,18 +174,30 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
       takerOrder.orderId,
       takerOrder.time,
       TradeId(UUID.randomUUID.hashCode),
-      OrderUtils.getOrderSealedValue(updatedMakerOrder),
-      OrderUtils.getOrderSealedValue(updatedTakerOrder)
+      OrderUtils.orderEventToSealedOneOf(makerOrder),
+      OrderUtils.orderEventToSealedOneOf(takerOrder)
     )
 
-    matches += matchEvent
+    if (!liquidity.isglobal) {
+      Account.updateBalance(matchEvent)
+    }
+
+    val updatedMatchEvent = matchEvent.update(
+      _.makerOrder := OrderUtils orderEventToSealedOneOf processMatchedMakerOrder(makerOrder, liquidity),
+      _.takerOrder := OrderUtils orderEventToSealedOneOf processMatchedTakerOrder(takerOrder, liquidity)
+    )
+
+    matches += updatedMatchEvent
 
     if (!liquidity.isglobal) {
-      Account.processMatch(matchEvent)
+      Account.addMatch(updatedMatchEvent)
     }
   }
 
-  private def deincrementRemainingSizes(makerOrder: LimitOrderEvent, takerOrder: SpecifiesSize): ProductVolume = {
+  private def deincrementRemainingSizes(
+    makerOrder: LimitOrderEvent,
+    takerOrder: SpecifiesSize
+  ): ProductVolume = {
     val filledVolume =
       List(makerOrder.remainingSize, takerOrder.remainingSize).min
     val makerOrderRemainingSize = List(
@@ -198,19 +223,23 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
     * @return
     */
   private def deincrementRemainingSizeAndFunds(
-                                                makerOrder: LimitOrderEvent,
-                                                takerOrder: BuyMarketOrder
+    makerOrder: LimitOrderEvent,
+    takerOrder: BuyMarketOrder
   ): ProductVolume = {
     val takerOrderDesiredVolume = new ProductVolume(
-      Left(takerOrder.funds.amount.divide(makerOrder.price.amount, ProductVolume.scale, RoundingMode.HALF_UP))
+      Left(
+        takerOrder.remainingFunds.amount.divide(
+          makerOrder.price.amount,
+          ProductVolume.scale,
+          RoundingMode.HALF_UP
+        )
+      )
     )
+
     val filledVolume =
       List(takerOrderDesiredVolume, makerOrder.remainingSize).min
 
-    val takerOrderRemainingFunds = List(
-      QuoteVolume.zeroVolume,
-      takerOrder.remainingFunds - makerOrder.price * filledVolume
-    ).max
+    val takerOrderRemainingFunds = takerOrder.remainingFunds - makerOrder.price * filledVolume
 
     val makerOrderRemainingSize = List(
       ProductVolume.zeroVolume,
@@ -259,8 +288,6 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
           processBuyMarketOrder(order)
         }
       }
-    } else {
-      SlippageProtection.reset
     }
   }
 
@@ -293,15 +320,15 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
           processSellMarketOrder(order)
         }
       }
-    } else {
-      SlippageProtection.reset
     }
   }
 
   private def processCancellation(cancellation: Cancellation) = {
     orderBooks(cancellation.side)
       .getOrderByOrderId(cancellation.orderId)
-      .collect{order => cancelOrder(order)}
+      .collect { order =>
+        cancelOrder(order)
+      }
   }
 
   private def processMarketOrder(order: MarketOrderEvent) = {
@@ -359,39 +386,41 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
           processLimitOrder(order)
         }
       }
-    } else {
-      SlippageProtection.reset()
     }
   }
 
   private def processOrder(order: OrderEvent): Unit = {
+    SlippageProtection.reset
     order match {
       case order: LimitOrderEvent  => processLimitOrder(order)
       case order: MarketOrderEvent => processMarketOrder(order)
     }
-
   }
 }
 
 object SlippageProtection {
-  private val maxPriceSlippagePoints = new BigDecimal("0.1")
+  val maxPriceSlippagePoints = new BigDecimal("0.1")
   private var firstMatchPrice: Option[ProductPrice] = None
   private var priceSlippagePoints = new BigDecimal("0.0")
 
   def checkSlippageGreaterThanMax(makerOrderPrice: ProductPrice) = {
     firstMatchPrice match {
       case None => firstMatchPrice = Some(makerOrderPrice)
-      case Some(firstMatchPrice) => {
-        priceSlippagePoints = (
-          (makerOrderPrice.amount
-            .subtract(firstMatchPrice.amount))
-            .divide(firstMatchPrice.amount, 6, RoundingMode.HALF_UP)
-            .abs
-        )
-      }
+      case Some(firstMatchPrice) =>
+        priceSlippagePoints =
+          getPriceSlippagePoints(firstMatchPrice, makerOrderPrice)
+
     }
 
     priceSlippagePoints.compareTo(SlippageProtection.maxPriceSlippagePoints) >= 0
+  }
+
+  def getPriceSlippagePoints(firstMatchPrice: ProductPrice,
+                             makerOrderPrice: ProductPrice): BigDecimal = {
+    makerOrderPrice.amount
+      .subtract(firstMatchPrice.amount)
+      .divide(firstMatchPrice.amount, 6, RoundingMode.HALF_UP)
+      .abs
   }
 
   def reset() = {

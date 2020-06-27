@@ -2,7 +2,6 @@ package co.firstorderlabs.fakebase
 
 import java.util.logging.Logger
 
-import co.firstorderlabs.fakebase.Account.Account
 import co.firstorderlabs.fakebase.protos.fakebase.{AccountServiceGrpc, ExchangeServiceGrpc}
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder

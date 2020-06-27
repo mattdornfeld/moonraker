@@ -21,7 +21,7 @@ class TestPrice extends AnyFunSpec {
       assert(priceMultiple > price && priceMultiple >= price)
       assert(price < priceMultiple && price <= priceMultiple)
       assert(price != priceMultiple)
-      assert(price.hashCode() == 311)
+      assert(price.hashCode() == 3102)
     }
   }
 }

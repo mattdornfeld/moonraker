@@ -16,6 +16,7 @@ object Volume {
     *           of a particular currency.
     */
   trait VolumeCompanion[T <: Volume[T]] {
+    type volume = Volume[T]
     val currency: Currency
     val maxVolume: T
     val minVolume: T

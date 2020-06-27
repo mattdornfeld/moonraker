@@ -2,14 +2,17 @@
 """
 from __future__ import annotations
 from datetime import datetime, timedelta
+from time import sleep
 from typing import Any, Dict, List, Optional
 
+from dateutil import parser
 from google.protobuf.empty_pb2 import Empty
 from google.protobuf.duration_pb2 import Duration
 
 import coinbase_ml.fakebase.account_new as _account
 from coinbase_ml.common import constants as cc
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+    ExchangeInfo,
     OrderBooksRequest,
     OrderBooks,
     SimulationStartRequest,
@@ -90,6 +93,20 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
 
         return return_val
 
+    def _update_interval_dt(self, exchange_info: ExchangeInfo) -> None:
+        """
+        _update_interval_dt [summary]
+
+        Args:
+            exchange_info (ExchangeInfo): [description]
+        """
+        self.interval_start_dt = parser.parse(exchange_info.intervalStartTime).replace(
+            tzinfo=None
+        )
+        self._interval_end_dt = parser.parse(exchange_info.intervalEndTime).replace(
+            tzinfo=None
+        )
+
     @property
     def account(self) -> _account.Account:
         """
@@ -148,6 +165,12 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Args:
             order (CoinbaseOrder): [description]
         """
+
+    def checkpoint(self) -> None:
+        """
+        checkpoint [summary]
+        """
+        self.stub.checkpoint(Empty())
 
     @property
     def matches(self) -> List[CoinbaseMatch]:
@@ -217,8 +240,24 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self.stub.start(message)
 
     def reset(self) -> None:
+        """
+        Reset the exchange to the state created with `checkpoint`. Useful when
+        doing multiple simulations that need to start from the same warmed up state.
+        """
         self._order_books = {}
-        self.stub.reset(Empty())
+        exchange_info: ExchangeInfo = self.stub.reset(Empty())
+        self._update_interval_dt(exchange_info)
+
+        self.stop_database_workers()
+
+        self.database_workers = DatabaseWorkers(
+            end_dt=self.end_dt,
+            num_workers=c.NUM_DATABASE_WORKERS,
+            product_id=self.product_id,
+            results_queue_size=c.DATABASE_RESULTS_QUEUE_SIZE,
+            start_dt=self.interval_start_dt + self.time_delta,
+            time_delta=self.time_delta,
+        )
 
     def step(
         self,
@@ -243,6 +282,9 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         )
         insert_orders = [] if insert_orders is None else insert_orders
 
+        exchange_info: ExchangeInfo = self.stub.step(Empty())
+        self._update_interval_dt(exchange_info)
+
         # It's useful to set c.NUM_DATABASE_WORKERS to 0 for some unit tests and skip the
         # below block
         if c.NUM_DATABASE_WORKERS > 0:
@@ -252,29 +294,26 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             # of sync
             while True:
                 try:
-                    next_interval_start_dt = self.database_workers.results_queue.peek()[
-                        0
-                    ]
+                    interval_start_dt = self.database_workers.results_queue.peek()[0]
                 except IndexError:
                     continue
 
-                if next_interval_start_dt == self.interval_end_dt:
+                print(interval_start_dt)
+                print(self.interval_start_dt)
+                if interval_start_dt == self.interval_start_dt:
                     break
 
-            self.interval_start_dt, results = self.database_workers.results_queue.get()
-            self.interval_end_dt = self.interval_start_dt + self.time_delta
+                sleep(0.001)
+
+            _, results = self.database_workers.results_queue.get()
             self._received_cancellations = results.cancellations + insert_cancellations
             self._received_orders = results.orders + insert_orders
         else:
-            self.interval_start_dt = self.interval_start_dt + self.time_delta
-            self.interval_end_dt = self.interval_end_dt + self.time_delta
             self._received_cancellations = insert_cancellations
             self._received_orders = insert_orders
 
         self.received_orders.sort(key=lambda event: event.time)
         self.received_cancellations.sort(key=lambda event: event.time)
-
-        self.stub.step(Empty())
 
     def stop(self) -> None:
         """

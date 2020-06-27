@@ -34,7 +34,7 @@ class QueryResultComparator extends Comparator[QueryResult] {
 }
 
 final case class BoundedTrieMap[K, V](maxSize: Int, trieMap: Option[TrieMap[K, V]] = None) {
-  private val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
+  val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
 
   def addAll(xs: IterableOnce[(K, V)]): Unit = {
     _trieMap.addAll(xs)
@@ -157,12 +157,12 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
   }
 
   override def clear: Unit = {
+    pauseWorkers
     queryResultMap.clear
     timeIntervalQueue.clear
   }
 
   override def restore(checkpoint: DatabaseWorkersCheckpoint): Unit = {
-    pauseWorkers
     clear
     timeIntervalQueue.addAll(checkpoint.timeIntervalQueue)
     unpauseWorkers
@@ -185,12 +185,16 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
   }
 
   private def executeQuery[A <: Event](query: Query0[A]): List[A] = {
-    query
-      .stream
-      .compile
-      .toList
-      .transact(transactor)
-      .unsafeRunSync
+    if (Configs.isTest) {
+      List[A]()
+    } else {
+      query
+        .stream
+        .compile
+        .toList
+        .transact(transactor)
+        .unsafeRunSync
+    }
   }
 
   private def pauseWorkers: Unit = {

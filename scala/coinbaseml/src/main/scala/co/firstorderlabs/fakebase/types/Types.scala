@@ -24,6 +24,12 @@ object Types {
       val endDt = Datetime(this.endTime.instant.plus(duration))
       TimeInterval(startDt, endDt)
     }
+
+    def -(duration: Duration): TimeInterval = {
+      val startDt = Datetime(this.startTime.instant.minus(duration))
+      val endDt = Datetime(this.endTime.instant.minus(duration))
+      TimeInterval(startDt, endDt)
+    }
   }
 
   object Datetime {

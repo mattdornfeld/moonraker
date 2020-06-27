@@ -78,6 +78,10 @@ class OrderBook extends Checkpointable[OrderBookCheckpoint] {
     orderIdLookup.isEmpty
   }
 
+  def iterator: Iterator[(OrderBookKey, LimitOrderEvent)]= {
+    priceTimeTree.iterator
+  }
+
   def maxOrder: Option[LimitOrderEvent] = {
     priceTimeTree
       .maxOption(OrderBook.OrderBookKeyValueOrdering)

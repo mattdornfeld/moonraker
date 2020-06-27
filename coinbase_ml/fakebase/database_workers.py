@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from queue import Empty as EmptyException, Full as FullException
 from threading import Event, Thread
+from time import sleep
 from typing import List
 
 from sqlalchemy.orm import sessionmaker
@@ -125,6 +126,10 @@ class DatabaseWorkers:
                     break
                 except FullException:
                     continue
+
+                sleep(0.005)
+
+            sleep(0.005)
 
     def stop_workers(self) -> None:
         """Summary

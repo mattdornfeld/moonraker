@@ -2,8 +2,6 @@ package co.firstorderlabs.fakebase
 
 import java.util.logging.Logger
 
-import co.firstorderlabs.fakebase.Account.{Account, AccountCheckpoint}
-
 trait Checkpoint
 
 trait Checkpointable[A <: Checkpoint] {

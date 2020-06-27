@@ -1,7 +1,7 @@
 package co.firstorderlabs.fakebase.types
 
 import co.firstorderlabs.fakebase.Configs
-import co.firstorderlabs.fakebase.protos.fakebase.{Liquidity, MatchEvents, Order, OrderSide, OrderStatus}
+import co.firstorderlabs.fakebase.protos.fakebase.{DoneReason, Liquidity, MatchEvents, Order, OrderSide, OrderStatus, RejectReason}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.types.Types.{Datetime, OrderId, OrderRequestId, ProductId}
@@ -45,9 +45,15 @@ object Events {
 
   trait OrderRequest
 
-  trait LimitOrderRequst extends OrderRequest {
+  trait BuyOrderRequest extends OrderRequest
+
+  trait SellOrderRequest extends OrderRequest
+
+  trait LimitOrderRequest extends OrderRequest {
     val postOnly: Boolean
   }
+
+  trait MarketOrderRequest extends OrderRequest
 
   trait Event {
     val productId: ProductId
@@ -106,8 +112,11 @@ object Events {
   }
 
   trait OrderEvent extends Event {
+    val doneAt: Datetime
+    val doneReason: DoneReason
     val orderId: OrderId
     val orderStatus: OrderStatus
+    val rejectReason: RejectReason
     val requestId: OrderRequestId
     val side: OrderSide
     val matchEvents: Option[MatchEvents]
