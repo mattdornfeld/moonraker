@@ -38,6 +38,10 @@ class OrderBook extends Checkpointable[OrderBookCheckpoint] {
     priceTimeTree.clear
   }
 
+  override def isCleared: Boolean = {
+    orderIdLookup.isEmpty && priceTimeTree.isEmpty
+  }
+
   private def getPriceAtDepth(depth: Int, fromTop: Boolean): ProductPrice = {
     val distinctPrices = priceTimeTree.toList.distinctBy(item => item._2.price)
 

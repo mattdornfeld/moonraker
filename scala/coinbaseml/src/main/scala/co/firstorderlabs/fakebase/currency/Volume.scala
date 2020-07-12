@@ -2,7 +2,7 @@ package co.firstorderlabs.fakebase.currency
 
 import java.math.{BigDecimal, RoundingMode}
 
-import co.firstorderlabs.fakebase.types.Types.Currency
+import co.firstorderlabs.fakebase.protos.fakebase.Currency
 import scalapb.TypeMapper
 
 /**Contains objects for representing currencies and volumes of those currencies.
@@ -185,7 +185,7 @@ object Volume {
     implicit val typeMapper = TypeMapper[String, BtcVolume](
       value => new BtcVolume(Right(value))
     )(volume => volume.amount.toString)
-    val currency = Currency("BTC")
+    val currency = Currency.BTC
     val maxVolume = new BtcVolume(Right("1e4"))
     val minVolume = new BtcVolume(Right("1e-3"))
     val scale = 8
@@ -199,7 +199,7 @@ object Volume {
     implicit val typeMapper = TypeMapper[String, UsdVolume](
       value => new UsdVolume(Right(value))
     )(volume => volume.amount.toString)
-    val currency = Currency("USD")
+    val currency = Currency.USD
     val maxVolume = new UsdVolume(Right("1e10"))
     val minVolume = new UsdVolume(Right("1e-2"))
     val scale = 2

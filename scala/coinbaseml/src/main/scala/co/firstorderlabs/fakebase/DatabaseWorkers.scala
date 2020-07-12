@@ -2,8 +2,7 @@ package co.firstorderlabs.fakebase
 
 import java.math.BigDecimal
 import java.time.{Duration, Instant}
-import java.util.Comparator
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
 import java.util.logging.Logger
 
 import cats.effect.IO
@@ -27,12 +26,6 @@ case class QueryResult(buyLimitOrders: List[BuyLimitOrder],
                        sellMarketOrder: List[SellMarketOrder],
                        timeInterval: TimeInterval)
 
-class QueryResultComparator extends Comparator[QueryResult] {
-    def compare(result1: QueryResult, result2: QueryResult): Int = {
-      result1.timeInterval.startTime.instant compareTo result2.timeInterval.startTime.instant
-    }
-}
-
 final case class BoundedTrieMap[K, V](maxSize: Int, trieMap: Option[TrieMap[K, V]] = None) {
   val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
 
@@ -41,6 +34,8 @@ final case class BoundedTrieMap[K, V](maxSize: Int, trieMap: Option[TrieMap[K, V
   }
 
   def clear: Unit = _trieMap.clear
+
+  def isEmpty: Boolean = _trieMap.isEmpty
 
   @tailrec
   def remove(key: K): V = {
@@ -113,6 +108,15 @@ class DatabaseWorkers extends Thread {
   }
 }
 
+class LinkedBlockingQueue[A] extends LinkedBlockingQueueBase[A] {
+  override def equals(that: Any): Boolean = {
+    that match {
+      case that: LinkedBlockingQueue[A] => this.toArray.toList == that.toArray.toList
+      case _ => false
+    }
+  }
+}
+
 case class DatabaseWorkersCheckpoint(timeIntervalQueue: LinkedBlockingQueue[TimeInterval]) extends Checkpoint
 
 object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
@@ -162,6 +166,11 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
     timeIntervalQueue.clear
   }
 
+  override def isCleared: Boolean = {
+    (queryResultMap.isEmpty
+     && timeIntervalQueue.isEmpty)
+  }
+
   override def restore(checkpoint: DatabaseWorkersCheckpoint): Unit = {
     clear
     timeIntervalQueue.addAll(checkpoint.timeIntervalQueue)
@@ -173,6 +182,10 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
   }
 
   def getResultMapSize: Int = queryResultMap.size
+
+  def isPaused: Boolean = {
+    workers.forall(w => w.isPaused)
+  }
 
   def start(startTime: Datetime,
             endTime: Datetime,
@@ -199,7 +212,7 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
 
   private def pauseWorkers: Unit = {
     workers.foreach(w => w.pauseWorker)
-    workers.foreach(w => w.isPaused)
+    isPaused
   }
 
   private def unpauseWorkers: Unit = {

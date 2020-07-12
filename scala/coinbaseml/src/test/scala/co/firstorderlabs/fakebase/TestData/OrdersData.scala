@@ -15,7 +15,7 @@ object OrdersData {
     maxPrice: ProductPrice,
     productVolume: ProductVolume = new ProductVolume(Right("1.000000")),
     numOrders: Int = 100,
-  ) = TestUtils.generateOrdersForRangeOfPrices(
+  ): List[Order] = TestUtils.generateOrdersForRangeOfPrices(
     priceDelta,
     maxPrice - priceDelta / Right(1.0 / numOrders),
     maxPrice,
@@ -28,7 +28,7 @@ object OrdersData {
     minPrice: ProductPrice,
     productVolume: ProductVolume = new ProductVolume(Right("1.000000")),
     numOrders: Int = 100,
-  ) = TestUtils.generateOrdersForRangeOfPrices(
+  ): List[Order] = TestUtils.generateOrdersForRangeOfPrices(
     priceDelta,
     minPrice,
     minPrice + priceDelta / Right(1.0 / numOrders),
