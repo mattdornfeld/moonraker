@@ -68,9 +68,12 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
   }
 
   def clear: Unit = {
-    orderBooks(OrderSide.buy).clear
-    orderBooks(OrderSide.sell).clear
+    orderBooks.values.foreach(orderBook => orderBook.clear)
     matches.clear
+  }
+
+  def isCleared: Boolean = {
+    orderBooks.values.forall(orderBook => orderBook.isCleared) && matches.isEmpty
   }
 
   def processEvents(events: List[Event]): Unit = {

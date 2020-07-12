@@ -5,6 +5,9 @@ import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.types.Types.Datetime
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
+
 object TestUtils {
   def generateOrdersForRangeOfPrices(priceDelta: ProductPrice,
                                      priceMin: ProductPrice,
@@ -56,5 +59,9 @@ object TestUtils {
       case OrderSide.buy => orderBookSeq.reverse.take(depth).map(item => item._2.price)
       case OrderSide.sell => orderBookSeq.take(depth).map(item => item._2.price)
     }
+  }
+
+  def getResult[A](future: Future[A]): A = {
+    Await.result(future, Duration.MinusInf)
   }
 }

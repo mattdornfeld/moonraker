@@ -2,6 +2,7 @@ package co.firstorderlabs.fakebase
 
 import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
+import co.firstorderlabs.fakebase.TestUtils.getResult
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume
@@ -9,12 +10,8 @@ import co.firstorderlabs.fakebase.protos.fakebase.{Wallets => _, _}
 import co.firstorderlabs.fakebase.types.Events._
 import org.scalatest.funspec.AnyFunSpec
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
 class AccountTest extends AnyFunSpec {
   Configs.isTest = true
-  val waitFor = Duration.MinusInf
   describe("Account") {
     it("Wallets should be updated accordingly when an order is placed") {
       List(
@@ -36,19 +33,19 @@ class AccountTest extends AnyFunSpec {
             Account.placeSellMarketOrder(orderRequest)
         }
 
-        val order = Await.result(orderFuture, waitFor)
+        val order = getResult(orderFuture)
 
         val productWallet = Wallets.getWallet(ProductVolume)
         val quoteWallet = Wallets.getWallet(QuoteVolume)
 
         order match {
           case order: BuyOrderEvent => {
-            assert(order.holds > QuoteVolume.zeroVolume)
+            assert(order.holds equalTo  Wallets.calcRequiredBuyHold(order))
             assert(productWallet.holds equalTo ProductVolume.zeroVolume)
             assert(quoteWallet.holds equalTo order.holds)
           }
           case order: SellOrderEvent => {
-            assert(order.holds > ProductVolume.zeroVolume)
+            assert(order.holds equalTo  order.size)
             assert(productWallet.holds equalTo order.holds)
             assert(quoteWallet.holds equalTo QuoteVolume.zeroVolume)
           }
@@ -77,7 +74,7 @@ class AccountTest extends AnyFunSpec {
             Account.placeSellMarketOrder(orderRequest)
         }
 
-        val order = Await.result(orderFuture, waitFor)
+        val order = getResult(orderFuture)
 
         val productWallet = Wallets.getWallet(ProductVolume)
         val quoteWallet = Wallets.getWallet(QuoteVolume)
@@ -118,7 +115,7 @@ class AccountTest extends AnyFunSpec {
               Account.placeSellLimitOrder(orderRequest)
           }
 
-          val order = Await.result(orderFuture, waitFor)
+          val order = getResult(orderFuture)
 
           Exchange.step(Configs.emptyStepRequest)
 
@@ -130,8 +127,7 @@ class AccountTest extends AnyFunSpec {
           )
 
           val cancellationRequest = new CancellationRequest(order.orderId)
-          val cancellation =
-            Await.result(Account.cancelOrder(cancellationRequest), waitFor)
+          val cancellation = getResult(Account.cancelOrder(cancellationRequest))
 
           assert(cancellation.orderId == order.orderId)
 
@@ -173,7 +169,7 @@ class AccountTest extends AnyFunSpec {
               Account.placeSellLimitOrder(orderRequest)
           }
 
-          val order = Await.result(orderFuture, waitFor)
+          val order = getResult(orderFuture)
 
           val stepRequest = new StepRequest(insertOrders = orderRequest match {
             case _: BuyLimitOrderRequest =>
@@ -261,7 +257,7 @@ class AccountTest extends AnyFunSpec {
               Account.placeSellLimitOrder(orderRequest)
           }
 
-          val order = Await.result(orderFuture, waitFor)
+          val order = getResult(orderFuture)
 
           val productWallet = Wallets.getWallet(ProductVolume)
           val quoteWallet = Wallets.getWallet(QuoteVolume)
@@ -398,7 +394,7 @@ class AccountTest extends AnyFunSpec {
               Account.placeSellLimitOrder(orderRequest)
           }
 
-          val order = Await.result(orderFuture, waitFor)
+          val order = getResult(orderFuture)
 
           Exchange.step(Configs.emptyStepRequest)
 
@@ -518,7 +514,7 @@ class AccountTest extends AnyFunSpec {
             Account.placeSellMarketOrder(orderRequest)
         }
 
-        val order = Await.result(orderFuture, waitFor)
+        val order = getResult(orderFuture)
 
         Exchange.step(Configs.emptyStepRequest)
 
@@ -604,7 +600,7 @@ class AccountTest extends AnyFunSpec {
               Account.placeSellMarketOrder(orderRequest)
           }
 
-          val order = Await.result(orderFuture, waitFor)
+          val order = getResult(orderFuture)
 
           Exchange.step(Configs.emptyStepRequest)
 
@@ -669,7 +665,7 @@ class AccountTest extends AnyFunSpec {
               Account.placeSellMarketOrder(orderRequest)
           }
 
-          val order = Await.result(orderFuture, waitFor)
+          val order = getResult(orderFuture)
 
           Exchange.step(Configs.emptyStepRequest)
 
@@ -726,7 +722,7 @@ class AccountTest extends AnyFunSpec {
             Account.placeBuyLimitOrder(buyLimitOrderRequest)
         }
 
-        val makerOrder = Await.result(makerOrderFuture, waitFor)
+        val makerOrder = getResult(makerOrderFuture)
 
         Exchange.step(Configs.emptyStepRequest)
 
@@ -741,7 +737,7 @@ class AccountTest extends AnyFunSpec {
             Account.placeSellMarketOrder(orderRequest)
         }
 
-        val takerOrder = Await.result(takerOrderFuture, waitFor)
+        val takerOrder = getResult(takerOrderFuture)
 
         Exchange.step(Configs.emptyStepRequest)
 

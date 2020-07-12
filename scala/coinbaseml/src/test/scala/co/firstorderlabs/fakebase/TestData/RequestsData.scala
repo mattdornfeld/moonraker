@@ -21,8 +21,10 @@ object RequestsData {
     ProductPrice.productId
   )
 
+  val orderBooksRequest = new OrderBooksRequest(10)
+
   val sellLimitOrderRequest = new SellLimitOrderRequest(
-        new ProductPrice(Right("1000.00")),
+        new ProductPrice(Right("1001.00")),
         ProductPrice.productId,
         new ProductVolume(Right("1.000000")),
         false
@@ -38,6 +40,15 @@ object RequestsData {
     Datetime(Instant.parse("2019-11-20T19:25:50.63Z")),
     Some(Duration(30)),
     0,
+    new ProductVolume(Right("100.000000")),
+    new QuoteVolume(Right("10000.00"))
+  )
+
+  val checkpointedSimulationStartRequest = new SimulationStartRequest(
+    Datetime(Instant.parse("2019-11-20T19:20:50.63Z")),
+    Datetime(Instant.parse("2019-11-20T19:25:50.63Z")),
+    Some(Duration(30)),
+    3,
     new ProductVolume(Right("100.000000")),
     new QuoteVolume(Right("10000.00"))
   )

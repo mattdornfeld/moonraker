@@ -2,10 +2,11 @@ package co.firstorderlabs.fakebase.types
 
 import java.time.{Duration, Instant}
 
+import co.firstorderlabs.fakebase.protos.fakebase.Currency
+
 import scalapb.TypeMapper
 
 object Types {
-  case class Currency(currency: String) extends AnyVal
   case class OrderId(orderId: String) extends AnyVal
   case class Datetime(instant: Instant) extends AnyVal {
     override def toString: String = instant.toString
@@ -15,7 +16,7 @@ object Types {
 
   case class ProductId(productCurrency: Currency, quoteCurrency: Currency) {
     override def toString: String =
-      productCurrency.currency + "-" + quoteCurrency.currency
+      productCurrency.toString + "-" + quoteCurrency.toString
   }
 
   case class TimeInterval(startTime: Datetime, endTime: Datetime) {
@@ -63,8 +64,14 @@ object Types {
     )(productId => productId.toString)
 
     def fromString(productId: String): ProductId = {
-      val productCurrency = if (productId.length > 0) Currency(productId.split("-")(0)) else Currency("")
-      val quoteCurrency = if (productId.length > 0) Currency(productId.split("-")(1)) else Currency("")
+      val productCurrency = Currency
+        .fromName(productId.split("-")(0))
+        .getOrElse(Currency.QUATLOO)
+
+      val quoteCurrency = Currency
+        .fromName(productId.split("-")(1))
+        .getOrElse(Currency.QUATLOO)
+
       ProductId(productCurrency, quoteCurrency)
     }
   }

@@ -63,6 +63,10 @@ object Exchange
     receivedEvents = List()
   }
 
+  def isCleared: Boolean = {
+    receivedEvents.isEmpty
+  }
+
   def restore(checkpoint: ExchangeCheckpoint): Unit = {
     // calling clear is not necessary since receivedEvents is an immutable List
     // and we're replacing the entire var, not the list contents

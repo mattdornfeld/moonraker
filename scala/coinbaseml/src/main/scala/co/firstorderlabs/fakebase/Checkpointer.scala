@@ -7,6 +7,7 @@ trait Checkpoint
 trait Checkpointable[A <: Checkpoint] {
   def checkpoint: A
   def clear: Unit
+  def isCleared: Boolean
   def restore(checkpoint: A): Unit
 }
 
@@ -28,13 +29,22 @@ object Checkpointer {
   }
 
   def createCheckpoint: SimulationCheckpoint = {
-    logger.info(s"creating checkpoint at timeInterval ${Exchange.simulationMetadata.get.currentTimeInterval}")
+    logger.info(
+      s"creating checkpoint at timeInterval ${Exchange.simulationMetadata.get.currentTimeInterval}"
+    )
     SimulationCheckpoint(
       Account.checkpoint,
       DatabaseWorkers.checkpoint,
       Exchange.checkpoint,
       MatchingEngine.checkpoint
     )
+  }
+
+  def isCleared: Boolean = {
+    (Account.isCleared
+    && DatabaseWorkers.isCleared
+    && Exchange.isCleared
+    && MatchingEngine.isCleared)
   }
 
   def restoreFromCheckpoint(checkpoint: SimulationCheckpoint): Unit = {
