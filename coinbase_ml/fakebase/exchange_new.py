@@ -53,21 +53,12 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """
         super().__init__(end_dt, product_id, start_dt, time_delta)
 
-        self.stub = ExchangeServiceStub(c.MATCHING_ENGINE_CHANNEL)
-
-        self.database_workers = DatabaseWorkers(
-            end_dt=self.end_dt,
-            num_workers=c.NUM_DATABASE_WORKERS,
-            product_id=product_id,
-            results_queue_size=c.DATABASE_RESULTS_QUEUE_SIZE,
-            start_dt=self.start_dt,
-            time_delta=self.time_delta,
-        )
-
         self._order_books: Dict[OrderSide, BinnedOrderBook] = {}
         self._received_cancellations: List[CoinbaseCancellation] = []
         self._received_orders: List[CoinbaseOrder] = []
         self.account = _account.Account(self)
+        self.database_workers: Optional[DatabaseWorkers] = None
+        self.stub = ExchangeServiceStub(c.MATCHING_ENGINE_CHANNEL)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -228,16 +219,34 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             num_warmup_time_steps (int): [description]
         """
         self._order_books = {}
+
+        if self.database_workers:
+            self.stop_database_workers()
+
+        self.database_workers = DatabaseWorkers(
+            end_dt=self.end_dt,
+            num_workers=c.NUM_DATABASE_WORKERS,
+            product_id=self.product_id,
+            results_queue_size=c.DATABASE_RESULTS_QUEUE_SIZE,
+            start_dt=self.start_dt,
+            time_delta=self.time_delta,
+        )
+
         message = SimulationStartRequest(
             startTime=self.start_dt.isoformat() + "Z",
             endTime=self.end_dt.isoformat() + "Z",
             timeDelta=Duration(seconds=int(self.time_delta.total_seconds())),
-            numWarmUpSteps=num_warmup_time_steps,
+            numWarmUpSteps=0,
             initialProductFunds=str(initial_product_funds),
             initialQuoteFunds=str(initial_quote_funds),
         )
 
         self.stub.start(message)
+
+        for _ in range(num_warmup_time_steps):
+            self.step()
+
+        self.stub.checkpoint(Empty())
 
     def reset(self) -> None:
         """

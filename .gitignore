@@ -1,6 +1,7 @@
 __pycache__
 *.pyc
 *.egg-info
+*.jar
 .venv
 scrap*
 secrets.env

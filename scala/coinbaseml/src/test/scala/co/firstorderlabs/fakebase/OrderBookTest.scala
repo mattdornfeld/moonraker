@@ -1,11 +1,14 @@
 package co.firstorderlabs.fakebase
 
 import co.firstorderlabs.fakebase.TestData.OrdersData._
+import co.firstorderlabs.fakebase.TestData.RequestsData
 import org.scalatest.funspec.AnyFunSpec
 
 class OrderBookTest extends AnyFunSpec {
 
+  Configs.isTest = true
   val orderBook = new OrderBook
+  Exchange.start(RequestsData.simulationStartRequest)
 
   describe("OrderBook") {
     it("should do the following when empty") {

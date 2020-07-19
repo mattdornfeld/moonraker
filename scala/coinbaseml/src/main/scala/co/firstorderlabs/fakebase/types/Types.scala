@@ -39,10 +39,10 @@ object Types {
     )(datetime => datetime.instant.toString)
 
     def parse(timestamp: String) = {
-     if (timestamp.length == 0)
-       Instant.now
-     else
-      Instant.parse(timestamp)
+      if (timestamp.length == 0)
+        Instant.now
+      else
+        Instant.parse(timestamp)
     }
   }
 
@@ -65,11 +65,17 @@ object Types {
 
     def fromString(productId: String): ProductId = {
       val productCurrency = Currency
-        .fromName(productId.split("-")(0))
+        .fromName(
+          if (productId.contains("-")) productId.split("-").head
+          else ""
+        )
         .getOrElse(Currency.QUATLOO)
 
       val quoteCurrency = Currency
-        .fromName(productId.split("-")(1))
+        .fromName(
+          if (productId.contains("-")) productId.split("-").tail.head
+          else ""
+        )
         .getOrElse(Currency.QUATLOO)
 
       ProductId(productCurrency, quoteCurrency)
@@ -77,6 +83,8 @@ object Types {
   }
 
   object TradeId {
-    implicit val typeMapper = TypeMapper[Long, TradeId](value => TradeId(value))(tradeId => tradeId.tradeId)
+    implicit val typeMapper = TypeMapper[Long, TradeId](
+      value => TradeId(value)
+    )(tradeId => tradeId.tradeId)
   }
 }

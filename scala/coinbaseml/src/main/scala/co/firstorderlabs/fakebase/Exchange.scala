@@ -79,7 +79,7 @@ object Exchange
 
   override def checkpoint(request: Empty): Future[Empty] = {
     simulationMetadata.get.checkpoint = Some(Checkpointer.createCheckpoint)
-    Future.successful(Configs.emptyProto)
+    Future.successful(Constants.emptyProto)
   }
 
   override def getExchangeInfo(request: Empty): Future[ExchangeInfo] = Future.successful(getExchangeInfo)
@@ -113,7 +113,7 @@ object Exchange
   }
 
   override def start(request: SimulationStartRequest): Future[ExchangeInfo] = {
-    if (simulationInProgress) stop(Configs.emptyProto)
+    if (simulationInProgress) stop(Constants.emptyProto)
 
     simulationMetadata = Some(
       SimulationMetadata(
@@ -139,8 +139,8 @@ object Exchange
     Account.addFunds(request.initialProductFunds)
 
     if (request.numWarmUpSteps > 0) {
-      (1 to request.numWarmUpSteps) foreach (_ => step(Configs.emptyStepRequest))
-      checkpoint(Configs.emptyProto)
+      (1 to request.numWarmUpSteps) foreach (_ => step(Constants.emptyStepRequest))
+      checkpoint(Constants.emptyProto)
     }
 
     Future.successful(getExchangeInfo)
@@ -194,7 +194,7 @@ object Exchange
     Checkpointer.clear
     simulationMetadata = None
     logger.info("simulation stopped")
-    Future.successful(Configs.emptyProto)
+    Future.successful(Constants.emptyProto)
   }
 
   private def getExchangeInfo: ExchangeInfo = {

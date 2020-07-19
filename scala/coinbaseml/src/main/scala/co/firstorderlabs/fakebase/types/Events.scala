@@ -1,9 +1,9 @@
 package co.firstorderlabs.fakebase.types
 
-import co.firstorderlabs.fakebase.Configs
-import co.firstorderlabs.fakebase.protos.fakebase.{DoneReason, Liquidity, MatchEvents, Order, OrderSide, OrderStatus, RejectReason}
+import co.firstorderlabs.fakebase.Constants
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Types.{Datetime, OrderId, OrderRequestId, ProductId}
 
 object Events {
@@ -70,7 +70,7 @@ object Events {
     val size: ProductVolume
 
     def fee: QuoteVolume = {
-      val feeFraction = Configs.feeFraction(liquidity)
+      val feeFraction = Constants.feeFraction(liquidity)
       quoteVolume * Right(feeFraction.toString.toDouble)
     }
 

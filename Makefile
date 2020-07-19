@@ -4,7 +4,9 @@ PYTEST_IGNORE = --ignore=coinbase_ml/fakebase/protos \
 	--ignore=scalapb
 
 build-scala:
-	cd scala && sbt compile
+	cd scala/coinbaseml && \
+	sbt clean assembly && \
+	mv target/scala-2.13/coinbaseml-assembly-*.jar ../../coinbaseml.jar
 
 build-python-protos:
 	chmod u+x bin/build_python_protos && bin/build_python_protos
@@ -41,3 +43,6 @@ test-pylint:
 
 test-unit:
 	python3 setup.py test --addopts "${PYTEST_IGNORE} -m 'not integration_tests'"
+
+test-scala:
+	cd scala/coinbaseml && sbt test

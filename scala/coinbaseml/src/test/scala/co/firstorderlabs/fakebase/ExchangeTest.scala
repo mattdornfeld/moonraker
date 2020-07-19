@@ -90,9 +90,9 @@ class ExchangeTest extends AnyFunSpec {
 
       assert(simulationMetadata.checkpoint.isDefined)
 
-      (1 to 5) foreach (_ => Exchange.step(Configs.emptyStepRequest))
+      (1 to 5) foreach (_ => Exchange.step(Constants.emptyStepRequest))
 
-      Exchange.reset(Configs.emptyProto)
+      Exchange.reset(Constants.emptyProto)
 
       assert(simulationMetadata.checkpoint.get == Checkpointer.createCheckpoint)
     }
@@ -103,7 +103,7 @@ class ExchangeTest extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
       advanceExchange
-      Exchange.reset(Configs.emptyProto)
+      Exchange.reset(Constants.emptyProto)
 
       assert(
         Exchange.simulationMetadata.get.checkpoint.get == Checkpointer.createCheckpoint
@@ -115,7 +115,7 @@ class ExchangeTest extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
       advanceExchange
-      Exchange.stop(Configs.emptyProto)
+      Exchange.stop(Constants.emptyProto)
       assert(Checkpointer.isCleared)
       assert(DatabaseWorkers.isPaused)
     }
@@ -137,7 +137,7 @@ class ExchangeTest extends AnyFunSpec {
       Exchange.start(simulationStartRequest)
       Account.placeBuyLimitOrder(buyLimitOrderRequest)
       Account.placeSellLimitOrder(sellLimitOrderRequest)
-      Exchange.step(Configs.emptyStepRequest)
+      Exchange.step(Constants.emptyStepRequest)
       val orderBooks =
         TestUtils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
@@ -158,7 +158,7 @@ class ExchangeTest extends AnyFunSpec {
         TestUtils.getResult(Account.placeBuyLimitOrder(buyLimitOrderRequest))
       val sellOrder =
         TestUtils.getResult(Account.placeSellLimitOrder(sellLimitOrderRequest))
-      Exchange.step(Configs.emptyStepRequest)
+      Exchange.step(Constants.emptyStepRequest)
       val orderBooks2 =
         TestUtils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
@@ -179,7 +179,7 @@ class ExchangeTest extends AnyFunSpec {
         .foreach(
           orderId => Account.cancelOrder(new CancellationRequest(orderId))
         )
-      Exchange.step(Configs.emptyStepRequest)
+      Exchange.step(Constants.emptyStepRequest)
       val orderBooks3 =
         TestUtils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
@@ -266,7 +266,7 @@ class ExchangeTest extends AnyFunSpec {
 
       Account.placeBuyMarketOrder(buyMarketOrderRequest)
 
-      Exchange.checkpoint(Configs.emptyProto)
+      Exchange.checkpoint(Constants.emptyProto)
 
       Exchange step StepRequest(
         insertOrders = OrdersData.insertSellOrders(
