@@ -45,23 +45,15 @@ build:tests:
 build:build_gpu_image:
   extends: .build_image
 
-  before_script:
-    - *create_credentials_ini_file
-
   variables:
-   DOCKER_ARGS: '--secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.gpu'
-   DOCKER_BUILDKIT: 1
+   DOCKER_ARGS: '-f dockerfiles/Dockerfile.gpu'
    DOCKER_REPO: $CI_REGISTRY_IMAGE/gpu
 
 build:build_cpu_image:
   extends: .build_image
 
-  before_script:
-    - *create_credentials_ini_file
-
   variables:
-   DOCKER_ARGS: '--secret id=gitlab_credentials.ini,src=gitlab_credentials.ini -f dockerfiles/Dockerfile.cpu'
-   DOCKER_BUILDKIT: 1
+   DOCKER_ARGS: '-f dockerfiles/Dockerfile.cpu'
    DOCKER_REPO: $CI_REGISTRY_IMAGE/cpu
 
 build:package_helm_charts:

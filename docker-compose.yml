@@ -6,6 +6,8 @@ services:
   coinbase_ml_tests:
     command: make build-python-protos test
     build:
+      args:
+          TEST_MODE: "true"
       context: .
       dockerfile: dockerfiles/Dockerfile.cpu
     network_mode: host

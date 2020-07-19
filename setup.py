@@ -44,7 +44,6 @@ INSTALL_REQUIRES = [
     "ray[rllib]==0.7.6",
     "tensorflow==2.0.0",
     "kafka-python>=1.4.7,<2.0.0",
-
 ]
 
 # bintrees needs cython installed first in order to use its cython compiled tree
