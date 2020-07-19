@@ -1,6 +1,7 @@
 scalaVersion := "2.13.1"
 
 parallelExecution in Test := false
+test in assembly := {}
 
 lazy val commonSettings = Seq(
   name := "coinbaseml",
