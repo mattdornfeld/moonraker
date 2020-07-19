@@ -86,7 +86,7 @@ class AccountTest extends AnyFunSpec {
 
         Account.cancelOrder(new CancellationRequest(order.orderId))
 
-        Exchange.step(Configs.emptyStepRequest)
+        Exchange.step(Constants.emptyStepRequest)
 
         assert(Account.placedOrders(order.orderId).orderStatus.isdone)
         assert(Account.placedOrders(order.orderId).doneReason.iscancelled)
@@ -117,7 +117,7 @@ class AccountTest extends AnyFunSpec {
 
           val order = getResult(orderFuture)
 
-          Exchange.step(Configs.emptyStepRequest)
+          Exchange.step(Constants.emptyStepRequest)
 
           assert(
             Exchange
@@ -131,7 +131,7 @@ class AccountTest extends AnyFunSpec {
 
           assert(cancellation.orderId == order.orderId)
 
-          Exchange.step(Configs.emptyStepRequest)
+          Exchange.step(Constants.emptyStepRequest)
 
           assert(
             Exchange
@@ -262,7 +262,7 @@ class AccountTest extends AnyFunSpec {
           val productWallet = Wallets.getWallet(ProductVolume)
           val quoteWallet = Wallets.getWallet(QuoteVolume)
 
-          Exchange.step(Configs.emptyStepRequest)
+          Exchange.step(Constants.emptyStepRequest)
 
           val doneOrder = Account.placedOrders.get(order.orderId).get match {
             case doneOrder: LimitOrderEvent => doneOrder
@@ -396,7 +396,7 @@ class AccountTest extends AnyFunSpec {
 
           val order = getResult(orderFuture)
 
-          Exchange.step(Configs.emptyStepRequest)
+          Exchange.step(Constants.emptyStepRequest)
 
           val openOrder = Account.placedOrders.get(order.orderId).get match {
             case openOrder: LimitOrderEvent => openOrder
@@ -516,7 +516,7 @@ class AccountTest extends AnyFunSpec {
 
         val order = getResult(orderFuture)
 
-        Exchange.step(Configs.emptyStepRequest)
+        Exchange.step(Constants.emptyStepRequest)
 
         val cancelledOrder = Account.placedOrders.get(order.orderId).get
 
@@ -602,7 +602,7 @@ class AccountTest extends AnyFunSpec {
 
           val order = getResult(orderFuture)
 
-          Exchange.step(Configs.emptyStepRequest)
+          Exchange.step(Constants.emptyStepRequest)
 
           val doneOrder = Account.placedOrders.get(order.orderId).get
           val matchEvents = Account.matches(order.orderId)
@@ -667,7 +667,7 @@ class AccountTest extends AnyFunSpec {
 
           val order = getResult(orderFuture)
 
-          Exchange.step(Configs.emptyStepRequest)
+          Exchange.step(Constants.emptyStepRequest)
 
           val cancelledOrder = Account.placedOrders.get(order.orderId).get
 
@@ -724,7 +724,7 @@ class AccountTest extends AnyFunSpec {
 
         val makerOrder = getResult(makerOrderFuture)
 
-        Exchange.step(Configs.emptyStepRequest)
+        Exchange.step(Constants.emptyStepRequest)
 
         val takerOrderFuture = orderRequest match {
           case orderRequest: BuyLimitOrderRequest =>
@@ -739,7 +739,7 @@ class AccountTest extends AnyFunSpec {
 
         val takerOrder = getResult(takerOrderFuture)
 
-        Exchange.step(Configs.emptyStepRequest)
+        Exchange.step(Constants.emptyStepRequest)
 
         assert(Account.placedOrders(takerOrder.orderId).orderStatus.isdone)
         assert(Account.placedOrders(takerOrder.orderId).doneReason.iscancelled)

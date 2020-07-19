@@ -47,12 +47,12 @@ object Wallets extends Checkpointable[WalletsCheckpoint] {
       case order: BuyLimitOrder => {
         val feeFraction =
           if (Exchange.checkIsTaker(order))
-            Configs.feeFraction(Liquidity.taker)
-          else Configs.feeFraction(Liquidity.maker)
+            Constants.feeFraction(Liquidity.taker)
+          else Constants.feeFraction(Liquidity.maker)
         order.price * order.size * Left(feeFraction.add(new BigDecimal("1.0")))
       }
       case order: BuyMarketOrder => {
-        val feeFraction = Configs.feeFraction(Liquidity.taker)
+        val feeFraction = Constants.feeFraction(Liquidity.taker)
         order.funds * Left(feeFraction.add(new BigDecimal("1.0")))
       }
     }

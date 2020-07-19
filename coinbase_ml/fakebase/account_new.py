@@ -13,6 +13,7 @@ from coinbase_ml.fakebase.base_classes.account import AccountBase, Funds
 from coinbase_ml.fakebase.orm import CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     Cancellation,
+    CancellationRequest,
     BuyLimitOrder,
     BuyLimitOrderRequest,
     BuyMarketOrderRequest,
@@ -99,7 +100,9 @@ class Account(AccountBase["exchange.Exchange"]):
         Returns:
             CoinbaseOrder: [description]
         """
-        cancellation: Cancellation = self.stub.cancelOrder(orderId=order_id)
+        cancellation: Cancellation = self.stub.cancelOrder(
+            CancellationRequest(orderId=order_id)
+        )
 
         return CoinbaseOrder(
             order_id=OrderId(cancellation.orderId),

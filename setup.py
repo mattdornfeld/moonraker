@@ -15,6 +15,22 @@ GRPC_REQUIRES = [
     "mypy-protobuf",
 ]
 
+DEPENDENCY_LINKS = [
+    "git+https://github.com/mozman/bintrees@v2.0.7#egg=bintrees-2.0.7",
+    "git+https://github.com/danpaquin/coinbasepro-python@"
+    "0a9dbd86a25ae266d0e0eefeb112368c284b7dcc#egg=cbpro-1.1.4",
+]
+
+
+FAKEBASE_REQUIRES = [
+    "sqlalchemy>=1.3.0,<2.0.0",
+    "sqlalchemy_utils>=0.36.8,<0.37.0",
+    "psycopg2-binary>=2.8.5,<3.0.0",
+    f"bintrees @ {DEPENDENCY_LINKS[0]}",
+    f"cbpro @ {DEPENDENCY_LINKS[1]}",
+]
+
+
 INSTALL_REQUIRES = [
     "GitPython>=2.1.10,<3.0.0",
     "dnspython>=1.16.0, <2.0.0",
@@ -28,6 +44,7 @@ INSTALL_REQUIRES = [
     "ray[rllib]==0.7.6",
     "tensorflow==2.0.0",
     "kafka-python>=1.4.7,<2.0.0",
+
 ]
 
 # bintrees needs cython installed first in order to use its cython compiled tree
@@ -72,7 +89,7 @@ setup(
         gpu=["tensorflow-gpu==2.0.0"],
         grpc=GRPC_REQUIRES,
     ),
-    install_requires=INSTALL_REQUIRES,
+    install_requires=INSTALL_REQUIRES + FAKEBASE_REQUIRES,
     name="coinbase_ml",
     packages=find_packages(),
     scripts=SCRIPTS,

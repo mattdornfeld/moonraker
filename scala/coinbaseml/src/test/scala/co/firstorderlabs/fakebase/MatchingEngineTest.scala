@@ -1,23 +1,13 @@
 package co.firstorderlabs.fakebase
 
-import java.time.Duration
-
 import co.firstorderlabs.fakebase.TestData.RequestsData
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events.Event
 import org.scalatest.funspec.AnyFunSpec
 
 class MatchingEngineTest extends AnyFunSpec {
-  Exchange.simulationMetadata = Some(
-    SimulationMetadata(
-      RequestsData.simulationStartRequest.startTime,
-      RequestsData.simulationStartRequest.endTime,
-      Duration.ofSeconds(RequestsData.simulationStartRequest.timeDelta.get.seconds),
-      RequestsData.simulationStartRequest.numWarmUpSteps,
-      RequestsData.simulationStartRequest.initialProductFunds,
-      RequestsData.simulationStartRequest.initialQuoteFunds
-    )
-  )
+  Configs.isTest = true
+  Exchange.start(RequestsData.simulationStartRequest)
 
   val buyOrderEvents = List[Event](TestData.OrdersData.higherOrder, TestData.OrdersData.lowerOrder)
   val buyOrderEventsWithCancellation = List[Event](TestData.OrdersData.higherOrder, TestData.OrdersData.lowerOrder, TestData.OrdersData.cancellation)
