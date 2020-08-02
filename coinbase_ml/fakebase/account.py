@@ -1,22 +1,36 @@
 """Account object for interacting with Exchange object
 """
 from __future__ import annotations
-from copy import deepcopy
-from datetime import datetime, timedelta
-from random import getrandbits, uniform
-from typing import TYPE_CHECKING, Any, DefaultDict, Dict, List, Optional, Union, cast
-from uuid import UUID
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from coinbase_ml.common.utils.time_utils import TimeInterval
-from .base_classes.account import AccountBase, Funds
-from .orm import CoinbaseMatch, CoinbaseOrder
-from .utils import generate_order_id
-from .utils.exceptions import OrderNotFoundException
-from .types import (
+from dateutil import parser
+
+import coinbase_ml.common.constants as cc
+import coinbase_ml.fakebase.constants as c
+from coinbase_ml.fakebase.base_classes.account import AccountBase, Funds
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+    AccountInfo,
+    Cancellation,
+    CancellationRequest,
+    BuyLimitOrder,
+    BuyLimitOrderRequest,
+    BuyMarketOrderRequest,
+    BuyMarketOrder,
+    MatchEvents,
+    Orders,
+    SellLimitOrder,
+    SellLimitOrderRequest,
+    SellMarketOrder,
+    SellMarketOrderRequest,
+    Wallets,
+)
+from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import AccountServiceStub
+from coinbase_ml.fakebase.utils.proto_utils import order_from_sealed_value
+from coinbase_ml.fakebase.types import (
     Currency,
-    DoneReason,
     InvalidTypeError,
-    Liquidity,
     OrderId,
     OrderSide,
     OrderStatus,
@@ -25,8 +39,6 @@ from .types import (
     ProductPrice,
     ProductVolume,
     QuoteVolume,
-    RejectReason,
-    Volume,
 )
 
 if TYPE_CHECKING:
@@ -53,18 +65,11 @@ class Account(AccountBase["exchange.Exchange"]):
             exchange (exchange.Exchange): [description]
         """
         super().__init__(exchange)
-        self.profile_id = str(UUID(int=getrandbits(128)))
-        self._funds: Dict[Currency, Funds] = {}
-        self.matches: DefaultDict[TimeInterval, List[CoinbaseMatch]] = DefaultDict(list)
-        self._orders: Dict[OrderId, CoinbaseOrder] = {}
 
-        for currency in self.currencies:
-            self._funds[currency] = Funds(
-                id=str(UUID(int=getrandbits(128))),
-                balance=currency.zero_volume,
-                currency=currency,
-                holds=currency.zero_volume,
-            )
+        self.account_info: Optional[AccountInfo] = None
+        self.stub = AccountServiceStub(self.exchange.channel)
+        self.placed_cancellations: List[CoinbaseCancellation] = []
+        self.placed_orders: List[CoinbaseOrder] = []
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -79,245 +84,86 @@ class Account(AccountBase["exchange.Exchange"]):
         if isinstance(other, Account):
             _other: Account = other
             return_val = (
-                self.profile_id == _other.profile_id
-                and self.funds == _other.funds
-                and self._orders == _other.orders
+                self.funds == _other.funds
+                and self.orders == _other.orders
+                and self.matches == _other.matches
             )
         else:
             raise InvalidTypeError(type(other), "other")
 
         return return_val
 
-    def _add_order(self, order: CoinbaseOrder) -> None:
-        """Summary
+    def cancel_order(self, order_id: OrderId) -> CoinbaseOrder:
+        """
+        cancel_order [summary]
 
         Args:
-            order (CoinbaseOrder): Description
-        """
-        if order.side == OrderSide.buy:
-
-            quote_volume = self.calc_buy_hold(order)
-
-            quote_funds = cast(
-                QuoteVolume, self.get_available_funds(order.quote_currency)
-            )
-            if quote_volume > quote_funds:
-
-                order.reject_order(reject_reason=RejectReason.insufficient_funds)
-
-            if order.order_status == OrderStatus.received:
-                self._funds[order.quote_currency].holds += quote_volume
-
-        else:
-
-            product_funds = cast(
-                ProductVolume, self.get_available_funds(order.product_currency)
-            )
-            if order.size > product_funds:
-
-                order.reject_order(reject_reason=RejectReason.insufficient_funds)
-
-            if order.order_status == OrderStatus.received:
-                self._funds[order.product_currency].holds += order.size
-
-        self._orders[order.order_id] = order
-
-    @staticmethod
-    def _calc_purchasing_funds(order: CoinbaseOrder) -> QuoteVolume:
-        """
-        _calc_purchasing_funds returns funds that will be used to purchase product
-
-        Args:
-            order (CoinbaseOrder): [description]
-
-        Returns:
-            QuoteVolume: [description]
-        """
-        return (
-            order.price * order.size
-            if order.order_type == OrderType.limit
-            else order.original_funds
-        )
-
-    def _remove_holds(self, order: CoinbaseOrder) -> None:
-        """Summary
-
-        Args:
-            order (CoinbaseOrder): Description
-        """
-        if order.side == OrderSide.buy and order.order_status == OrderStatus.open:
-            self._funds[order.quote_currency].holds -= self._calc_purchasing_funds(
-                order
-            )
-        elif order.side == OrderSide.buy and order.order_status == OrderStatus.received:
-            self._funds[order.quote_currency].holds -= self.calc_buy_hold(order)
-        elif order.side == OrderSide.sell:
-            self._funds[order.product_currency].holds -= order.size
-        else:
-            raise ValueError(
-                "Cannot call _remove_holds for an order with "
-                f"side = {order.side} and order_status = {order.order_status}"
-            )
-
-    def add_funds(self, currency: Currency, amount: Volume) -> None:
-        """Summary
-
-        Args:
-            currency (Currency): Description
-            amount (Volume): Description
-        """
-        self._funds[currency].balance += currency.volume_type(amount.amount)
-
-    def process_match(self, match: CoinbaseMatch, order_id: OrderId) -> None:
-        """
-        process_match [summary]
-
-        Args:
-            match (CoinbaseMatch): [description]
             order_id (OrderId): [description]
 
-        Raises:
-            OrderNotFoundException: [description]
-        """
-        if order_id not in self._orders:
-            raise OrderNotFoundException
-
-        self.matches[self.exchange.step_interval].append(match)
-
-        if match.account_order_side == OrderSide.buy:
-            self._funds[match.quote_currency].balance -= (
-                match.price * match.size + match.fee
-            )
-            self._funds[match.product_currency].balance += match.size
-        else:
-            self._funds[match.quote_currency].balance += (
-                match.price * match.size - match.fee
-            )
-            self._funds[match.product_currency].balance -= match.size
-
-    @staticmethod
-    def calc_buy_hold(order: CoinbaseOrder) -> QuoteVolume:
-        """
-        calc_buy_hold [summary]
-
-        Args:
-            order (CoinbaseOrder): [description]
-
         Returns:
-            QuoteVolume: [description]
+            CoinbaseOrder: [description]
         """
-        return Account._calc_purchasing_funds(order) * (
-            1 + Liquidity.taker.fee_fraction
+        cancellation: Cancellation = self.stub.cancelOrder(
+            CancellationRequest(orderId=order_id)
         )
 
-    def cancel_order(self, order_id: OrderId) -> CoinbaseOrder:
-        """Summary
+        self.placed_cancellations.append(CoinbaseCancellation.from_proto(cancellation))
 
-        Args:
-            order_id (OrderId): Description
-
-        Raises:
-            ValueError: Description
-
-        Returns:
-            CoinbaseOrder: Description
-        """
-        if self._orders[order_id].order_status in [
-            OrderStatus.open,
-            OrderStatus.received,
-        ]:
-            order = self._orders.pop(order_id)
-            self._remove_holds(order)
-            if self.exchange.order_book[order.side].contains_order_id(order.order_id):
-                self.exchange.cancel_order(order)
-        else:
-            raise ValueError("Can only cancel 'open' or 'received' order.")
-
-        order.close_order(
-            done_at=self.exchange.interval_start_dt, done_reason=DoneReason.cancelled
+        return CoinbaseOrder(
+            order_id=OrderId(cancellation.orderId),
+            order_status=OrderStatus.done,
+            order_type=OrderType.limit,
+            product_id=cc.PRODUCT_ID,
+            side=OrderSide.from_proto(cancellation.side),
+            time=parser.parse(cancellation.time),
         )
-
-        return order
-
-    def close_order(self, order_id: OrderId, time: datetime) -> None:
-        """Summary
-
-        Args:
-            order_id (OrderId): Description
-            time (datetime): Description
-
-        Raises:
-            ValueError: Description
-        """
-        order = self._orders[order_id]
-
-        if order.order_status not in [OrderStatus.open, OrderStatus.received]:
-            raise ValueError("Can only close open or received order.")
-
-        self._remove_holds(order)
-        order.close_order(done_at=time, done_reason=DoneReason.filled)
-
-    def copy(self) -> Account:
-        """
-        copy returns a deepcopy of the Account object without no
-        connection to an exchange. Mostly used by the ExchangeCheckpoint
-        class.
-
-        Returns:
-            Account: [description]
-        """
-        exchange = self.exchange
-        self.exchange = None
-        copied_account = deepcopy(self)
-        self.exchange = exchange
-
-        return copied_account
 
     @property
     def funds(self) -> Dict[Currency, Funds]:
-        return self._funds
+        wallets: Wallets = self.stub.getWallets(
+            c.EMPTY_PROTO
+        ) if self.account_info is None else self.account_info.wallets
 
-    def get_available_funds(
-        self, currency: Currency
-    ) -> Union[ProductVolume, QuoteVolume]:
-        """
-        get_available_funds [summary]
+        _funds: Dict[Currency, Funds] = {}
+        for (_currency, wallet) in wallets.wallets.items():
+            currency = Currency.from_string(_currency)
 
-        Args:
-            currency (Currency): [description]
-
-        Returns:
-            Union[ProductVolume, QuoteVolume]: [description]
-        """
-        return self.funds[currency].balance - self.funds[currency].holds
-
-    def open_order(self, order_id: OrderId) -> None:
-        """Summary
-
-        Args:
-            order_id (OrderId): Description
-        """
-        order = self._orders[order_id]
-
-        if order.side == OrderSide.buy:
-            self._funds[order.quote_currency].holds -= (
-                self._calc_purchasing_funds(order) * Liquidity.taker.fee_fraction
+            _funds[currency] = Funds(
+                currency=currency,
+                id=wallet.id,
+                balance=currency.volume_type(wallet.balance),
+                holds=currency.volume_type(wallet.holds),
             )
 
-        order.open_order()
+        return _funds
+
+    @property
+    def matches(self) -> List[CoinbaseMatch]:
+        """
+        matches [summary]
+
+        Returns:
+            List[CoinbaseMatch]: [description]
+        """
+        match_events: MatchEvents = self.stub.getMatches(
+            c.EMPTY_PROTO
+        ) if self.account_info is None else self.account_info.matchEvents
+        return [CoinbaseMatch.from_proto(match) for match in match_events.matchEvents]
 
     @property
     def orders(self) -> Dict[OrderId, CoinbaseOrder]:
-        return self._orders
-
-    def get_accounts(self) -> Dict[str, Dict[str, str]]:
         """
-        get_accounts [summary]
+        orders [summary]
 
         Returns:
-            Dict[str, Dict[str, str]]: [description]
+            Dict[OrderId, CoinbaseOrder]: [description]
         """
-        return {account["currency"]: account for account in self.to_dict()}
+        orders_proto: Orders = self.stub.getOrders(c.EMPTY_PROTO)
+
+        return {
+            OrderId(order_id): order_from_sealed_value(order)
+            for (order_id, order) in orders_proto.orders.items()
+        }
 
     def place_limit_order(
         self,
@@ -344,29 +190,30 @@ class Account(AccountBase["exchange.Exchange"]):
         Returns:
             CoinbaseOrder: [description]
         """
-        # include random offset so that orders place in the same step aren't placed
-        # at the exact same time
-        time = self.exchange.interval_end_dt + timedelta(seconds=uniform(-0.01, 0.01))
+        if side is OrderSide.buy:
+            buy_order_proto: BuyLimitOrder = self.stub.placeBuyLimitOrder(
+                BuyLimitOrderRequest(
+                    price=str(price),
+                    productId=str(product_id),
+                    size=str(size),
+                    postOnly=post_only,
+                )
+            )
 
-        order = CoinbaseOrder(
-            order_id=generate_order_id(),
-            order_type=OrderType.limit,
-            order_status=OrderStatus.received,
-            post_only=post_only,
-            price=price,
-            product_id=product_id,
-            side=side,
-            size=size,
-            time=time,
-            time_in_force=time_in_force,
-            time_to_live=time_to_live,
-        )
+            order = CoinbaseOrder.from_proto(buy_order_proto)
+        else:
+            sell_order_proto: SellLimitOrder = self.stub.placeSellLimitOrder(
+                SellLimitOrderRequest(
+                    price=str(price),
+                    productId=str(product_id),
+                    size=str(size),
+                    postOnly=post_only,
+                )
+            )
 
-        # The order has to be created before the exchange can check to see if it is
-        # a taker or a maker. So we set this property post init.
-        order.is_taker = self.exchange.check_is_taker(order)
-        order.reject_order_if_invalid()
-        self._add_order(order)
+            order = CoinbaseOrder.from_proto(sell_order_proto)
+
+        self.placed_orders.append(order)
 
         return order
 
@@ -388,61 +235,30 @@ class Account(AccountBase["exchange.Exchange"]):
 
         Raises:
             ValueError: [description]
-            ValueError: [description]
 
         Returns:
             CoinbaseOrder: [description]
         """
-        if side == OrderSide.buy:
+        if side is OrderSide.buy:
             if funds is None or size is not None:
                 raise ValueError("Must specify funds and not size for buy orders.")
         else:
             if funds is not None or size is None:
                 raise ValueError("Must specify size and not funds for sell orders.")
 
-        # include random offset so that orders place in the same step aren't placed
-        # at the exact same time
-        time = self.exchange.interval_end_dt + timedelta(seconds=uniform(-0.01, 0.01))
-
-        order = CoinbaseOrder(
-            funds=funds,
-            order_id=generate_order_id(),
-            order_type=OrderType.market,
-            order_status=OrderStatus.received,
-            product_id=product_id,
-            side=side,
-            size=size,
-            time=time,
-        )
-
-        order.is_taker = True
-        order.reject_order_if_invalid()
-        self._add_order(order)
-
-        return order
-
-    def to_dict(self) -> List[Dict[str, str]]:
-        """Summary
-
-        Returns:
-            List[Dict[str, str]]: Description
-        """
-        funds_dicts = []
-        for currency, fund in self.funds.items():
-
-            balance = fund.balance
-            holds = fund.holds
-            available = balance - holds
-
-            funds_dicts.append(
-                {
-                    "available": str(available),
-                    "balance": str(balance),
-                    "currency": currency.value,
-                    "holds": str(holds),
-                    "id": str(fund.id),
-                    "profile_id": self.profile_id,
-                }
+        if side is OrderSide.buy:
+            buy_order_proto: BuyMarketOrder = self.stub.placeBuyMarketOrder(
+                BuyMarketOrderRequest(funds=str(funds), productId=str(product_id))
             )
 
-        return funds_dicts
+            order = CoinbaseOrder.from_proto(buy_order_proto)
+        else:
+            sell_order_proto: SellMarketOrder = self.stub.placeSellMarketOrder(
+                SellMarketOrderRequest(size=str(size), productId=str(product_id))
+            )
+
+            order = CoinbaseOrder.from_proto(sell_order_proto)
+
+        self.placed_orders.append(order)
+
+        return order

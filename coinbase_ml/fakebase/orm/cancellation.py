@@ -6,10 +6,13 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Optional, Union
 
+from dateutil import parser
 from sqlalchemy import Column, String, Float
 from sqlalchemy.orm import reconstructor
 
+from coinbase_ml.common import constants as cc
 from coinbase_ml.fakebase.orm.mixins import Base, CoinbaseEvent
+from coinbase_ml.fakebase.protos.fakebase_pb2 import Cancellation
 from coinbase_ml.fakebase.types import (
     InvalidTypeError,
     OrderId,
@@ -94,6 +97,25 @@ class CoinbaseCancellation(CoinbaseEvent, Base):  # pylint: disable=R0903
 
         return return_val
 
+    @staticmethod
+    def from_proto(cancellation_proto: Cancellation) -> CoinbaseCancellation:
+        """
+        from_proto converts cancellation_proto to CoinbaseCancellation
+        """
+        price = cc.PRODUCT_ID.price_type(cancellation_proto.price)
+        remaining_size = cc.PRODUCT_ID.product_volume_type(
+            cancellation_proto.remainingSize
+        )
+
+        return CoinbaseCancellation(
+            price=price,
+            product_id=cc.PRODUCT_ID,
+            order_id=OrderId(cancellation_proto.orderId),
+            side=OrderSide.from_proto(cancellation_proto.side),
+            remaining_size=remaining_size,
+            time=parser.parse(cancellation_proto.time),
+        )
+
     @reconstructor
     def init_on_load(self) -> None:
         """Summary
@@ -146,3 +168,19 @@ class CoinbaseCancellation(CoinbaseEvent, Base):  # pylint: disable=R0903
             self._remaining_size = value
         else:
             raise InvalidTypeError(type(value), "value")
+
+    def to_proto(self) -> Cancellation:
+        """
+        to_proto converts cancellation to proto
+
+        Returns:
+            Cancellation: cancellation proto
+        """
+        return Cancellation(
+            orderId=self._order_id,
+            price=str(self._price),
+            productId=self._product_id,
+            side=self._side,
+            remainingSize=str(self._remaining_size),
+            time=self.time.isoformat() + "Z",
+        )

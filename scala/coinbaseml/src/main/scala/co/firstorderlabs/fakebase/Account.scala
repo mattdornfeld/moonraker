@@ -9,6 +9,7 @@ import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
 }
 import co.firstorderlabs.fakebase.currency.Volume.Volume
 import co.firstorderlabs.fakebase.protos.fakebase.{
+  AccountInfo,
   AccountServiceGrpc,
   BuyLimitOrder,
   BuyLimitOrderRequest,
@@ -36,6 +37,7 @@ import co.firstorderlabs.fakebase.types.Types.{
   OrderRequestId,
   TimeInterval
 }
+import co.firstorderlabs.fakebase.Utils.getResultOptional
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 
@@ -245,6 +247,15 @@ object Account
         )
       }
     }
+  }
+
+  override def getAccountInfo(request: Empty): Future[AccountInfo] = {
+    Future.successful(
+      AccountInfo(
+        getResultOptional(getWallets(request)),
+        getResultOptional(getMatches(request)),
+      )
+    )
   }
 
   override def getMatches(request: Empty): Future[MatchEvents] = {

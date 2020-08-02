@@ -6,7 +6,7 @@ import co.firstorderlabs.fakebase.types.Events.Event
 import org.scalatest.funspec.AnyFunSpec
 
 class MatchingEngineTest extends AnyFunSpec {
-  Configs.isTest = true
+  Configs.testMode = true
   Exchange.start(RequestsData.simulationStartRequest)
 
   val buyOrderEvents = List[Event](TestData.OrdersData.higherOrder, TestData.OrdersData.lowerOrder)

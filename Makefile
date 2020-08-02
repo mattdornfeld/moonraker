@@ -29,11 +29,8 @@ install-dev:
 install-gpu:
 	pip3 install -e .[gpu,grpc]
 
-test:
+test-python:
 	python3 setup.py test --addopts "${PYTEST_IGNORE} --mypy --pylint --pylint-rcfile=setup.cfg"
-
-test-integration:
-	python3 setup.py test --addopts "${PYTEST_IGNORE} -m 'integration_tests'"
 
 test-mypy:
 	python3 setup.py test --addopts "${PYTEST_IGNORE} -m mypy --mypy"
@@ -42,7 +39,7 @@ test-pylint:
 	python3 setup.py test --addopts "${PYTEST_IGNORE} -m pylint --pylint --pylint-rcfile=setup.cfg"
 
 test-unit:
-	python3 setup.py test --addopts "${PYTEST_IGNORE} -m 'not integration_tests'"
+	python3 setup.py test --addopts "${PYTEST_IGNORE}"
 
 test-scala:
 	cd scala/coinbaseml && sbt test

@@ -5,20 +5,13 @@ import java.time.Duration
 import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  CancellationRequest,
-  OrderSide,
-  StepRequest
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.protos.fakebase.{CancellationRequest, ExchangeInfoRequest, OrderSide, StepRequest}
 import co.firstorderlabs.fakebase.types.Types.{Datetime, TimeInterval}
 import org.scalatest.funspec.AnyFunSpec
 
 class ExchangeTest extends AnyFunSpec {
-  Configs.isTest = true
+  Configs.testMode = true
 
   describe("Exchange") {
     it(
@@ -92,7 +85,7 @@ class ExchangeTest extends AnyFunSpec {
 
       (1 to 5) foreach (_ => Exchange.step(Constants.emptyStepRequest))
 
-      Exchange.reset(Constants.emptyProto)
+      Exchange.reset(ExchangeInfoRequest())
 
       assert(simulationMetadata.checkpoint.get == Checkpointer.createCheckpoint)
     }
@@ -103,7 +96,7 @@ class ExchangeTest extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
       advanceExchange
-      Exchange.reset(Constants.emptyProto)
+      Exchange.reset(ExchangeInfoRequest())
 
       assert(
         Exchange.simulationMetadata.get.checkpoint.get == Checkpointer.createCheckpoint
@@ -125,7 +118,7 @@ class ExchangeTest extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
       val orderBooks =
-        TestUtils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
       assert(
         orderBooks.buyOrderBook.isEmpty && orderBooks.sellOrderBook.isEmpty
       )
@@ -139,7 +132,7 @@ class ExchangeTest extends AnyFunSpec {
       Account.placeSellLimitOrder(sellLimitOrderRequest)
       Exchange.step(Constants.emptyStepRequest)
       val orderBooks =
-        TestUtils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
       assert(orderBooks.buyOrderBook.size == 1)
       assert(orderBooks.sellOrderBook.size == 1)
@@ -155,12 +148,12 @@ class ExchangeTest extends AnyFunSpec {
       )
 
       val buyOrder =
-        TestUtils.getResult(Account.placeBuyLimitOrder(buyLimitOrderRequest))
+        Utils.getResult(Account.placeBuyLimitOrder(buyLimitOrderRequest))
       val sellOrder =
-        TestUtils.getResult(Account.placeSellLimitOrder(sellLimitOrderRequest))
+        Utils.getResult(Account.placeSellLimitOrder(sellLimitOrderRequest))
       Exchange.step(Constants.emptyStepRequest)
       val orderBooks2 =
-        TestUtils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
       assert(orderBooks2.buyOrderBook.size == 1)
       assert(orderBooks2.sellOrderBook.size == 1)
@@ -181,7 +174,7 @@ class ExchangeTest extends AnyFunSpec {
         )
       Exchange.step(Constants.emptyStepRequest)
       val orderBooks3 =
-        TestUtils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
       assert(orderBooks3.buyOrderBook.size == 1)
       assert(orderBooks3.sellOrderBook.size == 1)
@@ -227,7 +220,7 @@ class ExchangeTest extends AnyFunSpec {
       Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
 
       val orderBooks =
-        TestUtils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
       List(orderBooks.buyOrderBook, orderBooks.sellOrderBook)
         .foreach(orderBook => assert(orderBook.size == 10))
 

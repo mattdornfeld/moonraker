@@ -3,17 +3,21 @@
 import os
 from decimal import Decimal
 
-from grpc import insecure_channel
+from google.protobuf.empty_pb2 import Empty
 from sqlalchemy import create_engine
 
-MATCHING_ENGINE_CHANNEL = insecure_channel(
-    target="localhost:9090",
-    options=[
-        ("grpc.max_receive_message_length", 100 * 1000 * 1000),
-        ("grpc.max_send_message_length", 100 * 1000 * 1000),
-        ("grpc.max_metadata_size", 100 * 1000 * 1000),
-    ],
-)
+from coinbase_ml.fakebase.protos.fakebase_pb2 import ExchangeInfoRequest
+
+# Fakebase server configs
+GRPC_CHANNEL_OPTIONS = [
+    ("grpc.max_receive_message_length", 100 * 1000 * 1000),
+    ("grpc.max_send_message_length", 100 * 1000 * 1000),
+    ("grpc.max_metadata_size", 100 * 1000 * 1000),
+]
+FAKBASE_SERVER_JAR = "coinbaseml.jar"
+FAKBASE_SERVER_DEFAULT_PORT = 9090
+EMPTY_PROTO = Empty()
+EMPTY_EXCHANGE_INFO_REQUEST = ExchangeInfoRequest()
 
 # Coinbase configs
 COINBASE_WEBSOCKET_API_URL = "wss://ws-feed.pro.coinbase.com"

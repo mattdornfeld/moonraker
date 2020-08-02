@@ -3,7 +3,7 @@ package co.firstorderlabs.fakebase
 import scala.util.Properties.envOrElse
 
 object Configs {
-  var isTest = false
+  var testMode = false
 
   //Database configs
   val maxResultsQueueSize = 50

@@ -1,7 +1,6 @@
 """Summary
 """
 import logging
-import subprocess
 
 from setuptools import find_packages, setup
 
@@ -15,19 +14,17 @@ GRPC_REQUIRES = [
     "mypy-protobuf",
 ]
 
-DEPENDENCY_LINKS = [
-    "git+https://github.com/mozman/bintrees@v2.0.7#egg=bintrees-2.0.7",
-    "git+https://github.com/danpaquin/coinbasepro-python@"
+DEPENDENCY_LINKS = {
+    "cbpro": "git+https://github.com/danpaquin/coinbasepro-python@"
     "0a9dbd86a25ae266d0e0eefeb112368c284b7dcc#egg=cbpro-1.1.4",
-]
+}
 
 
 FAKEBASE_REQUIRES = [
     "sqlalchemy>=1.3.0,<2.0.0",
     "sqlalchemy_utils>=0.36.8,<0.37.0",
     "psycopg2-binary>=2.8.5,<3.0.0",
-    f"bintrees @ {DEPENDENCY_LINKS[0]}",
-    f"cbpro @ {DEPENDENCY_LINKS[1]}",
+    f"cbpro @ {DEPENDENCY_LINKS['cbpro']}",
 ]
 
 
@@ -46,9 +43,6 @@ INSTALL_REQUIRES = [
     "kafka-python>=1.4.7,<2.0.0",
 ]
 
-# bintrees needs cython installed first in order to use its cython compiled tree
-PRIORITY_INSTALL = ["cython"]
-
 SCRIPTS = [
     "bin/connect_to_ray_cluster",
     "bin/notebook_entrypoint",
@@ -57,7 +51,7 @@ SCRIPTS = [
     "bin/train_job_entrypoint",
 ]
 
-SETUP_REQUIRES = ["cython", "pytest-runner>=5.1,<6.0"]
+SETUP_REQUIRES = ["pytest-runner>=5.1,<6.0"]
 
 TESTS_REQUIRE = [
     "docker>=3.3.0,<4.0.0",
@@ -67,18 +61,6 @@ TESTS_REQUIRE = [
     "pytest-pylint>=0.14.1,<0.15",
     "wrapt==1.11.2",
 ]
-
-try:
-    subprocess.run(["pip3", "install"] + PRIORITY_INSTALL, check=True)
-except subprocess.CalledProcessError:
-    try:
-        subprocess.run(["pip3", "install", "--user"] + PRIORITY_INSTALL, check=True)
-    except subprocess.CalledProcessError as exception:
-        LOGGER.warning(
-            "Received exception %s. The bintrees cython dependencies will not be installed.",
-            exception,
-        )
-
 
 setup(
     author="Matthew Dornfeld",

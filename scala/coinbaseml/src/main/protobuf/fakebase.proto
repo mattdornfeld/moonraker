@@ -13,6 +13,8 @@ package co.firstorderlabs.fakebase.protos;
 service AccountService {
     rpc cancelOrder (CancellationRequest) returns (Cancellation) {
     }
+    rpc getAccountInfo (google.protobuf.Empty) returns (AccountInfo) {
+    }
     rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
     }
     rpc getOrders (google.protobuf.Empty) returns (Orders) {
@@ -75,6 +77,11 @@ enum RejectReason {
     priceTooSmall = 6;
     sizeTooLarge = 7;
     sizeTooSmall = 8;
+}
+
+message AccountInfo {
+    Wallets wallets = 1;
+    MatchEvents matchEvents = 2;
 }
 
 message BuyLimitOrderRequest {
@@ -249,13 +256,13 @@ message Wallets {
 service ExchangeService {
     rpc checkpoint (google.protobuf.Empty) returns (google.protobuf.Empty){
     }
-    rpc getExchangeInfo (google.protobuf.Empty) returns (ExchangeInfo) {
+    rpc getExchangeInfo (ExchangeInfoRequest) returns (ExchangeInfo) {
     }
     rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
     }
     rpc getOrderBooks (OrderBooksRequest) returns (OrderBooks) {
     }
-    rpc reset (google.protobuf.Empty) returns (ExchangeInfo) {
+    rpc reset (ExchangeInfoRequest) returns (ExchangeInfo) {
     }
     rpc start (SimulationStartRequest) returns (ExchangeInfo) {
     }
@@ -268,6 +275,13 @@ service ExchangeService {
 message ExchangeInfo {
     string intervalStartTime = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
     string intervalEndTime = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.Datetime"];
+    AccountInfo accountInfo = 3;
+    OrderBooks orderBooks = 4;
+    MatchEvents matchEvents = 5;
+}
+
+message ExchangeInfoRequest {
+    OrderBooksRequest orderBooksRequest = 1;
 }
 
 message OrderBooksRequest {
@@ -286,9 +300,11 @@ message SimulationStartRequest {
     int32 numWarmUpSteps = 4;
     string initialProductFunds = 5 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
     string initialQuoteFunds = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume"];
+    ExchangeInfoRequest exchangeInfoRequest = 7;
 }
 
 message StepRequest {
     repeated Order insertOrders = 1;
     repeated Cancellation insertCancellations = 2;
+    ExchangeInfoRequest exchangeInfoRequest = 3;
 }

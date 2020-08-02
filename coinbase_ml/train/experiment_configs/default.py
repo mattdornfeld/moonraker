@@ -22,12 +22,12 @@ def config():
     initial_btc = "1.000000"
     initial_usd = "10000.00"
     num_time_steps = 3
-    num_warmup_time_steps = 1 * num_time_steps
+    num_warmup_time_steps = num_time_steps
     optimizer_name = "Adam"
     result_metric = Metrics.ROI
     result_metric_str = result_metric.value
     reward_strategy_name = "ProfitRewardStrategy"
-    test_end_dt = "2020-01-17 17:10:00.00"
+    test_end_dt = "2020-01-17 17:20:00.00"
     test_start_dt = "2020-01-17 17:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)
@@ -55,7 +55,7 @@ def config():
         gradient_clip=0.1,
         learning_rate=0.001,
         num_epochs_per_iteration=10,
-        num_iterations=2,
+        num_iterations=1,
         optimizer_name=optimizer_name,
         output_tower_depth=3,
         output_tower_num_units=100,
@@ -73,7 +73,6 @@ def config():
         num_episodes=1,
         num_time_steps=num_time_steps,
         num_warmup_time_steps=num_warmup_time_steps,
-        num_workers=3,
         reward_strategy_name=reward_strategy_name,
         time_delta=time_delta,
     )
@@ -90,7 +89,6 @@ def config():
         num_episodes=1,
         num_time_steps=num_time_steps,
         num_warmup_time_steps=num_warmup_time_steps,
-        num_workers=3,
         reward_strategy_name=reward_strategy_name,
         time_delta=time_delta,
     )

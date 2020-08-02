@@ -178,12 +178,9 @@ class Featurizer(Generic[Exchange]):
         )
         time_series = self._time_series_featurizer.get_time_series_features()
 
-        step_interval = self.exchange.step_interval
-        account_matches = self.exchange.account.matches[step_interval]
-
         state = StateAtTime(
             account_funds=account_funds,
-            account_matches=account_matches,
+            account_matches=self.exchange.account.matches,
             action=action,
             buy_order_book=buy_order_book,
             normalized_account_funds=normalized_account_funds,

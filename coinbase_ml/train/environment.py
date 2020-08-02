@@ -44,7 +44,6 @@ class Environment(Env):  # pylint: disable=W0223
         )
         self.action_space = ActionSpace()
         self.config = _config
-        self.exchange: Optional[Exchange] = None
         self.featurizer: Optional[Featurizer] = None
         self.observation_space = ObservationSpace(
             shape=ObservationSpaceShape(
@@ -61,6 +60,7 @@ class Environment(Env):  # pylint: disable=W0223
         if config.worker_index == 0 and not self.is_test_environment:
             self._start_dt = None
             self._end_dt = None
+            self.exchange = None
         else:
             worker_index = (
                 config.worker_index
@@ -70,6 +70,12 @@ class Environment(Env):  # pylint: disable=W0223
             environment_time_interval = _config.environment_time_intervals[worker_index]
             self._start_dt = environment_time_interval.start_dt
             self._end_dt = environment_time_interval.end_dt
+            self.exchange = Exchange(
+                end_dt=self._end_dt,
+                product_id=cc.PRODUCT_ID,
+                start_dt=self._start_dt,
+                time_delta=self.config.time_delta,
+            )
             self.reset()
 
     def _check_is_out_of_funds(self) -> bool:
@@ -159,32 +165,22 @@ class Environment(Env):  # pylint: disable=W0223
             LOGGER.info("Resetting the environment.")
 
         if not self._warmed_up:
-            self.exchange = Exchange(
-                end_dt=self._end_dt,
-                product_id=cc.PRODUCT_ID,
-                start_dt=self._start_dt,
-                time_delta=self.config.time_delta,
-            )
-
             self.featurizer = Featurizer(
                 exchange=self.exchange,
                 reward_strategy=self.config.reward_strategy,
                 state_buffer_size=self.config.num_time_steps,
             )
 
-            self.exchange.account.add_funds(
-                currency=cc.QUOTE_CURRENCY, amount=self.config.initial_usd
-            )
-            self.exchange.account.add_funds(
-                currency=cc.PRODUCT_CURRENCY, amount=self.config.initial_btc
+            self.exchange.start(
+                initial_product_funds=self.config.initial_btc,
+                initial_quote_funds=self.config.initial_usd,
+                num_warmup_time_steps=0,
             )
 
             self._warmup()
-            self._exchange_checkpoint = self.exchange.create_checkpoint()
+            self.exchange.checkpoint()
         else:
-            self.exchange.stop_database_workers()
-
-            self.exchange = self._exchange_checkpoint.restore()
+            self.exchange.reset()
 
             self.featurizer.reset(
                 exchange=self.exchange, state_buffer=self._warmed_up_buffer

@@ -8,6 +8,7 @@ import pytest
 from pytest_cases import fixture_ref, pytest_parametrize_plus, unpack_fixture
 
 from coinbase_ml.common.action import ActionBase, NoTransaction
+from coinbase_ml.common import constants as cc
 from coinbase_ml.common.featurizers import Featurizer, Metrics
 from coinbase_ml.fakebase.account import Account
 from coinbase_ml.fakebase.exchange import Exchange
@@ -67,14 +68,13 @@ class TestInfoDictFeaturizer:
             if order_side == OrderSide.buy
             else tc.TEST_PRICE_TYPE.get_min_value(),
             side=order_side,
-            size=tc.TEST_PRODUCT_TYPE.get_min_value(),
+            size=cc.PRODUCT_ID.product_volume_type("10.00"),
             time=account.exchange.interval_start_dt,
         )
 
         account.exchange.step(insert_orders=[order])
         place_orders_and_update(account, featurizer, no_transaction)
-        step_interval = account.exchange.step_interval
-        match = account.matches[step_interval][0]
+        match = account.matches[0]
 
         fee_metric = {
             OrderSide.buy: Metrics.BUY_FEES_PAID,

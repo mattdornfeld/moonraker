@@ -12,7 +12,7 @@ from coinbase_ml.common.featurizers import Featurizer
 from coinbase_ml.common.reward import LogReturnRewardStrategy
 from coinbase_ml.fakebase.account import Account
 from coinbase_ml.fakebase.exchange import Exchange
-from coinbase_ml.fakebase.orm import CoinbaseOrder, CoinbaseMatch
+from coinbase_ml.fakebase.orm import CoinbaseOrder
 from coinbase_ml_tests import constants as tc
 
 BUY_ORDER_PRICE = tc.PRODUCT_ID.price_type("1.00")
@@ -57,7 +57,7 @@ def place_orders_and_update(
 
     Args:
         account (Account): [description]
-        featurizer (Featurizer): [description]
+        featurizer (Fea5turizer): [description]
         action (NoTransaction): [description]
 
     Returns:
@@ -78,19 +78,6 @@ def place_orders_and_update(
     )
 
     account.exchange.step()
-
-    match = CoinbaseMatch(
-        price=tc.TEST_ORDER_PRICE,
-        product_id=tc.PRODUCT_ID,
-        maker_order_id=tc.TEST_ORDER_ID,
-        taker_order_id=tc.TEST_ORDER_ID,
-        trade_id=tc.TEST_TRADE_ID,
-        side=tc.TEST_ORDER_SIDE.get_opposite_side(),
-        size=tc.TEST_ORDER_SIZE,
-        time=tc.TEST_ORDER_TIME,
-    )
-
-    account.exchange.matches.append(match)
 
     featurizer.update_state_buffer(action)
 
