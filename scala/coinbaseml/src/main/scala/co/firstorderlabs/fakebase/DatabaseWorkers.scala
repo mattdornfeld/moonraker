@@ -198,7 +198,7 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
   }
 
   private def executeQuery[A <: Event](query: Query0[A]): List[A] = {
-    if (Configs.isTest) {
+    if (Configs.testMode) {
       List[A]()
     } else {
       query

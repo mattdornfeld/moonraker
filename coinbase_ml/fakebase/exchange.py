@@ -1,24 +1,40 @@
 """Simulates the Coinbase Pro exchange
 """
 from __future__ import annotations
-from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Type
+from time import sleep
+from typing import Any, Dict, List, Optional
+
+from dateutil import parser
+from google.protobuf.duration_pb2 import Duration
+from grpc._channel import _InactiveRpcError as InactiveRpcError
 
 import coinbase_ml.fakebase.account as _account
-from . import constants as c
-from .base_classes.exchange import ExchangeBase
-from .database_workers import DatabaseWorkers
-from .order_book import OrderBook
-from .orm import CoinbaseEvent, CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
-from .matching_engine import MatchingEngine
-from .types import (
+from coinbase_ml.common import constants as cc
+from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+    ExchangeInfo,
+    ExchangeInfoRequest,
+    OrderBooksRequest,
+    OrderBooks,
+    SimulationStartRequest,
+    StepRequest,
+)
+from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import ExchangeServiceStub
+from coinbase_ml.fakebase import constants as c
+from coinbase_ml.fakebase.base_classes.exchange import ExchangeBase
+from coinbase_ml.fakebase.database_workers import DatabaseWorkers
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+from coinbase_ml.fakebase.types import (
     BinnedOrderBook,
     OrderSide,
-    OrderStatus,
     ProductId,
-    ProductPrice,
     ProductVolume,
+    QuoteVolume,
+)
+from coinbase_ml.fakebase.utils.grpc_utils import (
+    create_channel,
+    get_random_free_port,
+    start_fakebase_server,
 )
 
 
@@ -32,6 +48,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         product_id: ProductId,
         start_dt: datetime,
         time_delta: timedelta,
+        create_exchange_process: bool = True,
+        test_mode: bool = False,
     ) -> None:
         """
         __init__ [summary]
@@ -41,22 +59,27 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             product_id (ProductId): [description]
             start_dt (datetime): [description]
             time_delta (timedelta): [description]
+            create_exchange_process (bool): [description]
         """
         super().__init__(end_dt, product_id, start_dt, time_delta)
 
-        self.database_workers = DatabaseWorkers(
-            end_dt=self.end_dt,
-            num_workers=c.NUM_DATABASE_WORKERS,
-            product_id=product_id,
-            results_queue_size=c.DATABASE_RESULTS_QUEUE_SIZE,
-            start_dt=self.start_dt,
-            time_delta=self.time_delta,
-        )
-
+        self._matches: List[CoinbaseMatch] = []
+        self._order_books: Dict[OrderSide, BinnedOrderBook] = {}
         self._received_cancellations: List[CoinbaseCancellation] = []
         self._received_orders: List[CoinbaseOrder] = []
-        self.matching_engine = MatchingEngine(account=None)
+        self.database_workers: Optional[DatabaseWorkers] = None
+
+        if create_exchange_process:
+            port = get_random_free_port()
+            self.fakebase_server_process = start_fakebase_server(port, test_mode)
+        else:
+            port = c.FAKBASE_SERVER_DEFAULT_PORT
+            self.fakebase_server_process = None
+
+        self.channel = create_channel(port)
+        self.stub = ExchangeServiceStub(self.channel)
         self.account = _account.Account(self)
+        self._exchange_server_health_check()
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -76,19 +99,74 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
                 and self.interval_start_dt == _other.interval_start_dt
                 and self.time_delta == _other.time_delta
                 and self.account == _other.account
-                and self.order_book == _other.order_book
             )
         else:
             raise TypeError
 
         return return_val
 
-    def _add_account_orders_to_received_orders_list(self) -> None:
-        """Summary
+    def _bin_order_books_by_price(self, order_books: OrderBooks) -> None:
+        self._order_books = {
+            OrderSide.buy: {
+                cc.PRODUCT_ID.price_type(price): cc.PRODUCT_ID.product_volume_type(
+                    volume
+                )
+                for (price, volume) in order_books.buyOrderBook.items()
+            },
+            OrderSide.sell: {
+                cc.PRODUCT_ID.price_type(price): cc.PRODUCT_ID.product_volume_type(
+                    volume
+                )
+                for (price, volume) in order_books.sellOrderBook.items()
+            },
+        }
+
+    def _exchange_server_health_check(self) -> None:
         """
-        for order in self.account.orders.values():
-            if order.order_status == OrderStatus.received:
-                self.received_orders.append(order)
+        _exchange_server_health_check blocks until fakebase_server_process is healthy or
+        health check retry limit is reached
+
+        Raises:
+            InactiveRpcError
+        """
+        max_tries = 100
+        for i in range(max_tries + 1):
+            try:
+                self.stub.getExchangeInfo(c.EMPTY_EXCHANGE_INFO_REQUEST)
+            except InactiveRpcError as inactive_rpc_error:
+                if i >= max_tries:
+                    raise inactive_rpc_error
+
+                sleep(0.3)
+                continue
+
+    def _generate_exchange_info_request(self) -> ExchangeInfoRequest:
+        return ExchangeInfoRequest(
+            orderBooksRequest=self._generate_order_book_request()
+        )
+
+    @staticmethod
+    def _generate_order_book_request() -> OrderBooksRequest:
+        return OrderBooksRequest(orderBookDepth=cc.ORDER_BOOK_DEPTH)
+
+    def _update_exchange_info(self, exchange_info: ExchangeInfo) -> None:
+        """
+        _update_exchange_info [summary]
+
+        Args:
+            exchange_info (ExchangeInfo): [description]
+        """
+        self._bin_order_books_by_price(exchange_info.orderBooks)
+        self._matches = [
+            CoinbaseMatch.from_proto(m) for m in exchange_info.matchEvents.matchEvents
+        ]
+        self.account.account_info = exchange_info.accountInfo
+        self.interval_start_dt = parser.parse(exchange_info.intervalStartTime).replace(
+            tzinfo=None
+        )
+        self._interval_end_dt = parser.parse(exchange_info.intervalEndTime).replace(
+            tzinfo=None
+        )
 
     @property
     def account(self) -> _account.Account:
@@ -109,66 +187,30 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             value (Account): [description]
         """
         self._account = value
-        if hasattr(self, "matching_engine"):
-            self.matching_engine.account = value
 
-    def check_is_taker(self, order: CoinbaseOrder) -> bool:
-        """Summary
-
-        Args:
-            order (CoinbaseOrder): Description
-
-        Returns:
-            bool: Description
-        """
-        return self.matching_engine.check_is_taker(order)
-
-    def bin_order_book_by_price(
-        self, order_side: OrderSide
-    ) -> Dict[ProductPrice, ProductVolume]:
+    def bin_order_book_by_price(self, order_side: OrderSide) -> BinnedOrderBook:
         """
         bin_order_book_by_price [summary]
 
         Args:
-            order_side (OrderSide): [description]
+            order_side (OrderSide)
 
         Returns:
-            BinnedOrderBook: [description]
+            BinnedOrderBook
         """
-        price_volume_dict: BinnedOrderBook = {}
+        if len(self._order_books) == 0:
+            order_books: OrderBooks = self.stub.getOrderBooks(
+                self._generate_order_book_request()
+            )
+            self._bin_order_books_by_price(order_books)
 
-        for _, order in self.order_book[order_side].items():
-            if order.price not in price_volume_dict:
-                price_volume_dict[order.price] = order.remaining_size
-            else:
-                price_volume_dict[order.price] += order.remaining_size
+        return self._order_books[order_side]
 
-        return price_volume_dict
-
-    def cancel_order(self, order: CoinbaseOrder) -> None:
+    def checkpoint(self) -> None:
         """
-        cancel_order [summary]
-
-        Args:
-            order (CoinbaseOrder): [description]
+        checkpoint saves the current state of the Fakebase Exchange server
         """
-        self.matching_engine.cancel_order(order)
-
-    def create_checkpoint(self) -> ExchangeCheckpoint:
-        """Summary
-
-        Returns:
-            ExchangeCheckpoint: Description
-        """
-        return ExchangeCheckpoint(
-            account=self.account,
-            current_dt=self.interval_start_dt,
-            end_dt=self.end_dt,
-            order_book=self.order_book,
-            product_id=self.product_id,
-            time_delta=self.time_delta,
-            exchange_class=self.__class__,
-        )
+        self.stub.checkpoint(c.EMPTY_PROTO)
 
     @property
     def matches(self) -> List[CoinbaseMatch]:
@@ -178,7 +220,11 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Returns:
             List[CoinbaseMatch]: [description]
         """
-        return self.matching_engine.matches
+        if self._matches:
+            return self._matches
+
+        match_events = self.stub.getMatches(c.EMPTY_PROTO).matchEvents
+        return [CoinbaseMatch.from_proto(m) for m in match_events]
 
     @property
     def received_cancellations(self) -> List[CoinbaseCancellation]:
@@ -210,25 +256,72 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """
         self._received_orders = value
 
-    @property
-    def order_book(self) -> Dict[OrderSide, OrderBook]:
+    def start(
+        self,
+        initial_product_funds: ProductVolume,
+        initial_quote_funds: QuoteVolume,
+        num_warmup_time_steps: int,
+    ) -> None:
         """
-        order_book [summary]
-
-        Returns:
-            Dict[OrderSide, OrderBook]: [description]
-        """
-        return self.matching_engine.order_book
-
-    @order_book.setter
-    def order_book(self, value: Dict[OrderSide, OrderBook]) -> None:
-        """
-        order_book [summary]
+        start [summary]
 
         Args:
-            value (Dict[OrderSide, OrderBook]): [description]
+            initial_product_funds (ProductVolume): [description]
+            initial_quote_funds (QuoteVolume): [description]
+            num_warmup_time_steps (int): [description]
         """
-        self.matching_engine.order_book = value
+        self._order_books = {}
+
+        if self.database_workers:
+            self.stop_database_workers()
+
+        self.database_workers = DatabaseWorkers(
+            end_dt=self.end_dt,
+            num_workers=c.NUM_DATABASE_WORKERS,
+            product_id=self.product_id,
+            results_queue_size=c.DATABASE_RESULTS_QUEUE_SIZE,
+            start_dt=self.start_dt,
+            time_delta=self.time_delta,
+        )
+
+        message = SimulationStartRequest(
+            startTime=self.start_dt.isoformat() + "Z",
+            endTime=self.end_dt.isoformat() + "Z",
+            timeDelta=Duration(seconds=int(self.time_delta.total_seconds())),
+            numWarmUpSteps=0,
+            initialProductFunds=str(initial_product_funds),
+            initialQuoteFunds=str(initial_quote_funds),
+        )
+
+        exchange_info: ExchangeInfo = self.stub.start(message)
+        self._update_exchange_info(exchange_info)
+
+        for _ in range(num_warmup_time_steps):
+            self.step()
+
+        self.stub.checkpoint(c.EMPTY_PROTO)
+
+    def reset(self) -> None:
+        """
+        Reset the exchange to the state created with `checkpoint`. Useful when
+        doing multiple simulations that need to start from the same warmed up state.
+        """
+        self._order_books = {}
+        exchange_info: ExchangeInfo = self.stub.reset(
+            self._generate_exchange_info_request()
+        )
+        self._update_exchange_info(exchange_info)
+
+        self.stop_database_workers()
+
+        self.database_workers = DatabaseWorkers(
+            end_dt=self.end_dt,
+            num_workers=c.NUM_DATABASE_WORKERS,
+            product_id=self.product_id,
+            results_queue_size=c.DATABASE_RESULTS_QUEUE_SIZE,
+            start_dt=self.interval_start_dt + self.time_delta,
+            time_delta=self.time_delta,
+        )
 
     def step(
         self,
@@ -237,7 +330,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
     ) -> None:
         """
         step advances the exchange by time increment self.time_delta.
-        Increcemets self.interval_start_dt and self.interval_end_dt by
+        Increments self.interval_start_dt and self.interval_end_dt by
         self.time_delta. Loads new orders and cancellations from
         DatabaseWorkers.results_queue. Goes through simulated exchange logic
         to updated self.matches and self.order_book.
@@ -247,12 +340,21 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             insert_orders (Optional[List[CoinbaseOrder]], optional): Defaults to None
         """
         super().step(insert_cancellations, insert_orders)
-        insert_cancellations = (
+        _insert_cancellations = (
             [] if insert_cancellations is None else insert_cancellations
         )
-        insert_orders = [] if insert_orders is None else insert_orders
+        _insert_orders = [] if insert_orders is None else insert_orders
 
-        self.matching_engine.matches = []
+        step_request = StepRequest(
+            insertOrders=[order.to_proto() for order in _insert_orders],
+            insertCancellations=[
+                cancellation.to_proto() for cancellation in _insert_cancellations
+            ],
+            exchangeInfoRequest=self._generate_exchange_info_request(),
+        )
+
+        exchange_info: ExchangeInfo = self.stub.step(step_request)
+        self._update_exchange_info(exchange_info)
 
         # It's useful to set c.NUM_DATABASE_WORKERS to 0 for some unit tests and skip the
         # below block
@@ -263,105 +365,42 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             # of sync
             while True:
                 try:
-                    next_interval_start_dt = self.database_workers.results_queue.peek()[
-                        0
-                    ]
+                    interval_start_dt = self.database_workers.results_queue.peek()[0]
                 except IndexError:
                     continue
 
-                if next_interval_start_dt == self.interval_end_dt:
+                if interval_start_dt == self.interval_start_dt:
                     break
 
-            self.interval_start_dt, results = self.database_workers.results_queue.get()
-            self.interval_end_dt = self.interval_start_dt + self.time_delta
-            self._received_cancellations = results.cancellations + insert_cancellations
-            self._received_orders = results.orders + insert_orders
-        else:
-            self.interval_start_dt = self.interval_start_dt + self.time_delta
-            self.interval_end_dt = self.interval_end_dt + self.time_delta
-            self._received_cancellations = insert_cancellations
-            self._received_orders = insert_orders
+                sleep(0.001)
 
-        self._add_account_orders_to_received_orders_list()
+            _, results = self.database_workers.results_queue.get()
+            self._received_cancellations = (
+                results.cancellations
+                + _insert_cancellations
+                + self.account.placed_cancellations
+            )
+            self._received_orders = (
+                results.orders + _insert_orders + self.account.placed_orders
+            )
+        else:
+            self._received_cancellations = (
+                _insert_cancellations + self.account.placed_cancellations
+            )
+            self._received_orders = _insert_orders + self.account.placed_orders
 
         self.received_orders.sort(key=lambda event: event.time)
         self.received_cancellations.sort(key=lambda event: event.time)
-        received_events: List[CoinbaseEvent] = []
-        received_events.extend(self.received_orders)
-        received_events.extend(self.received_cancellations)
-        received_events.sort(key=lambda event: event.time)
+        self.account.placed_cancellations.clear()
+        self.account.placed_orders.clear()
 
-        for event in received_events:
-            if isinstance(event, CoinbaseCancellation):
-                cancellation_event: CoinbaseCancellation = event
-                self.matching_engine.process_cancellation(cancellation_event)
-            elif isinstance(event, CoinbaseOrder):
-                order_event: CoinbaseOrder = event
-                self.matching_engine.process_order(order_event)
+    def stop(self) -> None:
+        """
+        stop [summary]
+        """
+        self.stub.stop(c.EMPTY_PROTO)
 
     def stop_database_workers(self) -> None:
         """Summary
         """
         self.database_workers.stop_workers()
-
-
-class ExchangeCheckpoint:
-
-    """Summary
-    """
-
-    def __init__(
-        self,
-        account: "_account.Account",
-        current_dt: datetime,
-        end_dt: datetime,
-        order_book: Dict[OrderSide, OrderBook],
-        product_id: ProductId,
-        time_delta: timedelta,
-        exchange_class: Type[Exchange] = Exchange,
-    ):
-        """
-        __init__ [summary]
-
-        Args:
-            account (Account): [description]
-            current_dt (datetime): [description]
-            end_dt (datetime): [description]
-            order_book (Dict[OrderSide, OrderBook]): [description]
-            product_id (ProductId): [description]
-            time_delta (timedelta): [description]
-            exchange_class (Type[Exchange], optional): [description]. Defaults to Exchange.
-
-        Raises:
-            TypeError: [description]
-        """
-        if not issubclass(exchange_class, Exchange):
-            raise TypeError(f"{exchange_class} is not a subclass of Exchange")
-
-        self._account = account.copy()
-        self._current_dt = current_dt
-        self._end_dt = end_dt
-        self._exchange_class = exchange_class
-        self._order_book = deepcopy(order_book)
-        self._product_id = product_id
-        self._time_delta = time_delta
-
-    def restore(self) -> Exchange:
-        """
-        restore [summary]
-
-        Returns:
-            Exchange: [description]
-        """
-        exchange = self._exchange_class(
-            end_dt=self._end_dt,
-            product_id=self._product_id,
-            start_dt=self._current_dt + self._time_delta,
-            time_delta=self._time_delta,
-        )
-        account = self._account.copy()
-        account.exchange = exchange
-        exchange.account = account
-        exchange.order_book = deepcopy(self._order_book)
-
-        return exchange

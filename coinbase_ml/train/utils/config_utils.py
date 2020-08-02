@@ -24,7 +24,6 @@ class EnvironmentConfigs:
     num_episodes: int
     num_time_steps: int
     num_warmup_time_steps: int
-    num_workers: int
     reward_strategy: Type[BaseRewardStrategy]
     time_delta: timedelta
     is_test_environment: bool = False

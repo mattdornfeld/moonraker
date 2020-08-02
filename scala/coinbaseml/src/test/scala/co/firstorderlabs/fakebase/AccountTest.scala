@@ -2,7 +2,7 @@ package co.firstorderlabs.fakebase
 
 import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
-import co.firstorderlabs.fakebase.TestUtils.getResult
+import co.firstorderlabs.fakebase.Utils.getResult
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume
@@ -11,7 +11,7 @@ import co.firstorderlabs.fakebase.types.Events._
 import org.scalatest.funspec.AnyFunSpec
 
 class AccountTest extends AnyFunSpec {
-  Configs.isTest = true
+  Configs.testMode = true
   describe("Account") {
     it("Wallets should be updated accordingly when an order is placed") {
       List(

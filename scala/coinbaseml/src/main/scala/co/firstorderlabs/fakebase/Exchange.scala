@@ -3,9 +3,17 @@ package co.firstorderlabs.fakebase
 import java.time.Duration
 import java.util.logging.Logger
 
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.Utils.getResultOptional
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
+import co.firstorderlabs.fakebase.types.Events.{
+  Event,
+  LimitOrderEvent,
+  OrderEvent
+}
 import co.firstorderlabs.fakebase.types.Types.{Datetime, TimeInterval}
 import com.google.protobuf.empty.Empty
 
@@ -82,7 +90,13 @@ object Exchange
     Future.successful(Constants.emptyProto)
   }
 
-  override def getExchangeInfo(request: Empty): Future[ExchangeInfo] = Future.successful(getExchangeInfo)
+  override def getExchangeInfo(
+    exchangeInfoRequest: ExchangeInfoRequest
+  ): Future[ExchangeInfo] = {
+    Future.successful(
+      getExchangeInfoHelper(exchangeInfoRequest.orderBooksRequest)
+    )
+  }
 
   override def getMatches(request: Empty): Future[MatchEvents] = {
     Future.successful(MatchEvents(matchingEngine.matches.toList))
@@ -103,26 +117,33 @@ object Exchange
     Future.successful(orderBooks)
   }
 
-  override def reset(request: Empty): Future[ExchangeInfo] = {
+  override def reset(
+    exchangeInfoRequest: ExchangeInfoRequest
+  ): Future[ExchangeInfo] = {
     failIfNoSimulationInProgress
     simulationMetadata.get.currentTimeInterval =
       simulationMetadata.get.checkpointTimeInterval
     Checkpointer.restoreFromCheckpoint(simulationMetadata.get.checkpoint.get)
-    logger.info(s"simulation reset to timeInterval ${simulationMetadata.get.currentTimeInterval}")
-    Future.successful(getExchangeInfo)
+    logger.info(
+      s"simulation reset to timeInterval ${simulationMetadata.get.currentTimeInterval}"
+    )
+
+    getExchangeInfo(exchangeInfoRequest)
   }
 
-  override def start(request: SimulationStartRequest): Future[ExchangeInfo] = {
+  override def start(
+    simulationStartRequest: SimulationStartRequest
+  ): Future[ExchangeInfo] = {
     if (simulationInProgress) stop(Constants.emptyProto)
 
     simulationMetadata = Some(
       SimulationMetadata(
-        request.startTime,
-        request.endTime,
-        Duration.ofSeconds(request.timeDelta.get.seconds),
-        request.numWarmUpSteps,
-        request.initialProductFunds,
-        request.initialQuoteFunds
+        simulationStartRequest.startTime,
+        simulationStartRequest.endTime,
+        Duration.ofSeconds(simulationStartRequest.timeDelta.get.seconds),
+        simulationStartRequest.numWarmUpSteps,
+        simulationStartRequest.initialProductFunds,
+        simulationStartRequest.initialQuoteFunds
       )
     )
 
@@ -135,18 +156,24 @@ object Exchange
     )
 
     Account.initializeWallets
-    Account.addFunds(request.initialQuoteFunds)
-    Account.addFunds(request.initialProductFunds)
+    Account.addFunds(simulationStartRequest.initialQuoteFunds)
+    Account.addFunds(simulationStartRequest.initialProductFunds)
 
-    if (request.numWarmUpSteps > 0) {
-      (1 to request.numWarmUpSteps) foreach (_ => step(Constants.emptyStepRequest))
+    if (simulationStartRequest.numWarmUpSteps > 0) {
+      (1 to simulationStartRequest.numWarmUpSteps) foreach (
+        _ => step(Constants.emptyStepRequest)
+      )
       checkpoint(Constants.emptyProto)
     }
 
-    Future.successful(getExchangeInfo)
+    val exchangeInfoRequest =
+      if (simulationStartRequest.exchangeInfoRequest.isDefined)
+        simulationStartRequest.exchangeInfoRequest.get
+      else ExchangeInfoRequest()
+    getExchangeInfo(exchangeInfoRequest)
   }
 
-  override def step(request: StepRequest): Future[ExchangeInfo] = {
+  override def step(stepRequest: StepRequest): Future[ExchangeInfo] = {
     failIfNoSimulationInProgress
     simulationMetadata.get.incrementCurrentTimeInterval
     require(
@@ -154,7 +181,7 @@ object Exchange
       "The simulation has ended. Please reset."
     )
 
-    logger.info(
+    logger.fine(
       s"Stepped to time interval ${simulationMetadata.get.currentTimeInterval}"
     )
     logger.fine(
@@ -168,8 +195,10 @@ object Exchange
 
     receivedEvents = (Account.getReceivedOrders.toList
       ++ Account.getReceivedCancellations.toList
-      ++ request.insertOrders.map(OrderUtils.orderEventFromSealedOneOf).flatten
-      ++ request.insertCancellations
+      ++ stepRequest.insertOrders
+        .map(OrderUtils.orderEventFromSealedOneOf)
+        .flatten
+      ++ stepRequest.insertCancellations
       ++ queryResult.buyLimitOrders
       ++ queryResult.buyMarketOrders
       ++ queryResult.sellLimitOrders
@@ -182,12 +211,16 @@ object Exchange
         s"No events queried for time interval ${simulationMetadata.get.currentTimeInterval}"
       )
     else
-      logger.info(s"Processing ${receivedEvents.length} events")
+      logger.fine(s"Processing ${receivedEvents.length} events")
 
     matchingEngine.matches.clear
     matchingEngine.processEvents(receivedEvents)
 
-    Future.successful(getExchangeInfo)
+    val exchangeInfoRequest =
+      if (stepRequest.exchangeInfoRequest.isDefined)
+        stepRequest.exchangeInfoRequest.get
+      else ExchangeInfoRequest()
+    getExchangeInfo(exchangeInfoRequest)
   }
 
   override def stop(request: Empty): Future[Empty] = {
@@ -197,14 +230,25 @@ object Exchange
     Future.successful(Constants.emptyProto)
   }
 
-  private def getExchangeInfo: ExchangeInfo = {
-    if (simulationMetadata.isDefined)
+  private def getExchangeInfoHelper(
+    orderBooksRequest: Option[OrderBooksRequest]
+  ): ExchangeInfo = {
+    if (simulationMetadata.isDefined) {
+      val orderBooks =
+        if (orderBooksRequest.isDefined)
+          getResultOptional(getOrderBooks(orderBooksRequest.get))
+        else None
+
       ExchangeInfo(
         simulationMetadata.get.currentTimeInterval.startTime,
-        simulationMetadata.get.currentTimeInterval.endTime
+        simulationMetadata.get.currentTimeInterval.endTime,
+        getResultOptional(Account.getAccountInfo(Constants.emptyProto)),
+        orderBooks,
+        getResultOptional(getMatches(Constants.emptyProto)),
       )
-    else
+    } else {
       ExchangeInfo()
+    }
   }
 
   private def failIfNoSimulationInProgress: Unit =

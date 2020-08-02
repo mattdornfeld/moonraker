@@ -3,7 +3,7 @@ Module for representing numbers with a defined precision.
 Useful for representing prices and volumes.
 """
 from __future__ import annotations
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from math import inf
 from typing import Any, Generic, TypeVar, Union
 
@@ -46,7 +46,9 @@ class PreciseNumber(Generic[PreciseNumberSubtype]):
         else:
             raise InvalidTypeError(type(value), "value")
 
-        self.amount = amount.quantize(self.precision) if amount < inf else amount
+        self.amount = (
+            amount.quantize(self.precision, ROUND_HALF_UP) if amount < inf else amount
+        )
 
         self.float_amount = float(self.amount)
 

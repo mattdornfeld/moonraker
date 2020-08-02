@@ -13,12 +13,12 @@ import ray.cloudpickle as cloudpickle
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 from coinbase_ml.common import constants as cc
-from coinbase_ml.serve.metrics_recorder import Metrics
 from coinbase_ml.common import models
 from coinbase_ml.common.reward import REWARD_STRATEGIES
 from coinbase_ml.common.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
 from coinbase_ml.common.utils.ray_utils import register_custom_models
 from coinbase_ml.common.utils.sacred_utils import log_metrics_to_sacred
+from coinbase_ml.serve.metrics_recorder import Metrics
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
 from coinbase_ml.train.trainers import get_and_build_trainer
@@ -28,7 +28,7 @@ from coinbase_ml.train.utils.config_utils import EnvironmentConfigs, HyperParame
 LOGGER = logging.getLogger(__name__)
 
 
-@SACRED_EXPERIMENT.automain
+@SACRED_EXPERIMENT.main
 def main(
     _run: Run,
     custom_model_names: List[str],
@@ -174,3 +174,7 @@ def main(
     _run.info["trainer_config_gcs_key"] = trainer_config_key
 
     return float(best_results["evaluation"]["custom_metrics"][result_metric_key])
+
+
+if __name__ == "__main__":
+    SACRED_EXPERIMENT.run_commandline()

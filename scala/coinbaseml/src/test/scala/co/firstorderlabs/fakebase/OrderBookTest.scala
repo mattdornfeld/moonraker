@@ -6,7 +6,7 @@ import org.scalatest.funspec.AnyFunSpec
 
 class OrderBookTest extends AnyFunSpec {
 
-  Configs.isTest = true
+  Configs.testMode = true
   val orderBook = new OrderBook
   Exchange.start(RequestsData.simulationStartRequest)
 

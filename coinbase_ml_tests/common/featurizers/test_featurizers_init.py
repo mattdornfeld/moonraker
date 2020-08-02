@@ -10,7 +10,8 @@ from coinbase_ml.common.featurizers import AccountFeaturizer
 from coinbase_ml.common.featurizers import Featurizer
 from coinbase_ml.fakebase.account import Account
 from coinbase_ml.fakebase.exchange import Exchange
-from coinbase_ml.fakebase.orm import CoinbaseCancellation
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseOrder
+from coinbase_ml.fakebase.types import Liquidity, OrderSide, OrderStatus
 from coinbase_ml_tests import constants as tc
 from coinbase_ml_tests.common.featurizers.fixtures import (
     BUY_ORDER_PRICE,
@@ -60,7 +61,11 @@ class TestFeaturizer:
             np.array(
                 [
                     tc.TEST_WALLET_QUOTE_FUNDS.amount,
-                    (BUY_ORDER_PRICE * tc.TEST_ORDER_SIZE).amount,
+                    (
+                        BUY_ORDER_PRICE
+                        * tc.TEST_ORDER_SIZE
+                        * (1 + Liquidity.maker.fee_fraction)
+                    ).amount,
                     tc.TEST_WALLET_PRODUCT_FUNDS.amount,
                     tc.TEST_ORDER_SIZE.amount,
                 ]
@@ -213,6 +218,7 @@ class TestFeaturizer:
                 0.0e00,
             ]
         )
+
         order_features = featurizer.get_observation().time_series[0, 16:26]
         np.testing.assert_almost_equal(expected_order_features, order_features, 10)
 
@@ -230,6 +236,18 @@ class TestFeaturizer:
             featurizer (Featurizer[Exchange]): [description]
             no_transaction (NoTransaction): [description]
         """
+        order = CoinbaseOrder(
+            order_id=tc.TEST_ORDER_ID,
+            order_status=OrderStatus.received,
+            order_type=tc.TEST_ORDER_TYPE,
+            product_id=tc.PRODUCT_ID,
+            price=tc.TEST_ORDER_PRICE.get_min_value(),
+            side=OrderSide.sell,
+            size=c.PRODUCT_ID.product_volume_type("10.00"),
+            time=account.exchange.interval_start_dt,
+        )
+
+        account.exchange.step(insert_orders=[order])
         place_orders_and_update(account, featurizer, no_transaction)
 
         expected_match_features = np.array(
@@ -240,11 +258,12 @@ class TestFeaturizer:
                 0.0e00,
                 0.0e00,
                 5.0e11,
-                5.0e15,
+                5.0e09,
                 0.0e00,
                 5.0e11,
                 0.0e00,
             ]
         )
+
         match_features = featurizer.get_observation().time_series[0, 6:16]
         np.testing.assert_almost_equal(expected_match_features, match_features, 10)

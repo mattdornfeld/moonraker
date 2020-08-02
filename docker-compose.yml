@@ -4,7 +4,7 @@
 version: '3'
 services:
   coinbase_ml_tests:
-    command: make build-python-protos test
+    command: make build-python-protos test-python
     build:
       args:
           TEST_MODE: "true"

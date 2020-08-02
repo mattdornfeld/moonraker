@@ -16,6 +16,7 @@ from coinbase_ml.fakebase.types import (
     ProductVolume,
     QuoteVolume,
 )
+from coinbase_ml.fakebase.exchange import Exchange
 
 EXCHANGE_END_DT = parser.parse("2019-08-30 18:23:03.87")
 EXCHANGE_START_DT = parser.parse("2019-08-30 18:22:19.983")
@@ -57,3 +58,11 @@ POSTGRES_CONTAINER_NAME = "coinbase_ml_tests_postgres"
 POSTGRES_IMAGE_NAME = "postgres:9.6"
 TEST_SQL_SRC_DIR = f"{os.getcwd()}/coinbase_ml_tests/data/moonraker.sql"
 TMP_SQL_DIR = "/tmp/coinbase_ml/docker-entrypoint-initdb.d"
+
+EXCHANGE = Exchange(
+    end_dt=EXCHANGE_END_DT,
+    product_id=PRODUCT_ID,
+    start_dt=EXCHANGE_START_DT,
+    time_delta=EXCHANGE_TIME_DELTA,
+    test_mode=True,
+)

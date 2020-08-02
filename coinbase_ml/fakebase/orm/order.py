@@ -19,6 +19,7 @@ from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     BuyMarketOrder,
     SellLimitOrder,
     SellMarketOrder,
+    Order,
 )
 from coinbase_ml.fakebase.types import (
     DoneReason,
@@ -275,6 +276,8 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
 
         order_status = OrderStatus.from_proto(order_proto.orderStatus)
 
+        time = parser.parse(order_proto.time).replace(tzinfo=None)
+
         order = CoinbaseOrder(
             funds=funds,
             order_id=OrderId(order_proto.orderId),
@@ -284,7 +287,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
             order_status=order_status,
             side=OrderSide.from_proto(order_proto.side),
             size=size,
-            time=parser.parse(order_proto.time),
+            time=time,
         )
 
         order.matches = [
@@ -472,3 +475,70 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
             time_in_force=self.time_in_force,
             type=self.order_type,
         )
+
+    def to_proto(self) -> Order:
+        """
+        to_proto converts order to proto
+
+        Raises:
+            TypeError: if (self.order_type, self.side) is invalid
+
+        Returns:
+            Order: order proto
+        """
+        if self.order_type == OrderType.limit and self.side == OrderSide.buy:
+            buy_limit_order = BuyLimitOrder(
+                orderId=self._order_id,
+                orderStatus=self._order_status,
+                price=str(self._price),
+                productId=str(self.product_id),
+                side=self._side,
+                size=str(self._size),
+                time=self.time.isoformat() + "Z",
+            )
+
+            order = Order(buyLimitOrder=buy_limit_order)
+
+        elif self.order_type == OrderType.market and self.side == OrderSide.buy:
+            buy_market_order = BuyMarketOrder(
+                funds=str(self._funds),
+                orderId=self._order_id,
+                orderStatus=self._order_status,
+                productId=str(self.product_id),
+                side=self._side,
+                time=self.time.isoformat() + "Z",
+            )
+
+            order = Order(buyMarketOrder=buy_market_order)
+
+        elif self.order_type == OrderType.limit and self.side == OrderSide.sell:
+            sell_limit_order = SellLimitOrder(
+                orderId=self._order_id,
+                orderStatus=self._order_status,
+                price=str(self._price),
+                productId=str(self.product_id),
+                side=self._side,
+                size=str(self._size),
+                time=self.time.isoformat() + "Z",
+            )
+
+            order = Order(sellLimitOrder=sell_limit_order)
+
+        elif self.order_type == OrderType.market and self.side == OrderSide.sell:
+            sell_market_order = SellMarketOrder(
+                orderId=self._order_id,
+                orderStatus=self._order_status,
+                productId=str(self.product_id),
+                side=self._side,
+                size=str(self._size),
+                time=self.time.isoformat() + "Z",
+            )
+
+            order = Order(sellMarketOrder=sell_market_order)
+
+        else:
+            raise TypeError(
+                f"The (order_type, side) combination ({self.order_type}, {self.side}) is invalid"
+            )
+
+        return order
