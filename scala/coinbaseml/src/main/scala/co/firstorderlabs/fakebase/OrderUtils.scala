@@ -30,7 +30,7 @@ object OrderUtils {
       order.productId,
       order.side,
       order.remainingSize,
-      Exchange.simulationMetadata.get.currentTimeInterval.endTime
+      Exchange.getSimulationMetadata.currentTimeInterval.endTime
     )
   }
 
@@ -133,25 +133,25 @@ object OrderUtils {
     val updatedOrder = order match {
       case order: BuyLimitOrder =>
         order.update(
-          _.doneAt := Exchange.simulationMetadata.get.currentTimeInterval.startTime,
+          _.doneAt := Exchange.getSimulationMetadata.currentTimeInterval.startTime,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: BuyMarketOrder =>
         order.update(
-          _.doneAt := Exchange.simulationMetadata.get.currentTimeInterval.startTime,
+          _.doneAt := Exchange.getSimulationMetadata.currentTimeInterval.startTime,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: SellLimitOrder =>
         order.update(
-          _.doneAt := Exchange.simulationMetadata.get.currentTimeInterval.startTime,
+          _.doneAt := Exchange.getSimulationMetadata.currentTimeInterval.startTime,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: SellMarketOrder =>
         order.update(
-          _.doneAt := Exchange.simulationMetadata.get.currentTimeInterval.startTime,
+          _.doneAt := Exchange.getSimulationMetadata.currentTimeInterval.startTime,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )

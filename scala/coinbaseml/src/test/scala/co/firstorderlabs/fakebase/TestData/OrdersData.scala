@@ -5,7 +5,6 @@ import java.time.Instant
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Types.Datetime
 import co.firstorderlabs.fakebase.{Exchange, OrderUtils, TestUtils}
 
 object OrdersData {
@@ -21,7 +20,7 @@ object OrdersData {
     maxPrice,
     OrderSide.buy,
     productVolume,
-    Exchange.simulationMetadata.get.currentTimeInterval.endTime
+    Exchange.getSimulationMetadata.currentTimeInterval.endTime
   )
 
   def insertSellOrders(
@@ -34,7 +33,7 @@ object OrdersData {
     minPrice + priceDelta / Right(1.0 / numOrders),
     OrderSide.sell,
     productVolume,
-    Exchange.simulationMetadata.get.currentTimeInterval.endTime
+    Exchange.getSimulationMetadata.currentTimeInterval.endTime
   )
 
   val lowerOrder = BuyLimitOrder(
@@ -44,7 +43,7 @@ object OrdersData {
     ProductPrice.productId,
     OrderSide.buy,
     new ProductVolume(Right("1.000000")),
-    Datetime(Instant.now)
+    Instant.now
   )
 
   val higherOrder = BuyLimitOrder(
@@ -54,7 +53,7 @@ object OrdersData {
     ProductPrice.productId,
     OrderSide.buy,
     new ProductVolume(Right("1.000000")),
-    Datetime(Instant.now)
+    Instant.now
   )
 
   val takerSellOrder = SellLimitOrder(
@@ -64,7 +63,7 @@ object OrdersData {
     ProductPrice.productId,
     OrderSide.sell,
     new ProductVolume(Right("1.000000")),
-    Datetime(Instant.now)
+    Instant.now
   )
 
   val cancellation = OrderUtils.cancellationFromOrder(higherOrder)

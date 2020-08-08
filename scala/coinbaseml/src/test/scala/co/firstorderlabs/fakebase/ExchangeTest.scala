@@ -5,9 +5,19 @@ import java.time.Duration
 import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.fakebase.protos.fakebase.{CancellationRequest, ExchangeInfoRequest, OrderSide, StepRequest}
-import co.firstorderlabs.fakebase.types.Types.{Datetime, TimeInterval}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
+import co.firstorderlabs.fakebase.protos.fakebase.{
+  BuyLimitOrderRequest,
+  CancellationRequest,
+  ExchangeInfoRequest,
+  OrderSide,
+  SellLimitOrderRequest,
+  StepRequest
+}
+import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import org.scalatest.funspec.AnyFunSpec
 
 class ExchangeTest extends AnyFunSpec {
@@ -19,24 +29,22 @@ class ExchangeTest extends AnyFunSpec {
         "the currentTimeInterval. If numWarmUpSteps == 0, then no checkpoint should be created."
     ) {
       Exchange.start(simulationStartRequest)
-      val simulationMetadata = Exchange.simulationMetadata.get
+      val simulationMetadata = Exchange.getSimulationMetadata
       assert(
-        simulationMetadata.startTime.instant
-          .compareTo(simulationStartRequest.startTime.instant) == 0
+        simulationMetadata.startTime
+          .compareTo(simulationStartRequest.startTime) == 0
       )
       assert(
-        simulationMetadata.endTime.instant
-          .compareTo(simulationStartRequest.endTime.instant) == 0
+        simulationMetadata.endTime
+          .compareTo(simulationStartRequest.endTime) == 0
       )
       assert(
-        simulationMetadata.timeDelta.compareTo(
-          Duration ofSeconds simulationStartRequest.timeDelta.get.seconds
-        ) == 0
+        simulationMetadata.timeDelta
+          .compareTo(simulationStartRequest.timeDelta.get) == 0
       )
       assert(
-        simulationMetadata.timeDelta.compareTo(
-          Duration ofSeconds simulationStartRequest.timeDelta.get.seconds
-        ) == 0
+        simulationMetadata.timeDelta
+          .compareTo(simulationStartRequest.timeDelta.get) == 0
       )
       assert(
         simulationMetadata.numWarmUpSteps
@@ -61,14 +69,12 @@ class ExchangeTest extends AnyFunSpec {
 
       val expectedTimeInterval =
         TimeInterval(
-          Datetime(
-            simulationStartRequest.startTime.instant
-              .minus(simulationMetadata.timeDelta)
-          ),
+          simulationStartRequest.startTime
+            .minus(simulationMetadata.timeDelta),
           simulationStartRequest.startTime
         )
       assert(
-        expectedTimeInterval == Exchange.simulationMetadata.get.currentTimeInterval
+        expectedTimeInterval == Exchange.getSimulationMetadata.currentTimeInterval
       )
 
       assert(simulationMetadata.checkpoint.isEmpty)
@@ -79,7 +85,7 @@ class ExchangeTest extends AnyFunSpec {
         "when reset, it should return to that checkpoint."
     ) {
       Exchange.start(checkpointedSimulationStartRequest)
-      val simulationMetadata = Exchange.simulationMetadata.get
+      val simulationMetadata = Exchange.getSimulationMetadata
 
       assert(simulationMetadata.checkpoint.isDefined)
 
@@ -99,7 +105,7 @@ class ExchangeTest extends AnyFunSpec {
       Exchange.reset(ExchangeInfoRequest())
 
       assert(
-        Exchange.simulationMetadata.get.checkpoint.get == Checkpointer.createCheckpoint
+        Exchange.getSimulationMetadata.checkpoint.get == Checkpointer.createCheckpoint
       )
     }
 
@@ -204,7 +210,7 @@ class ExchangeTest extends AnyFunSpec {
           new ProductPrice(Right("915.00")),
           OrderSide.buy,
           productVolume,
-          Exchange.simulationMetadata.get.currentTimeInterval.endTime
+          Exchange.getSimulationMetadata.currentTimeInterval.endTime
         )
 
       val sellOrders = TestUtils
@@ -214,7 +220,7 @@ class ExchangeTest extends AnyFunSpec {
           new ProductPrice(Right("1015.00")),
           OrderSide.sell,
           productVolume,
-          Exchange.simulationMetadata.get.currentTimeInterval.endTime
+          Exchange.getSimulationMetadata.currentTimeInterval.endTime
         )
 
       Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
@@ -247,6 +253,58 @@ class ExchangeTest extends AnyFunSpec {
           orderBooksRequest.orderBookDepth - 1
         ).asMessage.getSellLimitOrder.price.toPlainString
       )
+    }
+
+    it("Expired orders should be cancelled when step is called") {
+      val timeToLive = simulationStartRequest.timeDelta
+        .map(duration => Duration.ofSeconds((duration.toSeconds * 1.5).toLong))
+
+      val buyLimitOrderRequest = new BuyLimitOrderRequest(
+        new ProductPrice(Right("200.00")),
+        ProductPrice.productId,
+        new ProductVolume(Right("10.000000")),
+        false,
+        timeToLive,
+      )
+
+      val sellLimitOrderRequest = new SellLimitOrderRequest(
+        new ProductPrice(Right("50.00")),
+        ProductPrice.productId,
+        new ProductVolume(Right("10.000000")),
+        false,
+        timeToLive,
+      )
+
+      List(buyLimitOrderRequest, sellLimitOrderRequest).foreach {
+        orderRequest =>
+          Exchange.start(simulationStartRequest)
+
+          val orderFuture = orderRequest match {
+            case orderRequest: BuyLimitOrderRequest =>
+              Account.placeBuyLimitOrder(orderRequest)
+            case orderRequest: SellLimitOrderRequest =>
+              Account.placeSellLimitOrder(orderRequest)
+          }
+
+          val order = Utils.getResult(orderFuture)
+
+          Exchange.step(Constants.emptyStepRequest)
+
+          assert(Account.placedOrders.get(order.orderId).get.orderStatus.isopen)
+
+          List.range(1, 3).foreach { _ =>
+            Exchange.step(Constants.emptyStepRequest)
+          }
+
+          val cancelledOrder = Account.placedOrders.get(order.orderId).get
+          assert(cancelledOrder.orderStatus.isdone)
+          assert(cancelledOrder.doneReason.iscancelled)
+          assert(
+            Duration
+              .between(cancelledOrder.time, cancelledOrder.doneAt)
+              .compareTo(timeToLive.get) >= 0
+          )
+      }
     }
 
     def advanceExchange: Unit = {

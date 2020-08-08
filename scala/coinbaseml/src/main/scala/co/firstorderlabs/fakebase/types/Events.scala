@@ -1,10 +1,19 @@
 package co.firstorderlabs.fakebase.types
 
-import co.firstorderlabs.fakebase.Constants
+import java.time.{Duration, Instant}
+
+import co.firstorderlabs.fakebase.{Constants, Exchange}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Types.{Datetime, OrderId, OrderRequestId, ProductId}
+import co.firstorderlabs.fakebase.types.Types.{
+  OrderId,
+  OrderRequestId,
+  ProductId
+}
 
 object Events {
   trait SpecifiesFunds {
@@ -38,7 +47,7 @@ object Events {
       _remainingSize.get
     }
 
-    def setRemainingSize(remainingSize: ProductPrice.ProductVolume) = {
+    def setRemainingSize(remainingSize: ProductPrice.ProductVolume): Unit = {
       _remainingSize = Some(remainingSize)
     }
   }
@@ -57,7 +66,7 @@ object Events {
 
   trait Event {
     val productId: ProductId
-    val time: Datetime
+    val time: Instant
 
     def equalTo[A](that: A): Boolean = this == that
   }
@@ -76,8 +85,8 @@ object Events {
 
     def getAccountOrder: Option[OrderEvent] = {
       liquidity match {
-        case Liquidity.maker => getMakerOrder
-        case Liquidity.taker => getTakerOrder
+        case Liquidity.maker  => getMakerOrder
+        case Liquidity.taker  => getTakerOrder
         case Liquidity.global => None
       }
     }
@@ -91,7 +100,7 @@ object Events {
         makerOrder.asMessage.sealedValue.buyLimitOrder
       } else if (makerOrder.asMessage.sealedValue.sellLimitOrder.isDefined) {
         makerOrder.asMessage.sealedValue.sellLimitOrder
-      } else{
+      } else {
         None
       }
     }
@@ -105,14 +114,14 @@ object Events {
         takerOrder.asMessage.sealedValue.buyMarketOrder
       } else if (takerOrder.asMessage.sealedValue.sellMarketOrder.isDefined) {
         takerOrder.asMessage.sealedValue.sellMarketOrder
-      } else{
+      } else {
         None
       }
     }
   }
 
   trait OrderEvent extends Event {
-    val doneAt: Datetime
+    val doneAt: Instant
     val doneReason: DoneReason
     val orderId: OrderId
     val orderStatus: OrderStatus
@@ -141,6 +150,7 @@ object Events {
 
   trait LimitOrderEvent extends OrderEvent with SpecifiesSize {
     val price: ProductPrice
+    val timeToLive: Option[Duration]
     var degeneracy = 0
 
     def copyLimitOrderEventVars(that: LimitOrderEvent): Unit = {
@@ -150,6 +160,19 @@ object Events {
     def incrementDegeneracy: Unit = {
       degeneracy += 1
     }
+
+    def isExpired: Boolean = {
+      val timeOfExpiration = time
+        .plus(timeToLive.getOrElse(Duration.ZERO))
+
+      Exchange
+        .getSimulationMetadata
+        .currentTimeInterval
+        .startTime
+        .plus(Exchange.getSimulationMetadata.timeDelta)
+        .compareTo(timeOfExpiration) >= 0
+    }
   }
+
   trait MarketOrderEvent extends OrderEvent
 }

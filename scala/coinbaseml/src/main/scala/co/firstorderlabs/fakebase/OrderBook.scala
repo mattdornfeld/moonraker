@@ -151,13 +151,13 @@ object OrderBook {
       case OrderSide.buy =>
         OrderBookKey(
           order.price,
-          Duration.between(Instant.MAX, order.time.instant),
+          Duration.between(Instant.MAX, order.time),
           order.degeneracy
         )
       case OrderSide.sell =>
         OrderBookKey(
           order.price,
-          Duration.between(order.time.instant, Instant.MIN),
+          Duration.between(order.time, Instant.MIN),
           order.degeneracy
         )
     }

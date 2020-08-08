@@ -1,16 +1,12 @@
 package co.firstorderlabs.fakebase.types
 
-import java.time.{Duration, Instant}
+import java.time.{Instant, Duration}
 
 import co.firstorderlabs.fakebase.protos.fakebase.Currency
-
 import scalapb.TypeMapper
 
 object Types {
   case class OrderId(orderId: String) extends AnyVal
-  case class Datetime(instant: Instant) extends AnyVal {
-    override def toString: String = instant.toString
-  }
   case class OrderRequestId(orderRequestId: String) extends AnyVal
   case class TradeId(tradeId: Long) extends AnyVal
 
@@ -19,30 +15,17 @@ object Types {
       productCurrency.toString + "-" + quoteCurrency.toString
   }
 
-  case class TimeInterval(startTime: Datetime, endTime: Datetime) {
+  case class TimeInterval(startTime: Instant, endTime: Instant) {
     def +(duration: Duration): TimeInterval = {
-      val startDt = Datetime(this.startTime.instant.plus(duration))
-      val endDt = Datetime(this.endTime.instant.plus(duration))
+      val startDt = this.startTime.plus(duration)
+      val endDt = this.endTime.plus(duration)
       TimeInterval(startDt, endDt)
     }
 
     def -(duration: Duration): TimeInterval = {
-      val startDt = Datetime(this.startTime.instant.minus(duration))
-      val endDt = Datetime(this.endTime.instant.minus(duration))
+      val startDt = this.startTime.minus(duration)
+      val endDt = this.endTime.minus(duration)
       TimeInterval(startDt, endDt)
-    }
-  }
-
-  object Datetime {
-    implicit val typeMapper = TypeMapper[String, Datetime](
-      value => Datetime(parse(value))
-    )(datetime => datetime.instant.toString)
-
-    def parse(timestamp: String) = {
-      if (timestamp.length == 0)
-        Instant.now
-      else
-        Instant.parse(timestamp)
     }
   }
 

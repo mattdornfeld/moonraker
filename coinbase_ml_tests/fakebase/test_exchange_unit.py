@@ -5,10 +5,7 @@ from pytest_cases import unpack_fixture
 
 from coinbase_ml.fakebase.account import Account
 from coinbase_ml.fakebase.exchange import Exchange
-from coinbase_ml.fakebase.types import (
-    DoneReason,
-    OrderStatus,
-)
+from coinbase_ml.fakebase.types import DoneReason, OrderStatus
 
 from coinbase_ml_tests import constants as tc
 from coinbase_ml_tests.fixtures import create_exchange

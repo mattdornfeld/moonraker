@@ -1,5 +1,7 @@
 package co.firstorderlabs.fakebase
 
+import java.time.Duration
+
 import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.Utils.getResult
@@ -362,7 +364,7 @@ class AccountTest extends AnyFunSpec {
                   ProductPrice.productId,
                   OrderSide.sell,
                   initialOrderBookVolume,
-                  Exchange.simulationMetadata.get.currentTimeInterval.startTime
+                  Exchange.getSimulationMetadata.currentTimeInterval.startTime
                 )
               )
             case orderRequest: SellLimitOrderRequest =>
@@ -374,7 +376,7 @@ class AccountTest extends AnyFunSpec {
                   ProductPrice.productId,
                   OrderSide.buy,
                   initialOrderBookVolume,
-                  Exchange.simulationMetadata.get.currentTimeInterval.startTime
+                  Exchange.getSimulationMetadata.currentTimeInterval.startTime
                 )
               )
           })
@@ -697,14 +699,16 @@ class AccountTest extends AnyFunSpec {
         new ProductPrice(Right("200.00")),
         ProductPrice.productId,
         new ProductVolume(Right("10.000000")),
-        false
+        false,
+        Some(Duration.ofDays(10)),
       )
 
       val sellLimitOrderRequest = new SellLimitOrderRequest(
         new ProductPrice(Right("50.00")),
         ProductPrice.productId,
         new ProductVolume(Right("10.000000")),
-        false
+        false,
+        Some(Duration.ofDays(10)),
       )
 
       List(
