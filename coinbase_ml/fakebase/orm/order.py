@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
 from dateutil import parser
+from google.protobuf.duration_pb2 import Duration
 from sqlalchemy import BigInteger, Column, Float, String
 from sqlalchemy.orm import reconstructor
 
@@ -278,6 +279,12 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
 
         time = parser.parse(order_proto.time).replace(tzinfo=None)
 
+        time_to_live: Optional[timedelta] = (
+            order_proto.timeToLive.ToTimedelta()
+            if isinstance(order_proto, (BuyLimitOrder, SellLimitOrder))
+            else None
+        )
+
         order = CoinbaseOrder(
             funds=funds,
             order_id=OrderId(order_proto.orderId),
@@ -288,6 +295,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
             side=OrderSide.from_proto(order_proto.side),
             size=size,
             time=time,
+            time_to_live=time_to_live,
         )
 
         order.matches = [
@@ -486,6 +494,12 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         Returns:
             Order: order proto
         """
+        if self.time_to_live:
+            time_to_live = Duration()
+            time_to_live.FromTimedelta(self.time_to_live) # pylint: disable=no-member
+        else:
+            time_to_live = None
+
         if self.order_type == OrderType.limit and self.side == OrderSide.buy:
             buy_limit_order = BuyLimitOrder(
                 orderId=self._order_id,
@@ -495,6 +509,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
                 side=self._side,
                 size=str(self._size),
                 time=self.time.isoformat() + "Z",
+                timeToLive=time_to_live,
             )
 
             order = Order(buyLimitOrder=buy_limit_order)
@@ -520,6 +535,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
                 side=self._side,
                 size=str(self._size),
                 time=self.time.isoformat() + "Z",
+                timeToLive=time_to_live,
             )
 
             order = Order(sellLimitOrder=sell_limit_order)

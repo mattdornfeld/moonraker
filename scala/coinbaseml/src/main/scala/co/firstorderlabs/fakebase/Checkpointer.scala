@@ -30,7 +30,7 @@ object Checkpointer {
 
   def createCheckpoint: SimulationCheckpoint = {
     logger.info(
-      s"creating checkpoint at timeInterval ${Exchange.simulationMetadata.get.currentTimeInterval}"
+      s"creating checkpoint at timeInterval ${Exchange.getSimulationMetadata.currentTimeInterval}"
     )
     SimulationCheckpoint(
       Account.checkpoint,

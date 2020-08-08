@@ -2,6 +2,7 @@ package co.firstorderlabs.fakebase
 
 import java.util.UUID
 
+import co.firstorderlabs.fakebase.Utils.getResultOptional
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
   ProductVolume,
@@ -32,12 +33,16 @@ import co.firstorderlabs.fakebase.protos.fakebase.{
   Wallets => WalletsProto
 }
 import co.firstorderlabs.fakebase.types.Events._
+import co.firstorderlabs.fakebase.types.Exceptions.{
+  InvalidOrderStatus,
+  InvalidOrderType,
+  OrderNotFound
+}
 import co.firstorderlabs.fakebase.types.Types.{
   OrderId,
   OrderRequestId,
   TimeInterval
 }
-import co.firstorderlabs.fakebase.Utils.getResultOptional
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 
@@ -98,6 +103,24 @@ object Account
     placedOrders.contains(order.orderId)
   }
 
+  def cancelExpiredOrders: Unit = {
+    placedOrders
+      .filter(
+        item => item._2.orderStatus.isopen || item._2.orderStatus.isreceived
+      )
+      .foreach { item =>
+        item._2 match {
+          case order: LimitOrderEvent => {
+            if (order.isExpired) {
+              val cancellationRequest = CancellationRequest(order.orderId)
+              cancelOrder(cancellationRequest)
+            }
+          }
+          case _ =>
+        }
+      }
+  }
+
   def checkpoint: AccountCheckpoint =
     AccountCheckpoint(
       orderRequests.clone,
@@ -117,30 +140,30 @@ object Account
     matchesInCurrentTimeInterval.clear
   }
 
+  @throws[OrderNotFound]
+  @throws[InvalidOrderStatus]
   def closeOrder[A <: OrderEvent](order: A,
-                                  doneReason: DoneReason): Option[A] = {
-    if (placedOrders.contains(order.orderId))
-      if (!List(OrderStatus.received, OrderStatus.open).contains(
-            order.orderStatus
-          )) return None
+                                  doneReason: DoneReason): A = {
+    if (!placedOrders.contains(order.orderId))
+      throw OrderNotFound(
+        s"orderId ${order.orderId} was not found in Account.placedOrders"
+      )
+
+    if (!List(OrderStatus.received, OrderStatus.open).contains(
+          order.orderStatus
+        ))
+      throw InvalidOrderStatus(
+        s"${order.orderStatus} not in List(OrderStatus.received, OrderStatus.open)"
+      )
 
     Wallets.removeHolds(order)
 
     val updatedOrder = OrderUtils.setOrderStatusToDone(order, doneReason)
     placedOrders.update(updatedOrder.orderId, updatedOrder)
-    Some(updatedOrder)
+    updatedOrder
   }
 
-  def isCleared: Boolean = {
-    (orderRequests.isEmpty
-    && placedCancellations.isEmpty
-    && placedOrders.isEmpty
-    && matches.isEmpty
-    && Wallets.isCleared
-    && matchesInCurrentTimeInterval.isEmpty)
-  }
-
-  def openOrder(orderId: OrderId): Option[LimitOrderEvent] = {
+  def openOrder(orderId: OrderId): LimitOrderEvent = {
     val order = placedOrders.get(orderId)
     order match {
       case Some(order) => {
@@ -148,12 +171,18 @@ object Account
           case order: LimitOrderEvent => {
             val updatedOrder = OrderUtils.openOrder(order)
             placedOrders.update(orderId, updatedOrder)
-            Some(updatedOrder)
+            updatedOrder
           }
-          case _ => None
+          case order: Order =>
+            throw InvalidOrderType(
+              s"tried to open order of type ${order.getClass}. Can only open orders that have trait LimitOrderEvent"
+            )
         }
       }
-      case None => None
+      case None =>
+        throw OrderNotFound(
+          s"orderId ${orderId} was not found in Account.placedOrders"
+        )
     }
   }
 
@@ -167,7 +196,7 @@ object Account
   }
 
   def getReceivedCancellations: Iterable[Cancellation] = {
-    val timeInterval = Exchange.simulationMetadata.get.currentTimeInterval - Exchange.simulationMetadata.get.timeDelta
+    val timeInterval = Exchange.getSimulationMetadata.currentTimeInterval - Exchange.getSimulationMetadata.timeDelta
     for (cancellation <- placedCancellations(timeInterval))
       yield cancellation
   }
@@ -190,6 +219,15 @@ object Account
 
   def initializeWallets: Unit = Wallets.initializeWallets
 
+  def isCleared: Boolean = {
+    (orderRequests.isEmpty
+    && placedCancellations.isEmpty
+    && placedOrders.isEmpty
+    && matches.isEmpty
+    && Wallets.isCleared
+    && matchesInCurrentTimeInterval.isEmpty)
+  }
+
   def restore(checkpoint: AccountCheckpoint): Unit = {
     clear
     orderRequests.addAll(checkpoint.orderRequests.iterator)
@@ -201,6 +239,7 @@ object Account
   }
 
   def step: Unit = {
+    cancelExpiredOrders
     matchesInCurrentTimeInterval.clear
   }
 
@@ -235,7 +274,7 @@ object Account
       case order: LimitOrderEvent => {
         val cancellation = OrderUtils.cancellationFromOrder(order)
 
-        placedCancellations(Exchange.simulationMetadata.get.currentTimeInterval) += cancellation
+        placedCancellations(Exchange.getSimulationMetadata.currentTimeInterval) += cancellation
 
         Future.successful(cancellation)
       }
@@ -297,7 +336,7 @@ object Account
       orderStatus = OrderStatus.received,
       productId = buyMarketOrderRequest.productId,
       side = OrderSide.buy,
-      time = Exchange.simulationMetadata.get.currentTimeInterval.endTime,
+      time = Exchange.getSimulationMetadata.currentTimeInterval.endTime,
       rejectReason = RejectReason.notRejected,
       requestId = orderRequestId,
       matchEvents = Some(MatchEvents())
@@ -318,10 +357,11 @@ object Account
       productId = buyLimitOrderRequest.productId,
       side = OrderSide.buy,
       size = buyLimitOrderRequest.size,
-      time = Exchange.simulationMetadata.get.currentTimeInterval.endTime,
+      time = Exchange.getSimulationMetadata.currentTimeInterval.endTime,
       rejectReason = RejectReason.notRejected,
       requestId = orderRequestId,
-      matchEvents = Some(MatchEvents())
+      matchEvents = Some(MatchEvents()),
+      timeToLive = buyLimitOrderRequest.timeToLive,
     )
 
     Future.successful(processOrder(buyLimitOrder))
@@ -339,10 +379,11 @@ object Account
       productId = sellLimitOrderRequest.productId,
       side = OrderSide.sell,
       size = sellLimitOrderRequest.size,
-      time = Exchange.simulationMetadata.get.currentTimeInterval.endTime,
+      time = Exchange.getSimulationMetadata.currentTimeInterval.endTime,
       rejectReason = RejectReason.notRejected,
       requestId = orderRequestId,
-      matchEvents = Some(MatchEvents())
+      matchEvents = Some(MatchEvents()),
+      timeToLive = sellLimitOrderRequest.timeToLive
     )
 
     Future.successful(processOrder(sellLimitOrder))
@@ -359,7 +400,7 @@ object Account
       productId = sellMarketOrderRequest.productId,
       side = OrderSide.sell,
       size = sellMarketOrderRequest.size,
-      time = Exchange.simulationMetadata.get.currentTimeInterval.endTime,
+      time = Exchange.getSimulationMetadata.currentTimeInterval.endTime,
       rejectReason = RejectReason.notRejected,
       requestId = orderRequestId,
       matchEvents = Some(MatchEvents())

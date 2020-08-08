@@ -39,7 +39,7 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
       orderBooks(order.side).removeByOrderId(order.orderId)
 
     if (Account.belongsToAccount(order))
-      Account.closeOrder(order, DoneReason.cancelled).get
+      Account.closeOrder(order, DoneReason.cancelled)
     else
       OrderUtils.setOrderStatusToDone(order, DoneReason.cancelled)
   }
@@ -100,7 +100,7 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
       if (orderBooks(order.side).getOrderByOrderBookKey(orderBookKey).isEmpty) {
         val updatedOrder =
           if (Account.belongsToAccount(order))
-            Account.openOrder(order.orderId).get
+            Account.openOrder(order.orderId)
           else
             OrderUtils.openOrder(order)
 
@@ -135,7 +135,7 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
   ): LimitOrderEvent = {
     if (makerOrder.remainingSize.isZero) {
       if (liquidity.ismaker) {
-        Account.closeOrder(makerOrder, DoneReason.filled).get
+        Account.closeOrder(makerOrder, DoneReason.filled)
       } else {
         OrderUtils.setOrderStatusToDone(makerOrder, DoneReason.filled)
       }
@@ -153,7 +153,7 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
 
     if (isFilled) {
       if (liquidity.istaker) {
-        Account.closeOrder(takerOrder, DoneReason.filled).get
+        Account.closeOrder(takerOrder, DoneReason.filled)
       } else {
         OrderUtils.setOrderStatusToDone(takerOrder, DoneReason.filled)
       }

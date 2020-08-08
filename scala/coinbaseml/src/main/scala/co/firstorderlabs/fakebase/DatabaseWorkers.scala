@@ -12,7 +12,7 @@ import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events.Event
 import co.firstorderlabs.fakebase.types.Types._
 import doobie.implicits._
-import doobie.implicits.legacy.instant._
+import doobie.implicits.legacy.instant.JavaTimeInstantMeta
 import doobie.{Meta, Query0, Transactor}
 
 import scala.annotation.tailrec
@@ -26,7 +26,8 @@ case class QueryResult(buyLimitOrders: List[BuyLimitOrder],
                        sellMarketOrder: List[SellMarketOrder],
                        timeInterval: TimeInterval)
 
-final case class BoundedTrieMap[K, V](maxSize: Int, trieMap: Option[TrieMap[K, V]] = None) {
+final case class BoundedTrieMap[K, V](maxSize: Int,
+                                      trieMap: Option[TrieMap[K, V]] = None) {
   val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
 
   def addAll(xs: IterableOnce[(K, V)]): Unit = {
@@ -84,7 +85,7 @@ class DatabaseWorkers extends Thread {
   @tailrec
   final def isPaused: Boolean = {
     Thread.sleep(10)
-    val threadState = synchronized {getState}
+    val threadState = synchronized { getState }
     if (threadState.compareTo(Thread.State.WAITING) == 0) {
       true
     } else {
@@ -96,11 +97,13 @@ class DatabaseWorkers extends Thread {
 
   @tailrec
   private def populateQueryResultQueue: Unit = {
-    if (paused) synchronized{wait}
+    if (paused) synchronized { wait }
     if (!DatabaseWorkers.timeIntervalQueue.isEmpty) {
       val timeInterval = DatabaseWorkers.timeIntervalQueue.take
       DatabaseWorkers.populateQueryResultMap(timeInterval)
-      DatabaseWorkers.logger.fine(s"retrieved data for timeInterval ${timeInterval}")
+      DatabaseWorkers.logger.fine(
+        s"retrieved data for timeInterval ${timeInterval}"
+      )
     } else {
       Thread.sleep(10)
     }
@@ -111,35 +114,63 @@ class DatabaseWorkers extends Thread {
 class LinkedBlockingQueue[A] extends LinkedBlockingQueueBase[A] {
   override def equals(that: Any): Boolean = {
     that match {
-      case that: LinkedBlockingQueue[A] => this.toArray.toList == that.toArray.toList
+      case that: LinkedBlockingQueue[A] =>
+        this.toArray.toList == that.toArray.toList
       case _ => false
     }
   }
 }
 
-case class DatabaseWorkersCheckpoint(timeIntervalQueue: LinkedBlockingQueue[TimeInterval]) extends Checkpoint
+case class DatabaseWorkersCheckpoint(
+  timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
+) extends Checkpoint
 
 object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
-  // Specify how to convert from JDBC supported data types to custom data types
-  implicit val dateTimeConverter: Meta[Datetime] = Meta[Instant].timap(value => Datetime(value))(value => value.instant)
-  implicit val doneReasonConverter: Meta[DoneReason] = Meta[Int].timap(value => DoneReason.fromValue(value))(value => value.value)
-  implicit val matchEvents: Meta[MatchEvents] = Meta[String].timap(_ => MatchEvents())(_ => "")
-  implicit val orderIdConverter: Meta[OrderId] = Meta[String].timap(value => OrderId(value))(value => value.orderId)
-  implicit val orderRequestIdConverter: Meta[OrderRequestId] = Meta[String].timap(value => OrderRequestId(value))(value => value.orderRequestId)
-  implicit val orderSideConverter: Meta[OrderSide] = Meta[String].timap(value => OrderSide.fromName(value).get)(value => value.name)
-  implicit val orderStatusConverter: Meta[OrderStatus] = Meta[String].timap(value => OrderStatus.fromName(value).get)(value => value.name)
-  implicit val productIdConverter: Meta[ProductId] = Meta[String].timap(value => ProductId.fromString(value))(value => value.toString)
-  implicit val productPriceConverter: Meta[ProductPrice] = Meta[BigDecimal].timap(value => new ProductPrice(Left(value)))(value => value.amount)
-  implicit val productVolumeConverter: Meta[ProductVolume] = Meta[BigDecimal].timap(value => new ProductVolume(Left(value)))(value => value.amount)
-  implicit val quoteVolumeConverter: Meta[QuoteVolume] = Meta[BigDecimal].timap(value => new QuoteVolume(Left(value)))(value => value.amount)
-  implicit val rejectReasonConverter: Meta[RejectReason] = Meta[Int].timap(value => RejectReason.fromValue(value))(value => value.value)
+  // This val def is not strictly neccsary, but Doobie needs JavaTimeInstantMeta
+  // in scope to query timestamp types from the databse, and Intellij autoimport
+  // feature will delete the import if below is not defined
+  private val javaTimeInstantMeta = JavaTimeInstantMeta
 
-  implicit val buyLimitOrderRequestConverter: Meta[BuyLimitOrderRequest] = Meta[String].timap(_ => new BuyLimitOrderRequest)(_ => "")
-  implicit val buyMarketOrderRequestConverter: Meta[BuyMarketOrderRequest] = Meta[String].timap(_ => new BuyMarketOrderRequest())(_ => "")
+  // Specify how to convert from JDBC supported data types to custom data types
+  implicit val doneReasonConverter: Meta[DoneReason] =
+    Meta[Int].timap(value => DoneReason.fromValue(value))(value => value.value)
+  implicit val durationConverter: Meta[Duration] =
+    Meta[Long].timap(value => Duration.ofNanos(value))(value => value.toNanos)
+  implicit val matchEvents: Meta[MatchEvents] =
+    Meta[String].timap(_ => MatchEvents())(_ => "")
+  implicit val orderIdConverter: Meta[OrderId] =
+    Meta[String].timap(value => OrderId(value))(value => value.orderId)
+  implicit val orderRequestIdConverter: Meta[OrderRequestId] = Meta[String]
+    .timap(value => OrderRequestId(value))(value => value.orderRequestId)
+  implicit val orderSideConverter: Meta[OrderSide] = Meta[String].timap(
+    value => OrderSide.fromName(value).get
+  )(value => value.name)
+  implicit val orderStatusConverter: Meta[OrderStatus] = Meta[String].timap(
+    value => OrderStatus.fromName(value).get
+  )(value => value.name)
+  implicit val productIdConverter: Meta[ProductId] = Meta[String].timap(
+    value => ProductId.fromString(value)
+  )(value => value.toString)
+  implicit val productPriceConverter: Meta[ProductPrice] = Meta[BigDecimal]
+    .timap(value => new ProductPrice(Left(value)))(value => value.amount)
+  implicit val productVolumeConverter: Meta[ProductVolume] = Meta[BigDecimal]
+    .timap(value => new ProductVolume(Left(value)))(value => value.amount)
+  implicit val quoteVolumeConverter: Meta[QuoteVolume] = Meta[BigDecimal].timap(
+    value => new QuoteVolume(Left(value))
+  )(value => value.amount)
+  implicit val rejectReasonConverter: Meta[RejectReason] = Meta[Int].timap(
+    value => RejectReason.fromValue(value)
+  )(value => value.value)
+
+  implicit val buyLimitOrderRequestConverter: Meta[BuyLimitOrderRequest] =
+    Meta[String].timap(_ => new BuyLimitOrderRequest)(_ => "")
+  implicit val buyMarketOrderRequestConverter: Meta[BuyMarketOrderRequest] =
+    Meta[String].timap(_ => new BuyMarketOrderRequest())(_ => "")
 
   implicit val contextShift = IO.contextShift(ExecutionContext.global)
   private val logger = Logger.getLogger(DatabaseWorkers.toString)
-  private val queryResultMap = new BoundedTrieMap[TimeInterval, QueryResult](Configs.maxResultsQueueSize)
+  private val queryResultMap =
+    new BoundedTrieMap[TimeInterval, QueryResult](Configs.maxResultsQueueSize)
   private val transactor = Transactor.fromDriverManager[IO](
     "org.postgresql.Driver",
     "jdbc:postgresql://" + Configs.postgresDbHost + "/" + Configs.postgresTable,
@@ -147,16 +178,18 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
     Configs.postgresPassword,
   )
   private val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
-  private val workers = for(_ <- (1 to Configs.numDatabaseWorkers)) yield new DatabaseWorkers
+  private val workers = for (_ <- (1 to Configs.numDatabaseWorkers))
+    yield new DatabaseWorkers
   workers.foreach(w => w.start)
 
   override def checkpoint: DatabaseWorkersCheckpoint = {
     val checkpointTimeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
     populateTimeIntervalQueue(
-      Exchange.simulationMetadata.get.checkpointTimeInterval.startTime,
-      Exchange.simulationMetadata.get.endTime,
-      Exchange.simulationMetadata.get.timeDelta,
-      checkpointTimeIntervalQueue)
+      Exchange.getSimulationMetadata.checkpointTimeInterval.startTime,
+      Exchange.getSimulationMetadata.endTime,
+      Exchange.getSimulationMetadata.timeDelta,
+      checkpointTimeIntervalQueue
+    )
     DatabaseWorkersCheckpoint(checkpointTimeIntervalQueue)
   }
 
@@ -168,7 +201,7 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
 
   override def isCleared: Boolean = {
     (queryResultMap.isEmpty
-     && timeIntervalQueue.isEmpty)
+    && timeIntervalQueue.isEmpty)
   }
 
   override def restore(checkpoint: DatabaseWorkersCheckpoint): Unit = {
@@ -187,24 +220,21 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
     workers.forall(w => w.isPaused)
   }
 
-  def start(startTime: Datetime,
-            endTime: Datetime,
-            timeDelta: Duration): Unit = {
+  def start(startTime: Instant, endTime: Instant, timeDelta: Duration): Unit = {
     pauseWorkers
     clear
     populateTimeIntervalQueue(startTime, endTime, timeDelta, timeIntervalQueue)
     unpauseWorkers
-    logger.info(s"DatabaseWorkers started for ${startTime}-${endTime} with timeDelta ${timeDelta}")
+    logger.info(
+      s"DatabaseWorkers started for ${startTime}-${endTime} with timeDelta ${timeDelta}"
+    )
   }
 
   private def executeQuery[A <: Event](query: Query0[A]): List[A] = {
     if (Configs.testMode) {
       List[A]()
     } else {
-      query
-        .stream
-        .compile
-        .toList
+      query.stream.compile.toList
         .transact(transactor)
         .unsafeRunSync
     }
@@ -236,19 +266,28 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
   }
 
   @tailrec
-  private def populateTimeIntervalQueue(startTime: Datetime,
-                                        endTime: Datetime,
-                                        timeDelta: Duration,
-                                        timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
-                                       ): Unit = {
-    if (endTime.instant.isAfter(startTime.instant)) {
-      val intervalEndTime = Datetime(startTime.instant.plus(timeDelta))
+  private def populateTimeIntervalQueue(
+    startTime: Instant,
+    endTime: Instant,
+    timeDelta: Duration,
+    timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
+  ): Unit = {
+    if (endTime.isAfter(startTime)) {
+      val intervalEndTime = startTime.plus(timeDelta)
       timeIntervalQueue.put(TimeInterval(startTime, intervalEndTime))
-      populateTimeIntervalQueue(intervalEndTime, endTime, timeDelta, timeIntervalQueue)
+      populateTimeIntervalQueue(
+        intervalEndTime,
+        endTime,
+        timeDelta,
+        timeIntervalQueue
+      )
     }
   }
 
-  private def queryCancellations(productId: ProductId, timeInterval: TimeInterval): Query0[Cancellation] = {
+  def queryCancellations(
+    productId: ProductId,
+    timeInterval: TimeInterval
+  ): Query0[Cancellation] = {
     sql"""SELECT
             order_id,
             price,
@@ -263,7 +302,10 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
       .query[Cancellation]
   }
 
-  private def queryBuyLimitOrders(productId: ProductId, timeInterval: TimeInterval): Query0[BuyLimitOrder] = {
+  private def queryBuyLimitOrders(
+    productId: ProductId,
+    timeInterval: TimeInterval
+  ): Query0[BuyLimitOrder] = {
     sql"""SELECT
             order_id,
             order_status,
@@ -276,7 +318,8 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
             '',
             ${Instant.EPOCH.toString}::timestamp,
             ${DoneReason.notDone.value},
-            ''
+            '',
+            0
           FROM coinbase_orders
           WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp AND ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
@@ -286,7 +329,10 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
       .query[BuyLimitOrder]
   }
 
-  private def queryBuyMarketOrders(productId: ProductId, timeInterval: TimeInterval): Query0[BuyMarketOrder] = {
+  private def queryBuyMarketOrders(
+    productId: ProductId,
+    timeInterval: TimeInterval
+  ): Query0[BuyMarketOrder] = {
     sql"""SELECT
             funds,
             order_id,
@@ -308,7 +354,10 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
       .query[BuyMarketOrder]
   }
 
-  private def querySellLimitOrders(productId: ProductId, timeInterval: TimeInterval): Query0[SellLimitOrder] = {
+  private def querySellLimitOrders(
+    productId: ProductId,
+    timeInterval: TimeInterval
+  ): Query0[SellLimitOrder] = {
     sql"""SELECT
             order_id,
             order_status,
@@ -321,7 +370,8 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
             '',
             ${Instant.EPOCH.toString}::timestamp,
             ${DoneReason.notDone.value},
-            ''
+            '',
+            0
           FROM coinbase_orders
           WHERE time BETWEEN ${timeInterval.startTime.toString}::timestamp and ${timeInterval.endTime.toString}::timestamp
           AND product_id = ${productId.toString}
@@ -331,7 +381,10 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
       .query[SellLimitOrder]
   }
 
-  private def querySellMarketOrders(productId: ProductId, timeInterval: TimeInterval): Query0[SellMarketOrder] = {
+  private def querySellMarketOrders(
+    productId: ProductId,
+    timeInterval: TimeInterval
+  ): Query0[SellMarketOrder] = {
     sql"""SELECT
             order_id,
             order_status,

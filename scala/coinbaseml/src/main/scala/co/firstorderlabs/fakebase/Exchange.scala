@@ -1,42 +1,36 @@
 package co.firstorderlabs.fakebase
 
-import java.time.Duration
+import java.time.{Duration, Instant}
 import java.util.logging.Logger
 
 import co.firstorderlabs.fakebase.Utils.getResultOptional
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Events.{
-  Event,
-  LimitOrderEvent,
-  OrderEvent
-}
-import co.firstorderlabs.fakebase.types.Types.{Datetime, TimeInterval}
+import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
+import co.firstorderlabs.fakebase.types.Exceptions.SimulationNotStarted
+import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future
 
 case class ExchangeCheckpoint(receivedEvents: List[Event]) extends Checkpoint
 
-case class SimulationMetadata(startTime: Datetime,
-                              endTime: Datetime,
+case class SimulationMetadata(startTime: Instant,
+                              endTime: Instant,
                               timeDelta: Duration,
                               numWarmUpSteps: Int,
                               initialProductFunds: ProductVolume,
                               initialQuoteFunds: QuoteVolume) {
   var currentTimeInterval =
-    TimeInterval(Datetime(startTime.instant.minus(timeDelta)), startTime)
+    TimeInterval(startTime.minus(timeDelta), startTime)
   var checkpoint: Option[SimulationCheckpoint] = None
 
   def checkpointTimeInterval: TimeInterval = {
     val checkpointStartTime =
-      startTime.instant.plus(timeDelta.multipliedBy(numWarmUpSteps))
+      startTime.plus(timeDelta.multipliedBy(numWarmUpSteps))
     val checkpointEndTime =
-      startTime.instant.plus(timeDelta.multipliedBy(numWarmUpSteps + 1))
-    TimeInterval(Datetime(checkpointStartTime), Datetime(checkpointEndTime))
+      startTime.plus(timeDelta.multipliedBy(numWarmUpSteps + 1))
+    TimeInterval(checkpointStartTime, checkpointEndTime)
   }
 
   def incrementCurrentTimeInterval: Unit = {
@@ -44,7 +38,7 @@ case class SimulationMetadata(startTime: Datetime,
   }
 
   def simulationIsOver: Boolean =
-    currentTimeInterval.startTime.instant isAfter endTime.instant
+    currentTimeInterval.startTime isAfter endTime
 }
 
 object Exchange
@@ -85,8 +79,16 @@ object Exchange
     matchingEngine.orderBooks(side)
   }
 
+  @throws[SimulationNotStarted]
+  def getSimulationMetadata: SimulationMetadata = {
+    simulationMetadata match {
+      case Some(simulationMetadata) => simulationMetadata
+      case None => throw SimulationNotStarted("The field simulationMetadata is empty. Please start a simulation.")
+    }
+  }
+
   override def checkpoint(request: Empty): Future[Empty] = {
-    simulationMetadata.get.checkpoint = Some(Checkpointer.createCheckpoint)
+    getSimulationMetadata.checkpoint = Some(Checkpointer.createCheckpoint)
     Future.successful(Constants.emptyProto)
   }
 
@@ -120,12 +122,11 @@ object Exchange
   override def reset(
     exchangeInfoRequest: ExchangeInfoRequest
   ): Future[ExchangeInfo] = {
-    failIfNoSimulationInProgress
-    simulationMetadata.get.currentTimeInterval =
-      simulationMetadata.get.checkpointTimeInterval
-    Checkpointer.restoreFromCheckpoint(simulationMetadata.get.checkpoint.get)
+    getSimulationMetadata.currentTimeInterval =
+      getSimulationMetadata.checkpointTimeInterval
+    Checkpointer.restoreFromCheckpoint(getSimulationMetadata.checkpoint.get)
     logger.info(
-      s"simulation reset to timeInterval ${simulationMetadata.get.currentTimeInterval}"
+      s"simulation reset to timeInterval ${getSimulationMetadata.currentTimeInterval}"
     )
 
     getExchangeInfo(exchangeInfoRequest)
@@ -140,19 +141,19 @@ object Exchange
       SimulationMetadata(
         simulationStartRequest.startTime,
         simulationStartRequest.endTime,
-        Duration.ofSeconds(simulationStartRequest.timeDelta.get.seconds),
+        simulationStartRequest.timeDelta.get,
         simulationStartRequest.numWarmUpSteps,
         simulationStartRequest.initialProductFunds,
-        simulationStartRequest.initialQuoteFunds
+      simulationStartRequest.initialQuoteFunds
       )
     )
 
-    logger.info(s"starting simulation for parameters ${simulationMetadata.get}")
+    logger.info(s"starting simulation for parameters ${getSimulationMetadata}")
 
     DatabaseWorkers.start(
-      simulationMetadata.get.startTime,
-      simulationMetadata.get.endTime,
-      simulationMetadata.get.timeDelta
+      getSimulationMetadata.startTime,
+      getSimulationMetadata.endTime,
+      getSimulationMetadata.timeDelta
     )
 
     Account.initializeWallets
@@ -174,15 +175,14 @@ object Exchange
   }
 
   override def step(stepRequest: StepRequest): Future[ExchangeInfo] = {
-    failIfNoSimulationInProgress
-    simulationMetadata.get.incrementCurrentTimeInterval
+    getSimulationMetadata.incrementCurrentTimeInterval
     require(
-      !simulationMetadata.get.simulationIsOver,
+      !getSimulationMetadata.simulationIsOver,
       "The simulation has ended. Please reset."
     )
 
     logger.fine(
-      s"Stepped to time interval ${simulationMetadata.get.currentTimeInterval}"
+      s"Stepped to time interval ${getSimulationMetadata.currentTimeInterval}"
     )
     logger.fine(
       s"There are ${DatabaseWorkers.getResultMapSize.toString} entries in the results map queue"
@@ -191,7 +191,7 @@ object Exchange
     Account.step
 
     val queryResult =
-      DatabaseWorkers.getQueryResult(simulationMetadata.get.currentTimeInterval)
+      DatabaseWorkers.getQueryResult(getSimulationMetadata.currentTimeInterval)
 
     receivedEvents = (Account.getReceivedOrders.toList
       ++ Account.getReceivedCancellations.toList
@@ -204,11 +204,11 @@ object Exchange
       ++ queryResult.sellLimitOrders
       ++ queryResult.sellMarketOrder
       ++ queryResult.cancellations)
-      .sortBy(event => event.time.instant)
+      .sortBy(event => event.time)
 
     if (receivedEvents.isEmpty)
       logger.warning(
-        s"No events queried for time interval ${simulationMetadata.get.currentTimeInterval}"
+        s"No events queried for time interval ${getSimulationMetadata.currentTimeInterval}"
       )
     else
       logger.fine(s"Processing ${receivedEvents.length} events")
@@ -240,8 +240,8 @@ object Exchange
         else None
 
       ExchangeInfo(
-        simulationMetadata.get.currentTimeInterval.startTime,
-        simulationMetadata.get.currentTimeInterval.endTime,
+        getSimulationMetadata.currentTimeInterval.startTime,
+        getSimulationMetadata.currentTimeInterval.endTime,
         getResultOptional(Account.getAccountInfo(Constants.emptyProto)),
         orderBooks,
         getResultOptional(getMatches(Constants.emptyProto)),
@@ -250,9 +250,6 @@ object Exchange
       ExchangeInfo()
     }
   }
-
-  private def failIfNoSimulationInProgress: Unit =
-    require(simulationInProgress, "no simulation in progress")
 
   private def simulationInProgress: Boolean = simulationMetadata.isDefined
 }

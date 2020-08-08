@@ -16,7 +16,7 @@ GRPC_REQUIRES = [
 
 DEPENDENCY_LINKS = {
     "cbpro": "git+https://github.com/danpaquin/coinbasepro-python@"
-    "0a9dbd86a25ae266d0e0eefeb112368c284b7dcc#egg=cbpro-1.1.4",
+    "0a9dbd86a25ae266d0e0eefeb112368c284b7dcc#egg=cbpro-1.1.4"
 }
 
 

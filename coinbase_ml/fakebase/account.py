@@ -5,6 +5,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from dateutil import parser
+from google.protobuf.duration_pb2 import Duration
 
 import coinbase_ml.common.constants as cc
 import coinbase_ml.fakebase.constants as c
@@ -190,6 +191,9 @@ class Account(AccountBase["exchange.Exchange"]):
         Returns:
             CoinbaseOrder: [description]
         """
+        _time_to_live = Duration()
+        _time_to_live.FromTimedelta(time_to_live) # pylint: disable=no-member
+
         if side is OrderSide.buy:
             buy_order_proto: BuyLimitOrder = self.stub.placeBuyLimitOrder(
                 BuyLimitOrderRequest(
@@ -197,6 +201,7 @@ class Account(AccountBase["exchange.Exchange"]):
                     productId=str(product_id),
                     size=str(size),
                     postOnly=post_only,
+                    timeToLive=_time_to_live,
                 )
             )
 
@@ -208,6 +213,7 @@ class Account(AccountBase["exchange.Exchange"]):
                     productId=str(product_id),
                     size=str(size),
                     postOnly=post_only,
+                    timeToLive=_time_to_live,
                 )
             )
 

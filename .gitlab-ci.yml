@@ -79,7 +79,7 @@ build:package_helm_charts:
 .helm_deploy_args: &helm_deploy_args |
   HELM_ARGS="--set CI_TOKEN=${CI_TOKEN}
   --set ENVIRONMENT=staging/train-${CI_COMMIT_REF_NAME}
-  --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
+  --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-pri.2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
   --set moonraker-common.registry.username=${CI_USERNAME}
   --set moonraker-common.registry.password=${CI_TOKEN}
   --set ray.head_deployment.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}

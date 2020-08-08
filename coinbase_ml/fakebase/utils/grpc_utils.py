@@ -19,7 +19,7 @@ def create_channel(port: int) -> Channel:
     Returns:
         Channel: insecure_channel connection to server
     """
-    return insecure_channel(target=f"localhost:{port}", options=c.GRPC_CHANNEL_OPTIONS,)
+    return insecure_channel(target=f"localhost:{port}", options=c.GRPC_CHANNEL_OPTIONS)
 
 
 def get_random_free_port() -> int:
@@ -46,7 +46,7 @@ def start_fakebase_server(port: int, test_mode: bool) -> Popen:
     Returns:
         Popen: daemon process handle
     """
-    process = Popen(["java", "-jar", c.FAKBASE_SERVER_JAR, str(port), str(test_mode)],)
+    process = Popen(["java", "-jar", c.FAKBASE_SERVER_JAR, str(port), str(test_mode)])
 
     register(lambda process: process.terminate(), process)
 
