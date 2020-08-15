@@ -26,6 +26,7 @@ def create_exchange() -> Tuple[Account, Exchange]:
         initial_product_funds=tc.TEST_WALLET_PRODUCT_FUNDS,
         initial_quote_funds=tc.TEST_WALLET_QUOTE_FUNDS,
         num_warmup_time_steps=0,
+        snapshot_buffer_size=3,
     )
 
     return tc.EXCHANGE.account, tc.EXCHANGE

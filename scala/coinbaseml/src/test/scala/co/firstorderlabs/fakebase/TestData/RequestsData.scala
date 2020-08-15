@@ -41,7 +41,8 @@ object RequestsData {
     Some(Duration.ofSeconds(30)),
     0,
     new ProductVolume(Right("100.000000")),
-    new QuoteVolume(Right("10000.00"))
+    new QuoteVolume(Right("10000.00")),
+    snapshotBufferSize = 3,
   )
 
   val checkpointedSimulationStartRequest = new SimulationStartRequest(
@@ -50,6 +51,7 @@ object RequestsData {
     Some(Duration.ofSeconds(30)),
     3,
     new ProductVolume(Right("100.000000")),
-    new QuoteVolume(Right("10000.00"))
+    new QuoteVolume(Right("10000.00")),
+    snapshotBufferSize = 3,
   )
 }

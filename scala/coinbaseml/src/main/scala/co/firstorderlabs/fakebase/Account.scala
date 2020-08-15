@@ -71,18 +71,18 @@ class MatchesHashMap extends HashMap[OrderId, ListBuffer[Match]] {
 
 }
 
-case class AccountCheckpoint(
+case class AccountSnapshot(
   orderRequests: HashMap[OrderRequestId, OrderRequest],
   placedCancellations: CancellationsHashMap,
   placedOrders: HashMap[OrderId, OrderEvent],
   matches: MatchesHashMap,
   walletsCheckpoint: WalletsCheckpoint,
   matchesInCurrentTimeInterval: ListBuffer[Match]
-) extends Checkpoint
+) extends Snapshot
 
 object Account
     extends AccountServiceGrpc.AccountService
-    with Checkpointable[AccountCheckpoint] {
+    with Snapshotable[AccountSnapshot] {
   val matches = new MatchesHashMap
   val placedOrders = new HashMap[OrderId, OrderEvent]
   private val orderRequests = new HashMap[OrderRequestId, OrderRequest]
@@ -121,17 +121,17 @@ object Account
       }
   }
 
-  def checkpoint: AccountCheckpoint =
-    AccountCheckpoint(
+  override def createSnapshot: AccountSnapshot =
+    AccountSnapshot(
       orderRequests.clone,
       placedCancellations.clone,
       placedOrders.clone,
       matches.clone,
-      Wallets.checkpoint,
+      Wallets.createSnapshot,
       matchesInCurrentTimeInterval.clone
     )
 
-  def clear: Unit = {
+  override def clear: Unit = {
     orderRequests.clear
     placedCancellations.clear
     placedOrders.clear
@@ -219,7 +219,7 @@ object Account
 
   def initializeWallets: Unit = Wallets.initializeWallets
 
-  def isCleared: Boolean = {
+  override def isCleared: Boolean = {
     (orderRequests.isEmpty
     && placedCancellations.isEmpty
     && placedOrders.isEmpty
@@ -228,14 +228,14 @@ object Account
     && matchesInCurrentTimeInterval.isEmpty)
   }
 
-  def restore(checkpoint: AccountCheckpoint): Unit = {
+  override def restore(snapshot: AccountSnapshot): Unit = {
     clear
-    orderRequests.addAll(checkpoint.orderRequests.iterator)
-    placedCancellations.addAll(checkpoint.placedCancellations.iterator)
-    placedOrders.addAll(checkpoint.placedOrders.iterator)
-    matches.addAll(checkpoint.matches.iterator)
-    Wallets.restore(checkpoint.walletsCheckpoint)
-    matchesInCurrentTimeInterval.addAll(checkpoint.matchesInCurrentTimeInterval)
+    orderRequests.addAll(snapshot.orderRequests.iterator)
+    placedCancellations.addAll(snapshot.placedCancellations.iterator)
+    placedOrders.addAll(snapshot.placedOrders.iterator)
+    matches.addAll(snapshot.matches.iterator)
+    Wallets.restore(snapshot.walletsCheckpoint)
+    matchesInCurrentTimeInterval.addAll(snapshot.matchesInCurrentTimeInterval)
   }
 
   def step: Unit = {

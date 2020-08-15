@@ -2,21 +2,10 @@ package co.firstorderlabs.fakebase
 
 import java.time.Duration
 
-import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  BuyLimitOrderRequest,
-  CancellationRequest,
-  ExchangeInfoRequest,
-  OrderSide,
-  SellLimitOrderRequest,
-  StepRequest
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.protos.fakebase.{BuyLimitOrderRequest, CancellationRequest, OrderSide, SellLimitOrderRequest, StepRequest}
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import org.scalatest.funspec.AnyFunSpec
 
@@ -77,46 +66,7 @@ class ExchangeTest extends AnyFunSpec {
         expectedTimeInterval == Exchange.getSimulationMetadata.currentTimeInterval
       )
 
-      assert(simulationMetadata.checkpoint.isEmpty)
-    }
-
-    it(
-      "If simulationStartRequest.numWarmUpSteps > 0, then a checkpoint should be created. After the simulation advances," +
-        "when reset, it should return to that checkpoint."
-    ) {
-      Exchange.start(checkpointedSimulationStartRequest)
-      val simulationMetadata = Exchange.getSimulationMetadata
-
-      assert(simulationMetadata.checkpoint.isDefined)
-
-      (1 to 5) foreach (_ => Exchange.step(Constants.emptyStepRequest))
-
-      Exchange.reset(ExchangeInfoRequest())
-
-      assert(simulationMetadata.checkpoint.get == Checkpointer.createCheckpoint)
-    }
-
-    it(
-      "No matter what orders are placed on the order book after a checkpoint is created, the simulation state should" +
-        "return to the checkpoint state when reset is called."
-    ) {
-      Exchange.start(simulationStartRequest)
-      advanceExchange
-      Exchange.reset(ExchangeInfoRequest())
-
-      assert(
-        Exchange.getSimulationMetadata.checkpoint.get == Checkpointer.createCheckpoint
-      )
-    }
-
-    it(
-      "If a simulation is started then stopped, its state should be cleared completely and DatabaseWorkers should enter a paused state."
-    ) {
-      Exchange.start(simulationStartRequest)
-      advanceExchange
-      Exchange.stop(Constants.emptyProto)
-      assert(Checkpointer.isCleared)
-      assert(DatabaseWorkers.isPaused)
+      assert(!Checkpointer.checkpointExists)
     }
 
     it(
@@ -305,28 +255,6 @@ class ExchangeTest extends AnyFunSpec {
               .compareTo(timeToLive.get) >= 0
           )
       }
-    }
-
-    def advanceExchange: Unit = {
-      Exchange step StepRequest(
-        insertOrders = OrdersData.insertSellOrders(
-          new ProductPrice(Right("100.00")),
-          new ProductVolume(Right("0.5"))
-        ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00")))
-      )
-
-      Account.placeBuyMarketOrder(buyMarketOrderRequest)
-
-      Exchange.checkpoint(Constants.emptyProto)
-
-      Exchange step StepRequest(
-        insertOrders = OrdersData.insertSellOrders(
-          new ProductPrice(Right("100.00")),
-          new ProductVolume(Right("0.5"))
-        ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00")))
-      )
-
-      Account.placeBuyMarketOrder(buyMarketOrderRequest)
     }
   }
 }

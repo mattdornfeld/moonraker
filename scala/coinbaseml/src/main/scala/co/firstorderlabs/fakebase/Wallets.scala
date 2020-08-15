@@ -31,9 +31,9 @@ case class Wallet[A <: Volume[A]](id: String,
   }
 }
 
-case class WalletsCheckpoint(walletsMap: WalletMap) extends Checkpoint
+case class WalletsCheckpoint(walletsMap: WalletMap) extends Snapshot
 
-object Wallets extends Checkpointable[WalletsCheckpoint] {
+object Wallets extends Snapshotable[WalletsCheckpoint] {
   type GenericWallet = Wallet[_ >: ProductVolume with QuoteVolume <: Volume[_ >: ProductVolume with QuoteVolume]]
   type WalletMap = HashMap[Currency, GenericWallet]
   private val walletsMap: WalletMap = new HashMap
@@ -58,7 +58,7 @@ object Wallets extends Checkpointable[WalletsCheckpoint] {
     }
   }
 
-  def checkpoint: WalletsCheckpoint = WalletsCheckpoint(walletsMap.clone)
+  def createSnapshot: WalletsCheckpoint = WalletsCheckpoint(walletsMap.clone)
 
   def clear: Unit = walletsMap.clear
 
@@ -147,9 +147,9 @@ object Wallets extends Checkpointable[WalletsCheckpoint] {
     }
   }
 
-  def restore(checkpoint: WalletsCheckpoint): Unit = {
+  def restore(snapshot: WalletsCheckpoint): Unit = {
     clear
-    walletsMap.addAll(checkpoint.walletsMap.iterator)
+    walletsMap.addAll(snapshot.walletsMap.iterator)
   }
 
   def toProto: WalletsProto =

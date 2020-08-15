@@ -13,7 +13,7 @@ import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future
 
-case class ExchangeCheckpoint(receivedEvents: List[Event]) extends Checkpoint
+case class ExchangeSnapshot(receivedEvents: List[Event]) extends Snapshot
 
 case class SimulationMetadata(startTime: Instant,
                               endTime: Instant,
@@ -23,15 +23,6 @@ case class SimulationMetadata(startTime: Instant,
                               initialQuoteFunds: QuoteVolume) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
-  var checkpoint: Option[SimulationCheckpoint] = None
-
-  def checkpointTimeInterval: TimeInterval = {
-    val checkpointStartTime =
-      startTime.plus(timeDelta.multipliedBy(numWarmUpSteps))
-    val checkpointEndTime =
-      startTime.plus(timeDelta.multipliedBy(numWarmUpSteps + 1))
-    TimeInterval(checkpointStartTime, checkpointEndTime)
-  }
 
   def incrementCurrentTimeInterval: Unit = {
     currentTimeInterval = currentTimeInterval + timeDelta
@@ -43,7 +34,7 @@ case class SimulationMetadata(startTime: Instant,
 
 object Exchange
     extends ExchangeServiceGrpc.ExchangeService
-    with Checkpointable[ExchangeCheckpoint] {
+    with Snapshotable[ExchangeSnapshot] {
   private val logger = Logger.getLogger(Exchange.toString)
   private val matchingEngine = MatchingEngine
 
@@ -57,22 +48,22 @@ object Exchange
     matchingEngine.checkIsTaker(limitOrder)
   }
 
-  def checkpoint: ExchangeCheckpoint = {
-    ExchangeCheckpoint(receivedEvents)
+  override def createSnapshot: ExchangeSnapshot = {
+    ExchangeSnapshot(receivedEvents)
   }
 
-  def clear: Unit = {
+  override def clear: Unit = {
     receivedEvents = List()
   }
 
-  def isCleared: Boolean = {
+  override def isCleared: Boolean = {
     receivedEvents.isEmpty
   }
 
-  def restore(checkpoint: ExchangeCheckpoint): Unit = {
+  override def restore(snapshot: ExchangeSnapshot): Unit = {
     // calling clear is not necessary since receivedEvents is an immutable List
     // and we're replacing the entire var, not the list contents
-    receivedEvents = checkpoint.receivedEvents
+    receivedEvents = snapshot.receivedEvents
   }
 
   def getOrderBook(side: OrderSide): OrderBook = {
@@ -88,7 +79,10 @@ object Exchange
   }
 
   override def checkpoint(request: Empty): Future[Empty] = {
-    getSimulationMetadata.checkpoint = Some(Checkpointer.createCheckpoint)
+    logger.info(
+      s"creating checkpoint at timeInterval ${Exchange.getSimulationMetadata.currentTimeInterval}"
+    )
+    Checkpointer.createCheckpoint
     Future.successful(Constants.emptyProto)
   }
 
@@ -122,9 +116,8 @@ object Exchange
   override def reset(
     exchangeInfoRequest: ExchangeInfoRequest
   ): Future[ExchangeInfo] = {
-    getSimulationMetadata.currentTimeInterval =
-      getSimulationMetadata.checkpointTimeInterval
-    Checkpointer.restoreFromCheckpoint(getSimulationMetadata.checkpoint.get)
+    getSimulationMetadata.currentTimeInterval = Checkpointer.checkpointTimeInterval
+    Checkpointer.restoreFromCheckpoint
     logger.info(
       s"simulation reset to timeInterval ${getSimulationMetadata.currentTimeInterval}"
     )
@@ -135,6 +128,7 @@ object Exchange
   override def start(
     simulationStartRequest: SimulationStartRequest
   ): Future[ExchangeInfo] = {
+    require(simulationStartRequest.snapshotBufferSize > 0, "snapshotBufferSize must be greater than 0")
     if (simulationInProgress) stop(Constants.emptyProto)
 
     simulationMetadata = Some(
@@ -159,6 +153,8 @@ object Exchange
     Account.initializeWallets
     Account.addFunds(simulationStartRequest.initialQuoteFunds)
     Account.addFunds(simulationStartRequest.initialProductFunds)
+
+    SnapshotBuffer.start(simulationStartRequest.snapshotBufferSize)
 
     if (simulationStartRequest.numWarmUpSteps > 0) {
       (1 to simulationStartRequest.numWarmUpSteps) foreach (
@@ -215,6 +211,8 @@ object Exchange
 
     matchingEngine.matches.clear
     matchingEngine.processEvents(receivedEvents)
+
+    SnapshotBuffer.step
 
     val exchangeInfoRequest =
       if (stepRequest.exchangeInfoRequest.isDefined)

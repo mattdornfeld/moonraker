@@ -121,11 +121,11 @@ class LinkedBlockingQueue[A] extends LinkedBlockingQueueBase[A] {
   }
 }
 
-case class DatabaseWorkersCheckpoint(
+case class DatabaseWorkersSnapshot(
   timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
-) extends Checkpoint
+) extends Snapshot
 
-object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
+object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
   // This val def is not strictly neccsary, but Doobie needs JavaTimeInstantMeta
   // in scope to query timestamp types from the databse, and Intellij autoimport
   // feature will delete the import if below is not defined
@@ -182,15 +182,15 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
     yield new DatabaseWorkers
   workers.foreach(w => w.start)
 
-  override def checkpoint: DatabaseWorkersCheckpoint = {
+  override def createSnapshot: DatabaseWorkersSnapshot = {
     val checkpointTimeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
     populateTimeIntervalQueue(
-      Exchange.getSimulationMetadata.checkpointTimeInterval.startTime,
+      Exchange.getSimulationMetadata.currentTimeInterval.startTime,
       Exchange.getSimulationMetadata.endTime,
       Exchange.getSimulationMetadata.timeDelta,
       checkpointTimeIntervalQueue
     )
-    DatabaseWorkersCheckpoint(checkpointTimeIntervalQueue)
+    DatabaseWorkersSnapshot(checkpointTimeIntervalQueue)
   }
 
   override def clear: Unit = {
@@ -204,9 +204,9 @@ object DatabaseWorkers extends Checkpointable[DatabaseWorkersCheckpoint] {
     && timeIntervalQueue.isEmpty)
   }
 
-  override def restore(checkpoint: DatabaseWorkersCheckpoint): Unit = {
+  override def restore(snapshot: DatabaseWorkersSnapshot): Unit = {
     clear
-    timeIntervalQueue.addAll(checkpoint.timeIntervalQueue)
+    timeIntervalQueue.addAll(snapshot.timeIntervalQueue)
     unpauseWorkers
   }
 
