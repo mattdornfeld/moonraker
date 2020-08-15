@@ -1,6 +1,6 @@
 package co.firstorderlabs.fakebase.types
 
-import java.time.{Instant, Duration}
+import java.time.{Duration, Instant}
 
 import co.firstorderlabs.fakebase.protos.fakebase.Currency
 import scalapb.TypeMapper

@@ -305,6 +305,7 @@ message SimulationStartRequest {
     string initialProductFunds = 5 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
     string initialQuoteFunds = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume"];
     ExchangeInfoRequest exchangeInfoRequest = 7;
+    int32 snapshotBufferSize = 8;
 }
 
 message StepRequest {

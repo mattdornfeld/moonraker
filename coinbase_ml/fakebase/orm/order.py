@@ -496,7 +496,7 @@ class CoinbaseOrder(MatchOrderEvent, Base):  # pylint: disable=R0903,R0902
         """
         if self.time_to_live:
             time_to_live = Duration()
-            time_to_live.FromTimedelta(self.time_to_live) # pylint: disable=no-member
+            time_to_live.FromTimedelta(self.time_to_live)  # pylint: disable=no-member
         else:
             time_to_live = None
 

@@ -192,7 +192,7 @@ class Account(AccountBase["exchange.Exchange"]):
             CoinbaseOrder: [description]
         """
         _time_to_live = Duration()
-        _time_to_live.FromTimedelta(time_to_live) # pylint: disable=no-member
+        _time_to_live.FromTimedelta(time_to_live)  # pylint: disable=no-member
 
         if side is OrderSide.buy:
             buy_order_proto: BuyLimitOrder = self.stub.placeBuyLimitOrder(

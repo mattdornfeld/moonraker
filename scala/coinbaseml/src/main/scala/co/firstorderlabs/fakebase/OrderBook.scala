@@ -14,23 +14,23 @@ import scala.math.Ordering
 case class OrderBookCheckpoint(
   orderIdLookup: HashMap[OrderId, LimitOrderEvent],
   priceTimeTree: TreeMap[OrderBookKey, LimitOrderEvent]
-) extends Checkpoint
+) extends Snapshot
 
 case class OrderBookKey(price: ProductPrice, time: Duration, degeneracy: Int)
 
-class OrderBook extends Checkpointable[OrderBookCheckpoint] {
+class OrderBook extends Snapshotable[OrderBookCheckpoint] {
   private val orderIdLookup = new HashMap[OrderId, LimitOrderEvent]
   private val priceTimeTree =
     new TreeMap[OrderBookKey, LimitOrderEvent]()(OrderBook.OrderBookKeyOrdering)
 
-  override def checkpoint: OrderBookCheckpoint = {
+  override def createSnapshot: OrderBookCheckpoint = {
     OrderBookCheckpoint(orderIdLookup.clone, priceTimeTree.clone)
   }
 
-  override def restore(checkpoint: OrderBookCheckpoint): Unit = {
+  override def restore(snapshot: OrderBookCheckpoint): Unit = {
     clear
-    orderIdLookup.addAll(checkpoint.orderIdLookup.iterator)
-    priceTimeTree.addAll(checkpoint.priceTimeTree.iterator)
+    orderIdLookup.addAll(snapshot.orderIdLookup.iterator)
+    priceTimeTree.addAll(snapshot.priceTimeTree.iterator)
   }
 
   override def clear: Unit = {

@@ -261,6 +261,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         initial_product_funds: ProductVolume,
         initial_quote_funds: QuoteVolume,
         num_warmup_time_steps: int,
+        snapshot_buffer_size: int,
     ) -> None:
         """
         start [summary]
@@ -269,6 +270,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             initial_product_funds (ProductVolume): [description]
             initial_quote_funds (QuoteVolume): [description]
             num_warmup_time_steps (int): [description]
+            snapshot_buffer_size (int): [description]
         """
         self._order_books = {}
 
@@ -291,6 +293,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             numWarmUpSteps=0,
             initialProductFunds=str(initial_product_funds),
             initialQuoteFunds=str(initial_quote_funds),
+            snapshotBufferSize=snapshot_buffer_size,
         )
 
         exchange_info: ExchangeInfo = self.stub.start(message)

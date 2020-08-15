@@ -16,13 +16,13 @@ import co.firstorderlabs.fakebase.types.Types._
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-case class MatchingEngineCheckpoint(
+case class MatchingEngineSnapshot(
   buyOrderBookCheckpoint: OrderBookCheckpoint,
   matches: ListBuffer[Match],
   sellOrderBookCheckpoint: OrderBookCheckpoint
-) extends Checkpoint
+) extends Snapshot
 
-object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
+object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   val matches = new ListBuffer[Match]
   val orderBooks = Map[OrderSide, OrderBook](
     OrderSide.buy -> new OrderBook,
@@ -44,10 +44,10 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
       OrderUtils.setOrderStatusToDone(order, DoneReason.cancelled)
   }
 
-  def checkpoint: MatchingEngineCheckpoint = MatchingEngineCheckpoint(
-    orderBooks(OrderSide.buy).checkpoint,
+  override def createSnapshot: MatchingEngineSnapshot = MatchingEngineSnapshot(
+    orderBooks(OrderSide.buy).createSnapshot,
     matches.clone,
-    orderBooks(OrderSide.sell).checkpoint
+    orderBooks(OrderSide.sell).createSnapshot
   )
 
   def checkIsTaker(order: LimitOrderEvent): Boolean = {
@@ -67,12 +67,12 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
     }
   }
 
-  def clear: Unit = {
+  override def clear: Unit = {
     orderBooks.values.foreach(orderBook => orderBook.clear)
     matches.clear
   }
 
-  def isCleared: Boolean = {
+  override def isCleared: Boolean = {
     orderBooks.values.forall(orderBook => orderBook.isCleared) && matches.isEmpty
   }
 
@@ -85,11 +85,11 @@ object MatchingEngine extends Checkpointable[MatchingEngineCheckpoint] {
     })
   }
 
-  def restore(checkpoint: MatchingEngineCheckpoint): Unit = {
+  override def restore(snapshot: MatchingEngineSnapshot): Unit = {
     clear
-    orderBooks(OrderSide.buy).restore(checkpoint.buyOrderBookCheckpoint)
-    orderBooks(OrderSide.sell).restore(checkpoint.sellOrderBookCheckpoint)
-    matches.addAll(checkpoint.matches.iterator)
+    orderBooks(OrderSide.buy).restore(snapshot.buyOrderBookCheckpoint)
+    orderBooks(OrderSide.sell).restore(snapshot.sellOrderBookCheckpoint)
+    matches.addAll(snapshot.matches.iterator)
   }
 
   @tailrec

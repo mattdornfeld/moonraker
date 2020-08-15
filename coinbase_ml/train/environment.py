@@ -175,6 +175,7 @@ class Environment(Env):  # pylint: disable=W0223
                 initial_product_funds=self.config.initial_btc,
                 initial_quote_funds=self.config.initial_usd,
                 num_warmup_time_steps=0,
+                snapshot_buffer_size=3,
             )
 
             self._warmup()
