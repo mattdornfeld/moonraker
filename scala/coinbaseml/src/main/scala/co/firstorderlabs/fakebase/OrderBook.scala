@@ -6,28 +6,33 @@ import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events.LimitOrderEvent
+import co.firstorderlabs.fakebase.types.Exceptions.OrderBookEmpty
 import co.firstorderlabs.fakebase.types.Types.OrderId
 
 import scala.collection.mutable.{HashMap, TreeMap}
 import scala.math.Ordering
 
-case class OrderBookCheckpoint(
+case class OrderBookSnapshot(
   orderIdLookup: HashMap[OrderId, LimitOrderEvent],
   priceTimeTree: TreeMap[OrderBookKey, LimitOrderEvent]
 ) extends Snapshot
 
 case class OrderBookKey(price: ProductPrice, time: Duration, degeneracy: Int)
 
-class OrderBook extends Snapshotable[OrderBookCheckpoint] {
+class OrderBook(snapshot: Option[OrderBookSnapshot] = None) extends Snapshotable[OrderBookSnapshot] {
   private val orderIdLookup = new HashMap[OrderId, LimitOrderEvent]
   private val priceTimeTree =
     new TreeMap[OrderBookKey, LimitOrderEvent]()(OrderBook.OrderBookKeyOrdering)
 
-  override def createSnapshot: OrderBookCheckpoint = {
-    OrderBookCheckpoint(orderIdLookup.clone, priceTimeTree.clone)
+  if (snapshot.isDefined) {
+    restore(snapshot.get)
   }
 
-  override def restore(snapshot: OrderBookCheckpoint): Unit = {
+  override def createSnapshot: OrderBookSnapshot = {
+    OrderBookSnapshot(orderIdLookup.clone, priceTimeTree.clone)
+  }
+
+  override def restore(snapshot: OrderBookSnapshot): Unit = {
     clear
     orderIdLookup.addAll(snapshot.orderIdLookup.iterator)
     priceTimeTree.addAll(snapshot.priceTimeTree.iterator)
@@ -119,6 +124,13 @@ class OrderBook extends Snapshotable[OrderBookCheckpoint] {
     val order = orderIdLookup.remove(orderId)
     val key = OrderBook.getOrderBookKey(order.get)
     priceTimeTree.remove(key)
+  }
+
+  @throws[OrderBookEmpty]
+  def throwExceptionIfEmpty: Unit = {
+    if (isEmpty) {
+      throw new OrderBookEmpty
+    }
   }
 
   def update(key: OrderBookKey, order: LimitOrderEvent) = {

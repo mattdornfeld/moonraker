@@ -1,5 +1,7 @@
 package co.firstorderlabs.fakebase
 
+import java.time.Duration
+
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 
 import scala.collection.mutable
@@ -51,6 +53,7 @@ case class SimulationSnapshot(accountSnapshot: AccountSnapshot,
  */
 class SnapshotBuffer(maxSize: Int) extends mutable.Queue[SimulationSnapshot] {
   private var _maxSize = maxSize
+  private var snapshotBufferArray: Option[Array[SimulationSnapshot]] = None
 
   /** Override addOne so that there are never more than maxSize elements in the queue
    *
@@ -60,6 +63,7 @@ class SnapshotBuffer(maxSize: Int) extends mutable.Queue[SimulationSnapshot] {
   override def addOne(simulationSnapshot: SimulationSnapshot): this.type = {
     if (length >= _maxSize) dequeue()
     super.addOne(simulationSnapshot)
+    snapshotBufferArray = None
     this
   }
 
@@ -74,6 +78,19 @@ class SnapshotBuffer(maxSize: Int) extends mutable.Queue[SimulationSnapshot] {
    * @param maxSize
    */
   def setMaxSize(maxSize: Int): Unit = _maxSize = maxSize
+
+  /** Converts SnapshotBuffer to Array to support random access of elements. Caches the
+    * result so that the array does not need to be created multiple times
+    *
+    * @return
+    */
+  def toArray: Array[SimulationSnapshot] = {
+    if (snapshotBufferArray.isEmpty) {
+      snapshotBufferArray = Some(super.toArray)
+    }
+
+    snapshotBufferArray.get
+  }
 }
 
 /** SnapshotBuffer is a collection of methods for creating snapshots of simulation state,
@@ -97,6 +114,24 @@ object SnapshotBuffer {
 
   def getMaxSize: Int = snapshotBuffer.getMaxSize
 
+  def getSnapshot(timeInterval: TimeInterval): SimulationSnapshot = {
+    val simulationMetaData = Exchange.getSimulationMetadata
+
+    val numStepsInPast = Duration
+      .between(simulationMetaData.currentTimeInterval.startTime, timeInterval.startTime)
+      .dividedBy(simulationMetaData.timeDelta)
+      .toInt
+      .abs
+
+    val i = size - numStepsInPast - 1
+    if (i < 0 || size == 0) {
+      throw new ArrayIndexOutOfBoundsException(s"TimeInterval ${timeInterval} is ${numStepsInPast} time steps in the past. " +
+        s"SnapshotBuffer only has ${size} elements.")
+    }
+
+    toArray.apply(i)
+  }
+
   def isCleared: Boolean = snapshotBuffer.isEmpty
 
   def restoreFromCheckpoint(snapshotBufferCheckpoint: SnapshotBuffer): Unit = {
@@ -105,10 +140,14 @@ object SnapshotBuffer {
       .foreach(snapshot => snapshotBuffer.enqueue(snapshot))
   }
 
+  def size: Int = snapshotBuffer.size
+
   def start(snapshotBufferSize: Int): Unit = {
     snapshotBuffer.setMaxSize(snapshotBufferSize)
     Checkpointer.start(snapshotBufferSize)
   }
 
   def step: Unit = snapshotBuffer.enqueue(createSnapshot)
+
+  def toArray: Array[SimulationSnapshot] = snapshotBuffer.toArray
 }

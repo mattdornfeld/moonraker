@@ -28,6 +28,10 @@ case class SimulationMetadata(startTime: Instant,
     currentTimeInterval = currentTimeInterval + timeDelta
   }
 
+  def previousTimeInterval: TimeInterval = {
+    currentTimeInterval - timeDelta
+  }
+
   def simulationIsOver: Boolean =
     currentTimeInterval.startTime isAfter endTime
 }

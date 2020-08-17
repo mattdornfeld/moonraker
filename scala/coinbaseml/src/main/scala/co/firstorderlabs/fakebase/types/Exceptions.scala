@@ -2,6 +2,7 @@ package co.firstorderlabs.fakebase.types
 
 object Exceptions {
   final class CheckpointNotFound extends IllegalStateException
+  final class OrderBookEmpty extends IllegalStateException
   final case class OrderNotFound(message: String) extends IllegalArgumentException
   final case class InvalidOrderStatus(message: String) extends IllegalArgumentException
   final case class InvalidOrderType(message: String) extends IllegalArgumentException
