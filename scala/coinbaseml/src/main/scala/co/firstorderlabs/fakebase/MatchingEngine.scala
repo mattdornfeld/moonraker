@@ -17,9 +17,9 @@ import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
 case class MatchingEngineSnapshot(
-  buyOrderBookCheckpoint: OrderBookCheckpoint,
-  matches: ListBuffer[Match],
-  sellOrderBookCheckpoint: OrderBookCheckpoint
+                                   buyOrderBookSnapshot: OrderBookSnapshot,
+                                   matches: ListBuffer[Match],
+                                   sellOrderBookSnapshot: OrderBookSnapshot
 ) extends Snapshot
 
 object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
@@ -87,8 +87,8 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
 
   override def restore(snapshot: MatchingEngineSnapshot): Unit = {
     clear
-    orderBooks(OrderSide.buy).restore(snapshot.buyOrderBookCheckpoint)
-    orderBooks(OrderSide.sell).restore(snapshot.sellOrderBookCheckpoint)
+    orderBooks(OrderSide.buy).restore(snapshot.buyOrderBookSnapshot)
+    orderBooks(OrderSide.sell).restore(snapshot.sellOrderBookSnapshot)
     matches.addAll(snapshot.matches.iterator)
   }
 

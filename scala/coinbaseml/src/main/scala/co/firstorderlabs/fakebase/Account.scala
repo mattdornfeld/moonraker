@@ -72,12 +72,12 @@ class MatchesHashMap extends HashMap[OrderId, ListBuffer[Match]] {
 }
 
 case class AccountSnapshot(
-  orderRequests: HashMap[OrderRequestId, OrderRequest],
-  placedCancellations: CancellationsHashMap,
-  placedOrders: HashMap[OrderId, OrderEvent],
-  matches: MatchesHashMap,
-  walletsCheckpoint: WalletsCheckpoint,
-  matchesInCurrentTimeInterval: ListBuffer[Match]
+                            orderRequests: HashMap[OrderRequestId, OrderRequest],
+                            placedCancellations: CancellationsHashMap,
+                            placedOrders: HashMap[OrderId, OrderEvent],
+                            matches: MatchesHashMap,
+                            walletsSnapshot: WalletsSnapshot,
+                            matchesInCurrentTimeInterval: ListBuffer[Match]
 ) extends Snapshot
 
 object Account
@@ -234,7 +234,7 @@ object Account
     placedCancellations.addAll(snapshot.placedCancellations.iterator)
     placedOrders.addAll(snapshot.placedOrders.iterator)
     matches.addAll(snapshot.matches.iterator)
-    Wallets.restore(snapshot.walletsCheckpoint)
+    Wallets.restore(snapshot.walletsSnapshot)
     matchesInCurrentTimeInterval.addAll(snapshot.matchesInCurrentTimeInterval)
   }
 
