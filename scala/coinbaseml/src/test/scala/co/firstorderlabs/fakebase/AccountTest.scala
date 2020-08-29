@@ -4,7 +4,7 @@ import java.time.Duration
 
 import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
-import co.firstorderlabs.fakebase.Utils.getResult
+import co.firstorderlabs.common.utils.Utils.getResult
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume

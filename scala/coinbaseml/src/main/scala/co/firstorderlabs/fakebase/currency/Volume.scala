@@ -20,6 +20,7 @@ object Volume {
     val currency: Currency
     val maxVolume: T
     val minVolume: T
+    val normalizationFactor: Double
     val scale: Int
     val zeroVolume: T
   }
@@ -66,6 +67,8 @@ object Volume {
       * @return
       */
     def /(that: Either[BigDecimal, Double]): T
+
+    def normalize: Double = this.toDouble / companion.normalizationFactor
 
     /**Checks if this volume is zero.
       *
@@ -188,6 +191,7 @@ object Volume {
     val currency = Currency.BTC
     val maxVolume = new BtcVolume(Right("1e4"))
     val minVolume = new BtcVolume(Right("1e-3"))
+    val normalizationFactor = 1e2
     val scale = 8
     val zeroVolume = new BtcVolume(Right("0.0"))
   }
@@ -202,6 +206,7 @@ object Volume {
     val currency = Currency.USD
     val maxVolume = new UsdVolume(Right("1e10"))
     val minVolume = new UsdVolume(Right("1e-2"))
+    val normalizationFactor = 1e6
     val scale = 2
     val zeroVolume = new UsdVolume(Right("0.0"))
   }

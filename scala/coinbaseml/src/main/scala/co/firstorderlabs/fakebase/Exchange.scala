@@ -3,10 +3,17 @@ package co.firstorderlabs.fakebase
 import java.time.{Duration, Instant}
 import java.util.logging.Logger
 
-import co.firstorderlabs.fakebase.Utils.getResultOptional
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.utils.Utils.getResultOptional
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
+import co.firstorderlabs.fakebase.types.Events.{
+  Event,
+  LimitOrderEvent,
+  OrderEvent
+}
 import co.firstorderlabs.fakebase.types.Exceptions.SimulationNotStarted
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
@@ -78,7 +85,10 @@ object Exchange
   def getSimulationMetadata: SimulationMetadata = {
     simulationMetadata match {
       case Some(simulationMetadata) => simulationMetadata
-      case None => throw SimulationNotStarted("The field simulationMetadata is empty. Please start a simulation.")
+      case None =>
+        throw SimulationNotStarted(
+          "The field simulationMetadata is empty. Please start a simulation."
+        )
     }
   }
 
@@ -103,15 +113,13 @@ object Exchange
   }
 
   override def getOrderBooks(request: OrderBooksRequest): Future[OrderBooks] = {
-    val buyOrderBook = for ((price, volume) <- MatchingEngine
-                              .orderBooks(OrderSide.buy)
-                              .aggregateToMap(request.orderBookDepth, true))
-      yield (price.toPlainString, volume.toPlainString)
+    val buyOrderBook = MatchingEngine
+      .orderBooks(OrderSide.buy)
+      .aggregateToMap(request.orderBookDepth, true)
 
-    val sellOrderBook = for ((price, volume) <- MatchingEngine
-                               .orderBooks(OrderSide.sell)
-                               .aggregateToMap(request.orderBookDepth))
-      yield (price.toPlainString, volume.toPlainString)
+    val sellOrderBook = MatchingEngine
+      .orderBooks(OrderSide.sell)
+      .aggregateToMap(request.orderBookDepth)
 
     val orderBooks = new OrderBooks(buyOrderBook, sellOrderBook)
     Future.successful(orderBooks)
@@ -120,7 +128,8 @@ object Exchange
   override def reset(
     exchangeInfoRequest: ExchangeInfoRequest
   ): Future[ExchangeInfo] = {
-    getSimulationMetadata.currentTimeInterval = Checkpointer.checkpointTimeInterval
+    getSimulationMetadata.currentTimeInterval =
+      Checkpointer.checkpointTimeInterval
     Checkpointer.restoreFromCheckpoint
     logger.info(
       s"simulation reset to timeInterval ${getSimulationMetadata.currentTimeInterval}"
@@ -132,7 +141,10 @@ object Exchange
   override def start(
     simulationStartRequest: SimulationStartRequest
   ): Future[ExchangeInfo] = {
-    require(simulationStartRequest.snapshotBufferSize > 0, "snapshotBufferSize must be greater than 0")
+    require(
+      simulationStartRequest.snapshotBufferSize > 0,
+      "snapshotBufferSize must be greater than 0"
+    )
     if (simulationInProgress) stop(Constants.emptyProto)
 
     simulationMetadata = Some(
@@ -142,7 +154,7 @@ object Exchange
         simulationStartRequest.timeDelta.get,
         simulationStartRequest.numWarmUpSteps,
         simulationStartRequest.initialProductFunds,
-      simulationStartRequest.initialQuoteFunds
+        simulationStartRequest.initialQuoteFunds
       )
     )
 

@@ -41,7 +41,7 @@ def get_and_build_trainer(
             trainer_name
         ].__getattribute__("build_trainer")
     except KeyError:
-        raise TrainerNotFoundException(trainer_name)
+        raise TrainerNotFoundException(trainer_name) from KeyError
 
     return build_trainer_func(
         hyper_params, test_environment_configs, train_environment_configs

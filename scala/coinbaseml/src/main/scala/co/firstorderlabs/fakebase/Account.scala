@@ -2,7 +2,7 @@ package co.firstorderlabs.fakebase
 
 import java.util.UUID
 
-import co.firstorderlabs.fakebase.Utils.getResultOptional
+import co.firstorderlabs.common.utils.Utils.getResultOptional
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
   ProductVolume,

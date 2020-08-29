@@ -34,7 +34,7 @@ class CoinbaseKafkaStreamProducer(WebsocketClient):
         kafka_topic: str,
         kafka_bootstrap_servers: Optional[Union[str, List[str]]] = None,
     ) -> None:
-        super(CoinbaseKafkaStreamProducer, self).__init__(
+        super().__init__(
             channels=COINBASE_WEBSOCKET_CHANNELS,
             products=[str(cc.PRODUCT_ID)],
             url=COINBASE_WEBSOCKET_API_URL,

@@ -2,10 +2,20 @@ package co.firstorderlabs.fakebase
 
 import java.time.Duration
 
+import co.firstorderlabs.common.utils
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.fakebase.protos.fakebase.{BuyLimitOrderRequest, CancellationRequest, OrderSide, SellLimitOrderRequest, StepRequest}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
+import co.firstorderlabs.fakebase.protos.fakebase.{
+  BuyLimitOrderRequest,
+  CancellationRequest,
+  OrderSide,
+  SellLimitOrderRequest,
+  StepRequest
+}
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import org.scalatest.funspec.AnyFunSpec
 
@@ -74,7 +84,7 @@ class ExchangeTest extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
       val orderBooks =
-        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
       assert(
         orderBooks.buyOrderBook.isEmpty && orderBooks.sellOrderBook.isEmpty
       )
@@ -88,40 +98,42 @@ class ExchangeTest extends AnyFunSpec {
       Account.placeSellLimitOrder(sellLimitOrderRequest)
       Exchange.step(Constants.emptyStepRequest)
       val orderBooks =
-        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
       assert(orderBooks.buyOrderBook.size == 1)
       assert(orderBooks.sellOrderBook.size == 1)
       assert(
         orderBooks.buyOrderBook
-          .get(buyLimitOrderRequest.price.toPlainString)
-          .get == buyLimitOrderRequest.size.toPlainString
+          .get(buyLimitOrderRequest.price)
+          .get == buyLimitOrderRequest.size
       )
       assert(
         orderBooks.sellOrderBook
-          .get(sellLimitOrderRequest.price.toPlainString)
-          .get == sellLimitOrderRequest.size.toPlainString
+          .get(sellLimitOrderRequest.price)
+          .get == sellLimitOrderRequest.size
       )
 
       val buyOrder =
-        Utils.getResult(Account.placeBuyLimitOrder(buyLimitOrderRequest))
+        utils.Utils.getResult(Account.placeBuyLimitOrder(buyLimitOrderRequest))
       val sellOrder =
-        Utils.getResult(Account.placeSellLimitOrder(sellLimitOrderRequest))
+        utils.Utils.getResult(
+          Account.placeSellLimitOrder(sellLimitOrderRequest)
+        )
       Exchange.step(Constants.emptyStepRequest)
       val orderBooks2 =
-        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
       assert(orderBooks2.buyOrderBook.size == 1)
       assert(orderBooks2.sellOrderBook.size == 1)
       assert(
         orderBooks2.buyOrderBook
-          .get(buyLimitOrderRequest.price.toPlainString)
-          .get == (buyLimitOrderRequest.size * Right(2.0)).toPlainString
+          .get(buyLimitOrderRequest.price)
+          .get == (buyLimitOrderRequest.size * Right(2.0))
       )
       assert(
         orderBooks2.sellOrderBook
-          .get(sellLimitOrderRequest.price.toPlainString)
-          .get == (sellLimitOrderRequest.size * Right(2.0)).toPlainString
+          .get(sellLimitOrderRequest.price)
+          .get == (sellLimitOrderRequest.size * Right(2.0))
       )
 
       List(buyOrder.orderId, sellOrder.orderId)
@@ -130,19 +142,19 @@ class ExchangeTest extends AnyFunSpec {
         )
       Exchange.step(Constants.emptyStepRequest)
       val orderBooks3 =
-        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
 
       assert(orderBooks3.buyOrderBook.size == 1)
       assert(orderBooks3.sellOrderBook.size == 1)
       assert(
         orderBooks3.buyOrderBook
-          .get(buyLimitOrderRequest.price.toPlainString)
-          .get == buyLimitOrderRequest.size.toPlainString
+          .get(buyLimitOrderRequest.price)
+          .get == buyLimitOrderRequest.size
       )
       assert(
         orderBooks3.sellOrderBook
-          .get(sellLimitOrderRequest.price.toPlainString)
-          .get == sellLimitOrderRequest.size.toPlainString
+          .get(sellLimitOrderRequest.price)
+          .get == sellLimitOrderRequest.size
       )
     }
 
@@ -176,7 +188,7 @@ class ExchangeTest extends AnyFunSpec {
       Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
 
       val orderBooks =
-        Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
       List(orderBooks.buyOrderBook, orderBooks.sellOrderBook)
         .foreach(orderBook => assert(orderBook.size == 10))
 
@@ -184,24 +196,24 @@ class ExchangeTest extends AnyFunSpec {
         .foreach(
           orderBook =>
             orderBook.values
-              .foreach(volume => assert(volume == productVolume.toPlainString))
+              .foreach(volume => assert(volume equalTo productVolume))
         )
 
       assert(
-        orderBooks.buyOrderBook.min._1 == buyOrders(
+        orderBooks.buyOrderBook.min._1 equalTo buyOrders(
           buyOrders.size - orderBooksRequest.orderBookDepth
-        ).asMessage.getBuyLimitOrder.price.toPlainString
+        ).asMessage.getBuyLimitOrder.price
       )
       assert(
-        orderBooks.buyOrderBook.max._1 == buyOrders.last.asMessage.getBuyLimitOrder.price.toPlainString
+        orderBooks.buyOrderBook.max._1 equalTo buyOrders.last.asMessage.getBuyLimitOrder.price
       )
       assert(
-        orderBooks.sellOrderBook.min._1 == sellOrders.head.asMessage.getSellLimitOrder.price.toPlainString
+        orderBooks.sellOrderBook.min._1 equalTo sellOrders.head.asMessage.getSellLimitOrder.price
       )
       assert(
-        orderBooks.sellOrderBook.max._1 == sellOrders(
+        orderBooks.sellOrderBook.max._1 equalTo sellOrders(
           orderBooksRequest.orderBookDepth - 1
-        ).asMessage.getSellLimitOrder.price.toPlainString
+        ).asMessage.getSellLimitOrder.price
       )
     }
 
@@ -236,7 +248,7 @@ class ExchangeTest extends AnyFunSpec {
               Account.placeSellLimitOrder(orderRequest)
           }
 
-          val order = Utils.getResult(orderFuture)
+          val order = utils.Utils.getResult(orderFuture)
 
           Exchange.step(Constants.emptyStepRequest)
 
