@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  preserve_unknown_fields: false
+};
+
+package co.firstorderlabs.common.protos;
+
+service FeaturizerService {
+    rpc getObservation (ObservationRequest) returns (Observation) {
+    }
+}
+
+message ObservationRequest {
+    int32 orderBookDepth = 1;
+}
+
+message Observation {
+
+}

@@ -357,7 +357,7 @@ class FullConvolutionBlock:
 
         layers = [
             _Conv2D(*self.args, **self.kwargs) for _ in range(self.depth)
-        ]  # pylint: disable=C0330
+        ]
 
         return compose(*layers)(input_tensor)
 
@@ -405,7 +405,7 @@ class FullConvolutionBlock1D:
 
         layers = [
             _Conv1D(*self.args, **self.kwargs) for _ in range(self.depth)
-        ]  # pylint: disable=C0330
+        ]
 
         return compose(*layers)(input_tensor)
 

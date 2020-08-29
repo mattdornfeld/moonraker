@@ -29,19 +29,17 @@ trait RewardStrategy {
       Some(snapshot.matchingEngineSnapshot.sellOrderBookSnapshot)
     )
 
-    val bestAskPrice = sellOrderBook.minPrice.getOrElse(ProductPrice.zeroPrice)
-    val bestBidPrice = buyOrderBook.maxPrice.getOrElse(ProductPrice.zeroPrice)
-
-    if (bestAskPrice equalTo ProductPrice.zeroPrice) {
+    val bestAskPrice = sellOrderBook.minPrice.getOrElse {
       logger.warning(
         "The best ask price is 0. This indicates the sell order book is empty"
       )
+      ProductPrice.zeroPrice
     }
-
-    if (bestBidPrice equalTo ProductPrice.zeroPrice) {
+    val bestBidPrice = buyOrderBook.maxPrice.getOrElse {
       logger.warning(
         "The best bid price is 0. This indicates the buy order book is empty"
       )
+      ProductPrice.zeroPrice
     }
 
     ((bestAskPrice + bestBidPrice) / Right(2.0)).toDouble

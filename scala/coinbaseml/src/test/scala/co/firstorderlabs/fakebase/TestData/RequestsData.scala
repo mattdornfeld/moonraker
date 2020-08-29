@@ -2,6 +2,7 @@ package co.firstorderlabs.fakebase.TestData
 
 import java.time.{Duration, Instant}
 
+import co.firstorderlabs.common.protos.featurizer.ObservationRequest
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
@@ -54,4 +55,6 @@ object RequestsData {
     new QuoteVolume(Right("10000.00")),
     snapshotBufferSize = 3,
   )
+
+  val observationRequest = new ObservationRequest(10)
 }

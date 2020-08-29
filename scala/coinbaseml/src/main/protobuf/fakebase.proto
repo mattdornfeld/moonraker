@@ -293,8 +293,10 @@ message OrderBooksRequest {
 }
 
 message OrderBooks {
-    map<string, string> buyOrderBook = 1;
-    map<string, string> sellOrderBook = 2;
+    map<string, string> buyOrderBook = 1 [(scalapb.field).key_type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice",
+                                          (scalapb.field).value_type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
+    map<string, string> sellOrderBook = 2 [(scalapb.field).key_type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice",
+                                           (scalapb.field).value_type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
 }
 
 message SimulationStartRequest {
