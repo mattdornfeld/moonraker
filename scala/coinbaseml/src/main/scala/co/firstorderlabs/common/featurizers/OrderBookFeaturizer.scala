@@ -35,7 +35,7 @@ object OrderBookFeaturizer extends FeaturizerBase {
   ): List[List[List[Double]]] = {
     SnapshotBuffer.toList.reverse
       .map(snapshot => getBestBidsAsksArray(snapshot, orderBookDepth))
-      .padTo(SnapshotBuffer.getMaxSize, getArrayOfZeros(orderBookDepth, 4))
+      .padTo(SnapshotBuffer.maxSize, getArrayOfZeros(orderBookDepth, 4))
   }
 
   def getBestBidsAsksArray(snapshot: SimulationSnapshot,

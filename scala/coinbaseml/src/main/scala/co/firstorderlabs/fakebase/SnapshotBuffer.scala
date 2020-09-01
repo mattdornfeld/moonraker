@@ -111,7 +111,7 @@ object SnapshotBuffer {
     Exchange.getSimulationMetadata.currentTimeInterval
   )
 
-  def getMaxSize: Int = snapshotBuffer.getMaxSize
+  def maxSize: Int = snapshotBuffer.getMaxSize
 
   def mostRecentSnapshot: SimulationSnapshot =
     getSnapshot(Exchange.getSimulationMetadata.currentTimeInterval)
