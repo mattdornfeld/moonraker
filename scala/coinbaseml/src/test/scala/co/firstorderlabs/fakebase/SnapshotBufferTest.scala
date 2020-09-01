@@ -15,7 +15,7 @@ class SnapshotBufferTest extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
       assert(
-        SnapshotBuffer.getMaxSize == simulationStartRequest.snapshotBufferSize
+        SnapshotBuffer.maxSize == simulationStartRequest.snapshotBufferSize
       )
       assert(SnapshotBuffer.isCleared)
     }

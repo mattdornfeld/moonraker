@@ -1,12 +1,12 @@
 package co.firstorderlabs.common.featurizers
 
+import co.firstorderlabs.common.TestUtils.doubleEquality
 import co.firstorderlabs.common.protos.featurizer.ObservationRequest
 import co.firstorderlabs.fakebase.TestData.RequestsData._
+import co.firstorderlabs.fakebase._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume
 import co.firstorderlabs.fakebase.protos.fakebase.{Order, OrderSide, StepRequest}
-import co.firstorderlabs.fakebase._
-import org.scalactic.TolerantNumerics
 import org.scalatest.funspec.AnyFunSpec
 
 class TestOrderBookFeaturizer extends AnyFunSpec {
@@ -14,7 +14,6 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
   val productVolume = new ProductVolume(Right("1.00"))
   val zerosArray =
     OrderBookFeaturizer.getArrayOfZeros(orderBooksRequest.orderBookDepth, 4)
-  implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(1e-10)
 
   def placeOrders: (List[Order], List[Order]) = {
     val buyOrders = TestUtils
@@ -211,7 +210,7 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
       )
 
       assert(
-        4 * orderBooksRequest.orderBookDepth * SnapshotBuffer.getMaxSize == orderBookFeatures.size
+        4 * orderBooksRequest.orderBookDepth * SnapshotBuffer.maxSize == orderBookFeatures.size
       )
       assert(
         bestBidsAsksArray.flatten sameElements orderBookFeatures

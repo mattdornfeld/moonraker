@@ -52,6 +52,10 @@ object Events {
     }
   }
 
+  trait SpecifiesPrice {
+    val price: ProductPrice
+  }
+
   trait OrderRequest
 
   trait BuyOrderRequest extends OrderRequest
@@ -71,9 +75,8 @@ object Events {
     def equalTo[A](that: A): Boolean = this == that
   }
 
-  trait MatchEvent extends Event {
+  trait MatchEvent extends Event with SpecifiesPrice with SpecifiesSize {
     val liquidity: Liquidity
-    val price: ProductPrice
     val makerOrder: Order
     val takerOrder: Order
     val size: ProductVolume
@@ -148,8 +151,7 @@ object Events {
 
   }
 
-  trait LimitOrderEvent extends OrderEvent with SpecifiesSize {
-    val price: ProductPrice
+  trait LimitOrderEvent extends OrderEvent with SpecifiesPrice with SpecifiesSize {
     val timeToLive: Option[Duration]
     var degeneracy = 0
 

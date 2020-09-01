@@ -147,6 +147,7 @@ message CancellationRequest {
 
 message Cancellation {
     option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.Event";
+    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.SpecifiesPrice";
 
     string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
     string price = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice"];

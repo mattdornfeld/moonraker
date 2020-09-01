@@ -355,9 +355,7 @@ class FullConvolutionBlock:
             TDConv2D if self.time_distributed else Conv2D
         )
 
-        layers = [
-            _Conv2D(*self.args, **self.kwargs) for _ in range(self.depth)
-        ]
+        layers = [_Conv2D(*self.args, **self.kwargs) for _ in range(self.depth)]
 
         return compose(*layers)(input_tensor)
 
@@ -403,9 +401,7 @@ class FullConvolutionBlock1D:
             TDConv1D if self.time_distributed else Conv1D
         )
 
-        layers = [
-            _Conv1D(*self.args, **self.kwargs) for _ in range(self.depth)
-        ]
+        layers = [_Conv1D(*self.args, **self.kwargs) for _ in range(self.depth)]
 
         return compose(*layers)(input_tensor)
 

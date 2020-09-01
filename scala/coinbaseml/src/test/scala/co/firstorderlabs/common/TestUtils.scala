@@ -2,6 +2,6 @@ package co.firstorderlabs.common
 
 import org.scalactic.TolerantNumerics
 
-object Utils {
+object TestUtils {
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(1e-10)
 }
