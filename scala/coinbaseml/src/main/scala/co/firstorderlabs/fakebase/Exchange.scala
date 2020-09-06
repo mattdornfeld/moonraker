@@ -3,17 +3,12 @@ package co.firstorderlabs.fakebase
 import java.time.{Duration, Instant}
 import java.util.logging.Logger
 
-import co.firstorderlabs.common.utils.Utils.getResultOptional
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
+import co.firstorderlabs.common.featurizers.Featurizer
+import co.firstorderlabs.common.protos.ObservationRequest
+import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Events.{
-  Event,
-  LimitOrderEvent,
-  OrderEvent
-}
+import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
 import co.firstorderlabs.fakebase.types.Exceptions.SimulationNotStarted
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
@@ -22,12 +17,14 @@ import scala.concurrent.Future
 
 case class ExchangeSnapshot(receivedEvents: List[Event]) extends Snapshot
 
-case class SimulationMetadata(startTime: Instant,
-                              endTime: Instant,
-                              timeDelta: Duration,
-                              numWarmUpSteps: Int,
-                              initialProductFunds: ProductVolume,
-                              initialQuoteFunds: QuoteVolume) {
+case class SimulationMetadata(
+    startTime: Instant,
+    endTime: Instant,
+    timeDelta: Duration,
+    numWarmUpSteps: Int,
+    initialProductFunds: ProductVolume,
+    initialQuoteFunds: QuoteVolume
+) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
 
@@ -101,10 +98,10 @@ object Exchange
   }
 
   override def getExchangeInfo(
-    exchangeInfoRequest: ExchangeInfoRequest
+      exchangeInfoRequest: ExchangeInfoRequest
   ): Future[ExchangeInfo] = {
     Future.successful(
-      getExchangeInfoHelper(exchangeInfoRequest.orderBooksRequest)
+      getExchangeInfoHelper(exchangeInfoRequest)
     )
   }
 
@@ -126,8 +123,8 @@ object Exchange
   }
 
   override def reset(
-    exchangeInfoRequest: ExchangeInfoRequest
-  ): Future[ExchangeInfo] = {
+      simulationInfoRequest: SimulationInfoRequest
+  ): Future[SimulationInfo] = {
     getSimulationMetadata.currentTimeInterval =
       Checkpointer.checkpointTimeInterval
     Checkpointer.restoreFromCheckpoint
@@ -135,12 +132,12 @@ object Exchange
       s"simulation reset to timeInterval ${getSimulationMetadata.currentTimeInterval}"
     )
 
-    getExchangeInfo(exchangeInfoRequest)
+    Future successful getSimulationInfo(Some(simulationInfoRequest))
   }
 
   override def start(
-    simulationStartRequest: SimulationStartRequest
-  ): Future[ExchangeInfo] = {
+      simulationStartRequest: SimulationStartRequest
+  ): Future[SimulationInfo] = {
     require(
       simulationStartRequest.snapshotBufferSize > 0,
       "snapshotBufferSize must be greater than 0"
@@ -173,20 +170,16 @@ object Exchange
     SnapshotBuffer.start(simulationStartRequest.snapshotBufferSize)
 
     if (simulationStartRequest.numWarmUpSteps > 0) {
-      (1 to simulationStartRequest.numWarmUpSteps) foreach (
-        _ => step(Constants.emptyStepRequest)
+      (1 to simulationStartRequest.numWarmUpSteps) foreach (_ =>
+        step(Constants.emptyStepRequest)
       )
       checkpoint(Constants.emptyProto)
     }
 
-    val exchangeInfoRequest =
-      if (simulationStartRequest.exchangeInfoRequest.isDefined)
-        simulationStartRequest.exchangeInfoRequest.get
-      else ExchangeInfoRequest()
-    getExchangeInfo(exchangeInfoRequest)
+    Future successful getSimulationInfo(simulationStartRequest.simulationInfoRequest)
   }
 
-  override def step(stepRequest: StepRequest): Future[ExchangeInfo] = {
+  override def step(stepRequest: StepRequest): Future[SimulationInfo] = {
     getSimulationMetadata.incrementCurrentTimeInterval
     require(
       !getSimulationMetadata.simulationIsOver,
@@ -230,11 +223,7 @@ object Exchange
 
     SnapshotBuffer.step
 
-    val exchangeInfoRequest =
-      if (stepRequest.exchangeInfoRequest.isDefined)
-        stepRequest.exchangeInfoRequest.get
-      else ExchangeInfoRequest()
-    getExchangeInfo(exchangeInfoRequest)
+    Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
   }
 
   override def stop(request: Empty): Future[Empty] = {
@@ -245,13 +234,20 @@ object Exchange
   }
 
   private def getExchangeInfoHelper(
-    orderBooksRequest: Option[OrderBooksRequest]
+      exchangeInfoRequest: ExchangeInfoRequest
   ): ExchangeInfo = {
     if (simulationMetadata.isDefined) {
-      val orderBooks =
-        if (orderBooksRequest.isDefined)
-          getResultOptional(getOrderBooks(orderBooksRequest.get))
-        else None
+      val orderBooks = exchangeInfoRequest.orderBooksRequest match {
+        case Some(orderBooksRequest) =>
+          getResultOptional(getOrderBooks(orderBooksRequest))
+        case None => None
+      }
+
+      val observation = exchangeInfoRequest.observationRequest match {
+        case Some(observationRequest) =>
+          getResultOptional(Featurizer.getObservation(observationRequest))
+        case None => None
+      }
 
       ExchangeInfo(
         getSimulationMetadata.currentTimeInterval.startTime,
@@ -259,9 +255,25 @@ object Exchange
         getResultOptional(Account.getAccountInfo(Constants.emptyProto)),
         orderBooks,
         getResultOptional(getMatches(Constants.emptyProto)),
+        observation
       )
     } else {
       ExchangeInfo()
+    }
+  }
+
+  def getSimulationInfo(simulationInfoRequest: Option[SimulationInfoRequest]): SimulationInfo = {
+    if (simulationInfoRequest.isDefined) {
+      val _simulationInfoRequest = simulationInfoRequest.get
+      val exchangeInfoRequest = _simulationInfoRequest.exchangeInfoRequest
+        .getOrElse(ExchangeInfoRequest())
+      val exchangeInfo = getExchangeInfoHelper(exchangeInfoRequest)
+      val observationRequest = _simulationInfoRequest.observationRequest.getOrElse(ObservationRequest())
+      val observaton = getResult(Featurizer.getObservation(observationRequest))
+
+      SimulationInfo(Some(exchangeInfo), Some(observaton))
+    } else {
+      SimulationInfo()
     }
   }
 

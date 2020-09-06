@@ -1,6 +1,7 @@
 package co.firstorderlabs.common.rewards
 
 import co.firstorderlabs.common.utils.Utils.logEpsilon
+import co.firstorderlabs.common.TestUtils.doubleEquality
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.protos.fakebase.CancellationRequest
 import co.firstorderlabs.fakebase.{Account, Configs, Constants, Exchange}
@@ -20,7 +21,7 @@ class TestLogReturnRewardStrategy extends AnyFunSpec{
       val portfolioValue2 = ReturnRewardStrategy.calcPortfolioValue(Exchange.getSimulationMetadata.currentTimeInterval)
       val expectedReward = logEpsilon(portfolioValue2 / portfolioValue1)
 
-      assert(expectedReward == LogReturnRewardStrategy.calcReward)
+      assert(expectedReward === LogReturnRewardStrategy.calcReward)
     }
   }
 

@@ -3,20 +3,39 @@ syntax = "proto3";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
+  scope: FILE
   preserve_unknown_fields: false
+  package_name: "co.firstorderlabs.common.protos"
+  flat_package: true
 };
 
-package co.firstorderlabs.common.protos;
+enum RewardStrategy {
+    ReturnRewardStrategy = 0;
+    LogReturnRewardStrategy = 1;
+}
 
 service FeaturizerService {
     rpc getObservation (ObservationRequest) returns (Observation) {
+    }
+    rpc getReward (RewardRequest) returns (Reward) {
     }
 }
 
 message ObservationRequest {
     int32 orderBookDepth = 1;
+    bool normalize = 2;
+    RewardRequest rewardRequest = 3;
 }
 
 message Observation {
+    repeated double features = 1;
+    Reward reward = 2;
+}
 
+message RewardRequest {
+    RewardStrategy rewardStrategy = 1;
+}
+
+message Reward {
+    double reward = 1;
 }

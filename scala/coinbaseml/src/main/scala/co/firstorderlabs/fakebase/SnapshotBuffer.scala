@@ -111,12 +111,26 @@ object SnapshotBuffer {
     Exchange.getSimulationMetadata.currentTimeInterval
   )
 
+  private def isIndexOutOfBounds(snapshotBufferIndex: Int): Boolean =
+    snapshotBufferIndex < 0 || snapshotBufferIndex >= size || size == 0
+
   def maxSize: Int = snapshotBuffer.getMaxSize
 
   def mostRecentSnapshot: SimulationSnapshot =
     getSnapshot(Exchange.getSimulationMetadata.currentTimeInterval)
 
   def getSnapshot(timeInterval: TimeInterval): SimulationSnapshot = {
+    val i = getSnapshotBufferIndex(timeInterval)
+    if (isIndexOutOfBounds(i)) {
+      throw new ArrayIndexOutOfBoundsException(
+        s"TimeInterval ${timeInterval} had index ${i}. SnapshotBuffer only has ${size} elements."
+      )
+    }
+
+    toArray.apply(i)
+  }
+
+  private def getSnapshotBufferIndex(timeInterval: TimeInterval): Int = {
     val simulationMetaData = Exchange.getSimulationMetadata
 
     val numStepsInPast = Duration
@@ -128,15 +142,7 @@ object SnapshotBuffer {
       .toInt
       .abs
 
-    val i = size - numStepsInPast - 1
-    if (i < 0 || size == 0) {
-      throw new ArrayIndexOutOfBoundsException(
-        s"TimeInterval ${timeInterval} is ${numStepsInPast} time steps in the past. " +
-          s"SnapshotBuffer only has ${size} elements."
-      )
-    }
-
-    toArray.apply(i)
+    size - numStepsInPast - 1
   }
 
   def isCleared: Boolean = snapshotBuffer.isEmpty

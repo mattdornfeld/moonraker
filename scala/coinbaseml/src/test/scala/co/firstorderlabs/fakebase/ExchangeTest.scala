@@ -2,20 +2,12 @@ package co.firstorderlabs.fakebase
 
 import java.time.Duration
 
+import co.firstorderlabs.common.protos.{ObservationRequest, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.utils
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  BuyLimitOrderRequest,
-  CancellationRequest,
-  OrderSide,
-  SellLimitOrderRequest,
-  StepRequest
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.protos.fakebase.{BuyLimitOrderRequest, CancellationRequest, OrderSide, SellLimitOrderRequest, SimulationInfoRequest, StepRequest}
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import org.scalatest.funspec.AnyFunSpec
 
@@ -267,6 +259,16 @@ class ExchangeTest extends AnyFunSpec {
               .compareTo(timeToLive.get) >= 0
           )
       }
+    }
+
+    it("Ensure getSimulationInfo returns Observation.") {
+      Exchange.start(simulationStartRequestWarmup)
+
+      val rewardRequest = Some(RewardRequest(RewardStrategy.LogReturnRewardStrategy))
+      val observationRequest = Some(ObservationRequest(orderBooksRequest.orderBookDepth, false, rewardRequest))
+      val simulationInfoRequest = SimulationInfoRequest(observationRequest=observationRequest)
+      val simulationInfo = Exchange.getSimulationInfo(Some(simulationInfoRequest))
+      assert(simulationInfo.observation.isDefined)
     }
   }
 }

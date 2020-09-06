@@ -8,7 +8,7 @@ import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
   QuoteVolume
 }
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
-import co.firstorderlabs.fakebase.{OrderBook, SnapshotBuffer}
+import co.firstorderlabs.fakebase.{Exchange, OrderBook, SnapshotBuffer}
 
 /** RewardStrategy is a base trait for all reward strategies
   */
@@ -52,6 +52,7 @@ trait RewardStrategy {
     */
   def calcPortfolioValue(timeInterval: TimeInterval): Double = {
     val snapshot = SnapshotBuffer.getSnapshot(timeInterval)
+
     val productVolume = snapshot.accountSnapshot.walletsSnapshot.walletsMap
       .get(ProductVolume.currency)
       .get
@@ -71,4 +72,10 @@ trait RewardStrategy {
     * @return
     */
   def calcReward: Double
+
+  protected def currentPortfolioValue: Double =
+    calcPortfolioValue(Exchange.getSimulationMetadata.currentTimeInterval)
+
+  protected def previousPortfolioValue: Double =
+    calcPortfolioValue(Exchange.getSimulationMetadata.previousTimeInterval)
 }

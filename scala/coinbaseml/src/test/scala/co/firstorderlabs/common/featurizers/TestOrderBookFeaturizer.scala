@@ -1,7 +1,7 @@
 package co.firstorderlabs.common.featurizers
 
 import co.firstorderlabs.common.TestUtils.doubleEquality
-import co.firstorderlabs.common.protos.featurizer.ObservationRequest
+import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice

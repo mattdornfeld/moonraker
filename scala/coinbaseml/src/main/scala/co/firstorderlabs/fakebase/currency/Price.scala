@@ -22,6 +22,7 @@ object Price {
     val QuoteVolume: VolumeCompanion[B]
     val maxPrice: ProductPrice[A, B]
     val minPrice: ProductPrice[A, B]
+    val normalizationFactor: Double
     val productId: ProductId
     val zeroPrice: ProductPrice[A, B]
 
@@ -67,6 +68,8 @@ object Price {
       * @return
       */
     def /(that: Either[BigDecimal, Double]): ProductPrice[A, B]
+
+    def normalize: Double = this.toDouble / companion.normalizationFactor
   }
 
   class BtcUsdPrice(value: Either[BigDecimal, String])
@@ -110,6 +113,7 @@ object Price {
     val QuoteVolume = UsdVolume
     val maxPrice = new BtcUsdPrice(Right("1e10"))
     val minPrice = new BtcUsdPrice(Right("1e-2"))
+    val normalizationFactor = 100e3
     val productId = getProductId
     val zeroPrice = new BtcUsdPrice(Right("0.0"))
   }

@@ -2,7 +2,7 @@ package co.firstorderlabs.fakebase.TestData
 
 import java.time.{Duration, Instant}
 
-import co.firstorderlabs.common.protos.featurizer.ObservationRequest
+import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
@@ -46,6 +46,16 @@ object RequestsData {
     snapshotBufferSize = 3,
   )
 
+  val simulationStartRequestWarmup = new SimulationStartRequest(
+    Instant.parse("2019-11-20T19:20:50.63Z"),
+    Instant.parse("2019-11-20T19:25:50.63Z"),
+    Some(Duration.ofSeconds(30)),
+    3,
+    new ProductVolume(Right("100.000000")),
+    new QuoteVolume(Right("10000.00")),
+    snapshotBufferSize = 3,
+  )
+
   val checkpointedSimulationStartRequest = new SimulationStartRequest(
     Instant.parse("2019-11-20T19:20:50.63Z"),
     Instant.parse("2019-11-20T19:25:50.63Z"),
@@ -57,4 +67,5 @@ object RequestsData {
   )
 
   val observationRequest = new ObservationRequest(10)
+  val normalizeObservationRequest = new ObservationRequest(10, true)
 }

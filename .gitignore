@@ -25,3 +25,4 @@ scala/coinbaseml/project/project
 .idea
 /scalapb
 coinbase_ml/fakebase/protos/fakebase_pb2*
+/featurizer_pb2*
