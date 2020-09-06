@@ -4,10 +4,7 @@ import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  ExchangeInfoRequest,
-  StepRequest
-}
+import co.firstorderlabs.fakebase.protos.fakebase.{ExchangeInfoRequest, SimulationInfoRequest, StepRequest}
 import org.scalatest.funspec.AnyFunSpec
 
 class CheckpointerTest extends AnyFunSpec {
@@ -24,7 +21,7 @@ class CheckpointerTest extends AnyFunSpec {
 
       (1 to 5) foreach (_ => Exchange.step(Constants.emptyStepRequest))
 
-      Exchange.reset(ExchangeInfoRequest())
+      Exchange.reset(SimulationInfoRequest())
 
       assert(Checkpointer.checkpointSnapshot == SnapshotBuffer.createSnapshot)
     }
@@ -35,7 +32,7 @@ class CheckpointerTest extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
       val expectedCheckpointSnapshotBuffer = advanceExchange
-      Exchange.reset(ExchangeInfoRequest())
+      Exchange.reset(SimulationInfoRequest())
 
       assert(Checkpointer.checkpointSnapshot == SnapshotBuffer.createSnapshot)
       assert(

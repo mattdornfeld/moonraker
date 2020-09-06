@@ -1,18 +1,11 @@
 package co.firstorderlabs.common.featurizers
 
-import co.firstorderlabs.common.protos.featurizer.ObservationRequest
+import co.firstorderlabs.common.protos.ObservationRequest
+import co.firstorderlabs.common.utils.Utils.When
 import co.firstorderlabs.fakebase.protos.fakebase.OrderSide
 import co.firstorderlabs.fakebase.{OrderBook, SimulationSnapshot, SnapshotBuffer}
 
 object OrderBookFeaturizer extends FeaturizerBase {
-
-  implicit class When[A, B](a: A) {
-    def when(condition: Boolean)(f: A => A): A = if (condition) f(a) else a
-
-    def whenElse(condition: Boolean)(f: A => B, g: A => B): B =
-      if (condition) f(a) else g(a)
-  }
-
   def getArrayOfZeros(height: Int, width: Int): List[List[Double]] = {
     (for (_ <- 0 until height) yield List.fill(width)(0.0)).toList
   }
@@ -31,19 +24,21 @@ object OrderBookFeaturizer extends FeaturizerBase {
   }
 
   def getBestBidsAsksArrayOverTime(
-    orderBookDepth: Int
+    orderBookDepth: Int,
+    normalize: Boolean = false,
   ): List[List[List[Double]]] = {
     SnapshotBuffer.toList.reverse
-      .map(snapshot => getBestBidsAsksArray(snapshot, orderBookDepth))
+      .map(snapshot => getBestBidsAsksArray(snapshot, orderBookDepth, normalize))
       .padTo(SnapshotBuffer.maxSize, getArrayOfZeros(orderBookDepth, 4))
   }
 
   def getBestBidsAsksArray(snapshot: SimulationSnapshot,
-                           orderBookDepth: Int): List[List[Double]] = {
+                           orderBookDepth: Int,
+                           normalize: Boolean = false): List[List[Double]] = {
     val buyOrderBook = getOrderBookFromSnapshot(snapshot, OrderSide.buy)
     val sellOrderBook = getOrderBookFromSnapshot(snapshot, OrderSide.sell)
-    val bestAsks = getBestPriceVolumes(sellOrderBook, orderBookDepth, false)
-    val bestBids = getBestPriceVolumes(buyOrderBook, orderBookDepth, true)
+    val bestAsks = getBestPriceVolumes(sellOrderBook, orderBookDepth, false, normalize)
+    val bestBids = getBestPriceVolumes(buyOrderBook, orderBookDepth, true, normalize)
 
     bestAsks
       .zip(bestBids)
@@ -52,17 +47,18 @@ object OrderBookFeaturizer extends FeaturizerBase {
 
   def getBestPriceVolumes(orderBook: OrderBook,
                           orderBookDepth: Int,
-                          reverse: Boolean): List[(Double, Double)] = {
+                          reverse: Boolean,
+                          normalize: Boolean = false): List[(Double, Double)] = {
     orderBook
       .aggregateToMap(orderBookDepth)
       .toList
       .sortBy(item => item._1)
       .when(reverse)(_.reverse)
-      .map(item => (item._1.toDouble, item._2.toDouble))
+      .map(item => (item._1.toDouble, item._2.whenElse(normalize)(_.normalize, _.toDouble)))
       .padTo(orderBookDepth, (0.0, 0.0))
   }
 
   def construct(observationRequest: ObservationRequest): List[Double] = {
-    getBestBidsAsksArrayOverTime(observationRequest.orderBookDepth).flatten.flatten
+    getBestBidsAsksArrayOverTime(observationRequest.orderBookDepth, observationRequest.normalize).flatten.flatten
   }
 }

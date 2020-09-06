@@ -1,5 +1,6 @@
 SCALAPB_PACKAGE_DIR=./
 FAKEBASE_PROTOS_DIR=./coinbase_ml/fakebase/protos
+FEATURIZERS_PROTOS_DIR=./
 
 mkdir -p scalapb
 
@@ -16,5 +17,12 @@ python3 -m grpc_tools.protoc \
     --python_out=$FAKEBASE_PROTOS_DIR \
     --grpc_python_out=$FAKEBASE_PROTOS_DIR \
     scala/coinbaseml/src/main/protobuf/fakebase.proto
+
+python3 -m grpc_tools.protoc \
+    -I scala/coinbaseml/src/main/protobuf \
+    --mypy_out=$FEATURIZERS_PROTOS_DIR \
+    --python_out=$FEATURIZERS_PROTOS_DIR \
+    --grpc_python_out=$FEATURIZERS_PROTOS_DIR \
+    scala/coinbaseml/src/main/protobuf/featurizer.proto
 
 2to3 -n -w $FAKEBASE_PROTOS_DIR

@@ -4,6 +4,13 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
 object Utils {
+  implicit class When[A, B](a: A) {
+    def when(condition: Boolean)(f: A => A): A = if (condition) f(a) else a
+
+    def whenElse(condition: Boolean)(f: A => B, g: A => B): B =
+      if (condition) f(a) else g(a)
+  }
+
   def logEpsilon(x: Double, epsilon: Double = 1e-10): Double =
     Math.log(x + epsilon)
 
@@ -24,6 +31,6 @@ object Utils {
    * @return
    */
   def getResultOptional[A](future: Future[A]): Option[A] = {
-    Some(Utils.getResult(future))
+    Some(getResult(future))
   }
 }

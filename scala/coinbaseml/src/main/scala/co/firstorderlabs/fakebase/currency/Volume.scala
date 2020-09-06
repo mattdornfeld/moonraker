@@ -191,7 +191,7 @@ object Volume {
     val currency = Currency.BTC
     val maxVolume = new BtcVolume(Right("1e4"))
     val minVolume = new BtcVolume(Right("1e-3"))
-    val normalizationFactor = 1e2
+    val normalizationFactor = 1e3
     val scale = 8
     val zeroVolume = new BtcVolume(Right("0.0"))
   }

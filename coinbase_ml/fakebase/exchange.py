@@ -11,11 +11,19 @@ from grpc._channel import _InactiveRpcError as InactiveRpcError
 
 import coinbase_ml.fakebase.account as _account
 from coinbase_ml.common import constants as cc
+from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
+    Observation,
+    ObservationRequest,
+    RewardRequest,
+    RewardStrategy,
+)
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     ExchangeInfo,
     ExchangeInfoRequest,
     OrderBooksRequest,
     OrderBooks,
+    SimulationInfo,
+    SimulationInfoRequest,
     SimulationStartRequest,
     StepRequest,
 )
@@ -67,7 +75,9 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self._order_books: Dict[OrderSide, BinnedOrderBook] = {}
         self._received_cancellations: List[CoinbaseCancellation] = []
         self._received_orders: List[CoinbaseOrder] = []
+        self._simulation_info_request = SimulationInfoRequest()
         self.database_workers: Optional[DatabaseWorkers] = None
+        self.observation = Observation()
 
         if create_exchange_process:
             port = get_random_free_port()
@@ -140,14 +150,33 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
                 sleep(0.3)
                 continue
 
-    def _generate_exchange_info_request(self) -> ExchangeInfoRequest:
+    @classmethod
+    def _generate_exchange_info_request(cls) -> ExchangeInfoRequest:
         return ExchangeInfoRequest(
-            orderBooksRequest=self._generate_order_book_request()
+            orderBooksRequest=cls._generate_order_book_request(),
+        )
+
+    @staticmethod
+    def _generate_observation_request() -> ObservationRequest:
+        reward_request = RewardRequest(
+            rewardStrategy=RewardStrategy.LogReturnRewardStrategy
+        )
+        return ObservationRequest(
+            orderBookDepth=cc.ORDER_BOOK_DEPTH,
+            normalize=False,
+            rewardRequest=reward_request,
         )
 
     @staticmethod
     def _generate_order_book_request() -> OrderBooksRequest:
         return OrderBooksRequest(orderBookDepth=cc.ORDER_BOOK_DEPTH)
+
+    @classmethod
+    def _generate_simulation_info_request(cls) -> SimulationInfoRequest:
+        return SimulationInfoRequest(
+            exchangeInfoRequest=cls._generate_exchange_info_request(),
+            observationRequest=cls._generate_observation_request(),
+        )
 
     def _update_exchange_info(self, exchange_info: ExchangeInfo) -> None:
         """
@@ -167,6 +196,10 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self._interval_end_dt = parser.parse(exchange_info.intervalEndTime).replace(
             tzinfo=None
         )
+
+    def _update_simulation_info(self, simulation_info: SimulationInfo) -> None:
+        self.observation = simulation_info.observation
+        self._update_exchange_info(simulation_info.exchangeInfo)
 
     @property
     def account(self) -> _account.Account:
@@ -286,6 +319,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             time_delta=self.time_delta,
         )
 
+        self._simulation_info_request = self._generate_simulation_info_request()
+
         message = SimulationStartRequest(
             startTime=self.start_dt.isoformat() + "Z",
             endTime=self.end_dt.isoformat() + "Z",
@@ -293,11 +328,12 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             numWarmUpSteps=0,
             initialProductFunds=str(initial_product_funds),
             initialQuoteFunds=str(initial_quote_funds),
+            simulationInfoRequest=self._simulation_info_request,
             snapshotBufferSize=snapshot_buffer_size,
         )
 
-        exchange_info: ExchangeInfo = self.stub.start(message)
-        self._update_exchange_info(exchange_info)
+        simulation_info: SimulationInfo = self.stub.start(message)
+        self._update_simulation_info(simulation_info)
 
         for _ in range(num_warmup_time_steps):
             self.step()
@@ -310,10 +346,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         doing multiple simulations that need to start from the same warmed up state.
         """
         self._order_books = {}
-        exchange_info: ExchangeInfo = self.stub.reset(
-            self._generate_exchange_info_request()
-        )
-        self._update_exchange_info(exchange_info)
+        simulation_info: SimulationInfo = self.stub.reset(self._simulation_info_request)
+        self._update_simulation_info(simulation_info)
 
         self.stop_database_workers()
 
@@ -353,11 +387,11 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             insertCancellations=[
                 cancellation.to_proto() for cancellation in _insert_cancellations
             ],
-            exchangeInfoRequest=self._generate_exchange_info_request(),
+            simulationInfoRequest=self._simulation_info_request,
         )
 
-        exchange_info: ExchangeInfo = self.stub.step(step_request)
-        self._update_exchange_info(exchange_info)
+        simulation_info: SimulationInfo = self.stub.step(step_request)
+        self._update_simulation_info(simulation_info)
 
         # It's useful to set c.NUM_DATABASE_WORKERS to 0 for some unit tests and skip the
         # below block

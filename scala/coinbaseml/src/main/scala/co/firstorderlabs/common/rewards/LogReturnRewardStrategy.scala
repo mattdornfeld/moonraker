@@ -1,19 +1,16 @@
 package co.firstorderlabs.common.rewards
 
 import co.firstorderlabs.common.utils.Utils.logEpsilon
-import co.firstorderlabs.fakebase.Exchange
+import co.firstorderlabs.fakebase.SnapshotBuffer
 
 /** Calculates reward as log(currentPortfolioValue / previousPortfolioValue)
   */
 object LogReturnRewardStrategy extends RewardStrategy {
   override def calcReward: Double = {
-    val currentPortfolioValue = calcPortfolioValue(
-      Exchange.getSimulationMetadata.currentTimeInterval
-    )
-    val previousPortfolioValue = calcPortfolioValue(
-      Exchange.getSimulationMetadata.previousTimeInterval
-    )
-
-    logEpsilon(currentPortfolioValue / previousPortfolioValue)
+    if (SnapshotBuffer.size >= 2) {
+      logEpsilon(currentPortfolioValue / (previousPortfolioValue + 1e-10))
+    } else {
+      0.0
+    }
   }
 }

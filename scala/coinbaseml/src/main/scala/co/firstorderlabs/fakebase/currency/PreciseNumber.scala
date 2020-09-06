@@ -39,6 +39,8 @@ abstract class PreciseNumber[T <: PreciseNumber[T]](scale: Int, value: Either[Bi
 
   def !=(that: T): Boolean = !this.equalTo(that)
 
+  def normalize: Double
+
   def toDouble: Double = amount.doubleValue
 
   def toPlainString: String = amount.toPlainString

@@ -173,7 +173,6 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       Exchange.step(StepRequest(insertCancellations = cancellations))
       val features = TimeSeriesFeaturizer.construct(observationRequest)
 
-      println(features.zipWithIndex)
       assert(cancellations.size === features(3))
       assert(expectedPriceMean === features(8))
       assert(expectedPriceStd === features(9))

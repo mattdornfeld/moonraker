@@ -1,19 +1,9 @@
 package co.firstorderlabs.common.featurizers
 
-import co.firstorderlabs.common.protos.featurizer.ObservationRequest
+import co.firstorderlabs.common.protos.ObservationRequest
+import co.firstorderlabs.fakebase.protos.fakebase.{BuyLimitOrder, Cancellation, Match, SellLimitOrder}
+import co.firstorderlabs.fakebase.types.Events.{Event, OrderEvent, SpecifiesPrice, SpecifiesSize}
 import co.firstorderlabs.fakebase.{SimulationSnapshot, SnapshotBuffer}
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  BuyLimitOrder,
-  Cancellation,
-  Match,
-  SellLimitOrder
-}
-import co.firstorderlabs.fakebase.types.Events.{
-  Event,
-  OrderEvent,
-  SpecifiesPrice,
-  SpecifiesSize
-}
 
 import scala.math.pow
 
