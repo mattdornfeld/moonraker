@@ -249,7 +249,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
 
     it("The features calculated from receivedEvents should be pushed to the back of the constructed" +
       "feature vector as the simulation is advanced.") {
-      Exchange.start(simulationStartRequest)
+      Exchange.start(simulationStartRequestWarmup)
       val sellOrders = OrdersData.insertSellOrders(
         minPrice = new ProductPrice(Right("890.00")),
         numOrders = 2

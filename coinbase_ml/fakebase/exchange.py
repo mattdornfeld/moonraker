@@ -338,7 +338,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         for _ in range(num_warmup_time_steps):
             self.step()
 
-        self.stub.checkpoint(c.EMPTY_PROTO)
+        if num_warmup_time_steps > 0:
+            self.stub.checkpoint(c.EMPTY_PROTO)
 
     def reset(self) -> None:
         """

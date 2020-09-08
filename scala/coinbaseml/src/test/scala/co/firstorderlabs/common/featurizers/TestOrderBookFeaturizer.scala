@@ -6,7 +6,11 @@ import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume
-import co.firstorderlabs.fakebase.protos.fakebase.{Order, OrderSide, StepRequest}
+import co.firstorderlabs.fakebase.protos.fakebase.{
+  Order,
+  OrderSide,
+  StepRequest
+}
 import org.scalatest.funspec.AnyFunSpec
 
 class TestOrderBookFeaturizer extends AnyFunSpec {
@@ -15,12 +19,15 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
   val zerosArray =
     OrderBookFeaturizer.getArrayOfZeros(orderBooksRequest.orderBookDepth, 4)
 
-  def placeOrders: (List[Order], List[Order]) = {
+  def placeOrders(
+      maxBuyPrice: ProductPrice = new ProductPrice(Right("902.00")),
+      maxSellPrice: ProductPrice = new ProductPrice(Right("1002.00"))
+  ): (List[Order], List[Order]) = {
     val buyOrders = TestUtils
       .generateOrdersForRangeOfPrices(
         new ProductPrice(Right("1.00")),
         new ProductPrice(Right("900.00")),
-        new ProductPrice(Right("902.00")),
+        maxBuyPrice,
         OrderSide.buy,
         productVolume,
         Exchange.getSimulationMetadata.currentTimeInterval.endTime
@@ -30,7 +37,7 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
       .generateOrdersForRangeOfPrices(
         new ProductPrice(Right("1.00")),
         new ProductPrice(Right("1000.00")),
-        new ProductPrice(Right("1002.00")),
+        maxSellPrice,
         OrderSide.sell,
         productVolume,
         Exchange.getSimulationMetadata.currentTimeInterval.endTime
@@ -50,7 +57,7 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
 
-      val (buyOrders, sellOrders) = placeOrders
+      val (buyOrders, sellOrders) = placeOrders()
 
       Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
 
@@ -88,7 +95,7 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
 
-      val (buyOrders, sellOrders) = placeOrders
+      val (buyOrders, sellOrders) = placeOrders()
 
       Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
 
@@ -113,8 +120,8 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
           orderBooksRequest.orderBookDepth
         )
 
-      assert(zerosArray sameElements bestBidsAsksOverTime(0))
-      assert(bestBidsAsks sameElements bestBidsAsksOverTime(1))
+      assert(bestBidsAsks sameElements bestBidsAsksOverTime(0))
+      assert(zerosArray sameElements bestBidsAsksOverTime(1))
       assert(zerosArray sameElements bestBidsAsksOverTime(2))
     }
 
@@ -125,7 +132,7 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
         "where the best bids and asks are in the top rows."
     ) {
       Exchange.start(simulationStartRequest)
-      val (buyOrders, sellOrders) = placeOrders
+      val (buyOrders, sellOrders) = placeOrders()
 
       Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
 
@@ -135,22 +142,20 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
       )
 
       val expectedSellFeatures = sellOrders
-        .map(
-          order =>
-            List(
-              order.asMessage.getSellLimitOrder.price.toDouble,
-              productVolume.toDouble
+        .map(order =>
+          List(
+            order.asMessage.getSellLimitOrder.price.toDouble,
+            productVolume.toDouble
           )
         )
         .flatten
 
       val expectedBuyFeatures =
         buyOrders
-          .map(
-            order =>
-              List(
-                order.asMessage.getBuyLimitOrder.price.toDouble,
-                productVolume.toDouble
+          .map(order =>
+            List(
+              order.asMessage.getBuyLimitOrder.price.toDouble,
+              productVolume.toDouble
             )
           )
           .flatten
@@ -198,7 +203,7 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
     ) {
       Exchange.start(simulationStartRequest)
       val productVolume = new ProductVolume(Right("1.00"))
-      val (buyOrders, sellOrders) = placeOrders
+      val (buyOrders, sellOrders) = placeOrders()
 
       Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
 
@@ -222,5 +227,53 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
           .forall(element => element === 0.0)
       )
     }
+
+    it(
+      "The first row returned by the OrderBookFeaturizer should contain the prices and volumes of the best bids and asks" +
+        "on the order book."
+    ) {
+      Exchange.start(simulationStartRequest)
+
+      val (buyOrders, sellOrders) = placeOrders()
+
+      Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
+
+      val bestBidsAsksArray = OrderBookFeaturizer.getBestBidsAsksArray(
+        SnapshotBuffer.mostRecentSnapshot,
+        orderBooksRequest.orderBookDepth
+      )
+      val bestBuyOrder =
+        MatchingEngine.orderBooks.get(OrderSide.buy).get.maxOrder.get
+      val bestSellOrder =
+        MatchingEngine.orderBooks.get(OrderSide.sell).get.minOrder.get
+
+      assert(bestBidsAsksArray(0)(0) === bestSellOrder.price.toDouble)
+      assert(bestBidsAsksArray(0)(1) === bestSellOrder.size.toDouble)
+      assert(bestBidsAsksArray(0)(2) === bestBuyOrder.price.toDouble)
+      assert(bestBidsAsksArray(0)(3) === bestBuyOrder.size.toDouble)
+    }
+
+    it("The arrays returned by OrderBookFeaturizer are sorted in order by the best bid and ask prices") {
+      Exchange.start(simulationStartRequest)
+
+      val (buyOrders, sellOrders) = placeOrders(
+        new ProductPrice(Right("910.00")),
+        new ProductPrice(Right("1011.00"))
+      )
+
+      Exchange.step(new StepRequest(insertOrders = sellOrders))
+
+      val bestBidsAsksArray = OrderBookFeaturizer.getBestBidsAsksArray(
+        SnapshotBuffer.mostRecentSnapshot,
+        orderBooksRequest.orderBookDepth
+      )
+
+      val buyPrices = bestBidsAsksArray.map(row => row(2))
+      val sellPrices = bestBidsAsksArray.map(row => row(0))
+
+      assert(sellPrices sameElements sellPrices.sorted)
+      assert(buyPrices sameElements buyPrices.sorted.reverse)
+    }
+
   }
 }

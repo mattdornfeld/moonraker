@@ -32,6 +32,7 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
         self.cancellation_operators: List[NormalizedOperation] = []
         self.match_operators: List[NormalizedOperation] = []
         self.order_operators: List[NormalizedOperation] = []
+        self.normalize = True
         self._create_time_series_operators()
 
     @staticmethod
@@ -77,9 +78,15 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
             operator = partial(self._calc_event_counts, order_side)
 
             name = f"{order_side}_count"
-            self.cancellation_operators.append(NormalizedOperation(operator, name))
-            self.match_operators.append(NormalizedOperation(operator, name))
-            self.order_operators.append(NormalizedOperation(operator, name))
+            self.cancellation_operators.append(
+                NormalizedOperation(operator, name, self.normalize)
+            )
+            self.match_operators.append(
+                NormalizedOperation(operator, name, self.normalize)
+            )
+            self.order_operators.append(
+                NormalizedOperation(operator, name, self.normalize)
+            )
 
             for attribute in ["price", "size"]:
                 for _operator in [mean, stdev]:
@@ -99,8 +106,12 @@ class TimeSeriesFeaturizer(Generic[Exchange]):
                             NormalizedOperation(operator, name)
                         )
 
-                    self.match_operators.append(NormalizedOperation(operator, name))
-                    self.order_operators.append(NormalizedOperation(operator, name))
+                    self.match_operators.append(
+                        NormalizedOperation(operator, name, self.normalize)
+                    )
+                    self.order_operators.append(
+                        NormalizedOperation(operator, name, self.normalize)
+                    )
 
     @staticmethod
     def _extract_value_from_list_of_precise_nums(
