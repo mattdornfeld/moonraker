@@ -4,7 +4,7 @@ import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume
-import co.firstorderlabs.fakebase.protos.fakebase.{ExchangeInfoRequest, SimulationInfoRequest, StepRequest}
+import co.firstorderlabs.fakebase.protos.fakebase.{SimulationInfoRequest, StepRequest}
 import org.scalatest.funspec.AnyFunSpec
 
 class CheckpointerTest extends AnyFunSpec {
@@ -30,7 +30,7 @@ class CheckpointerTest extends AnyFunSpec {
       "No matter what orders are placed on the order book after a checkpoint is created, the simulation state should" +
         "return to the checkpoint state when reset is called."
     ) {
-      Exchange.start(simulationStartRequest)
+      Exchange.start(simulationStartRequestWarmup)
       val expectedCheckpointSnapshotBuffer = advanceExchange
       Exchange.reset(SimulationInfoRequest())
 
@@ -43,7 +43,7 @@ class CheckpointerTest extends AnyFunSpec {
     it(
       "If a simulation is started then stopped, its state should be cleared completely and DatabaseWorkers should enter a paused state."
     ) {
-      Exchange.start(simulationStartRequest)
+      Exchange.start(simulationStartRequestWarmup)
       advanceExchange
       Exchange.stop(Constants.emptyProto)
       assert(Checkpointer.isCleared)

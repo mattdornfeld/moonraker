@@ -27,7 +27,7 @@ object OrderBookFeaturizer extends FeaturizerBase {
     orderBookDepth: Int,
     normalize: Boolean = false,
   ): List[List[List[Double]]] = {
-    SnapshotBuffer.toList.reverse
+    SnapshotBuffer.toList
       .map(snapshot => getBestBidsAsksArray(snapshot, orderBookDepth, normalize))
       .padTo(SnapshotBuffer.maxSize, getArrayOfZeros(orderBookDepth, 4))
   }
@@ -50,7 +50,7 @@ object OrderBookFeaturizer extends FeaturizerBase {
                           reverse: Boolean,
                           normalize: Boolean = false): List[(Double, Double)] = {
     orderBook
-      .aggregateToMap(orderBookDepth)
+      .aggregateToMap(orderBookDepth, reverse)
       .toList
       .sortBy(item => item._1)
       .when(reverse)(_.reverse)

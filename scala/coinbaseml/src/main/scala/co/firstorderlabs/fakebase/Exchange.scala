@@ -4,11 +4,12 @@ import java.time.{Duration, Instant}
 import java.util.logging.Logger
 
 import co.firstorderlabs.common.featurizers.Featurizer
-import co.firstorderlabs.common.protos.ObservationRequest
+import co.firstorderlabs.common.protos.{Observation, ObservationRequest}
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
+import co.firstorderlabs.fakebase.types.Exceptions
 import co.firstorderlabs.fakebase.types.Exceptions.SimulationNotStarted
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
@@ -90,6 +91,11 @@ object Exchange
   }
 
   override def checkpoint(request: Empty): Future[Empty] = {
+    if (SnapshotBuffer.size < SnapshotBuffer.maxSize) {
+      throw Exceptions.SnapshotBufferNotFull("Cannot checkpoint simulation as SnapshotBuffer is not yet full. " +
+        s"It has ${SnapshotBuffer.size} and requires ${SnapshotBuffer.maxSize} elements. You must call step " +
+        s"${SnapshotBuffer.maxSize - SnapshotBuffer.size} more times.")
+    }
     logger.info(
       s"creating checkpoint at timeInterval ${Exchange.getSimulationMetadata.currentTimeInterval}"
     )
@@ -268,10 +274,12 @@ object Exchange
       val exchangeInfoRequest = _simulationInfoRequest.exchangeInfoRequest
         .getOrElse(ExchangeInfoRequest())
       val exchangeInfo = getExchangeInfoHelper(exchangeInfoRequest)
-      val observationRequest = _simulationInfoRequest.observationRequest.getOrElse(ObservationRequest())
-      val observaton = getResult(Featurizer.getObservation(observationRequest))
+      val observation = _simulationInfoRequest.observationRequest match {
+        case Some(observationRequest) => Some(getResult(Featurizer.getObservation(observationRequest)))
+        case None => None
+      }
 
-      SimulationInfo(Some(exchangeInfo), Some(observaton))
+      SimulationInfo(Some(exchangeInfo), observation)
     } else {
       SimulationInfo()
     }
