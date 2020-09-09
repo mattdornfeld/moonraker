@@ -27,8 +27,14 @@ message ObservationRequest {
     RewardRequest rewardRequest = 3;
 }
 
+message Features {
+    repeated double account = 1;
+    repeated double orderBook = 2;
+    repeated double timeSeries = 3;
+}
+
 message Observation {
-    repeated double features = 1;
+    Features features = 1;
     Reward reward = 2;
 }
 

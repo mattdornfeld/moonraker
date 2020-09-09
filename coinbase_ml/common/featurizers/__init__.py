@@ -7,9 +7,9 @@ from typing import Deque, Dict, Generic, List, Optional, Type
 
 import numpy as np
 
+import coinbase_ml.common.observations as observations
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.action import ActionBase
-from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.reward import BaseRewardStrategy
 from coinbase_ml.common.types import StateAtTime
 from coinbase_ml.common.utils.preprocessing_utils import pad_to_length
@@ -124,7 +124,7 @@ class Featurizer(Generic[Exchange]):
 
         return self._info_dict_featurizer.get_info_dict(self.state_buffer)
 
-    def get_observation(self) -> Observation:
+    def get_observation(self) -> "observations.Observation":
         """
         get_observation assembles feature arrays out of feature rows in buffers.
         Will return up to num_time_intervals_to_keep rows.
@@ -138,7 +138,7 @@ class Featurizer(Generic[Exchange]):
         if not self.state_buffer:
             raise StateBufferIsEmpty
 
-        return Observation(
+        return observations.Observation(
             account_funds=self._get_account_funds_features(),
             order_book=self._get_order_book_feature(),
             time_series=self._get_time_series_features(),
