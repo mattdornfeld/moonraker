@@ -48,8 +48,11 @@ class Environment(Env):  # pylint: disable=W0223
         self.observation_space = ObservationSpace(
             shape=ObservationSpaceShape(
                 account_funds=(1, 4),
-                order_book=(_config.num_time_steps, 4 * cc.ORDER_BOOK_DEPTH),
-                time_series=(_config.num_time_steps, cc.NUM_CHANNELS_IN_TIME_SERIES),
+                order_book=(1, _config.num_time_steps * 4 * cc.ORDER_BOOK_DEPTH,),
+                time_series=(
+                    1,
+                    _config.num_time_steps * cc.NUM_CHANNELS_IN_TIME_SERIES,
+                ),
             )
         )
         self.is_test_environment = _config.is_test_environment
@@ -189,7 +192,7 @@ class Environment(Env):  # pylint: disable=W0223
 
         self._made_illegal_transaction = False
 
-        observation = self.featurizer.get_observation()
+        observation = self.exchange.observation
 
         if c.VERBOSE:
             LOGGER.info("Environment reset.")
@@ -220,8 +223,8 @@ class Environment(Env):  # pylint: disable=W0223
 
         self._exchange_step(action)
 
-        observation = self.featurizer.get_observation()
-        reward = self.featurizer.calculate_reward()
+        observation = self.exchange.observation
+        reward = self.exchange.reward
         self._made_illegal_transaction = self._check_is_out_of_funds()
 
         if c.VERBOSE:

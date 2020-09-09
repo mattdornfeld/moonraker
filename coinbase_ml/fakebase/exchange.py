@@ -12,11 +12,12 @@ from grpc._channel import _InactiveRpcError as InactiveRpcError
 import coinbase_ml.fakebase.account as _account
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
-    Observation,
+    Observation as ObservationProto,
     ObservationRequest,
     RewardRequest,
     RewardStrategy,
 )
+from coinbase_ml.common.observations import Observation
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     ExchangeInfo,
     ExchangeInfoRequest,
@@ -77,7 +78,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self._received_orders: List[CoinbaseOrder] = []
         self._simulation_info_request = SimulationInfoRequest()
         self.database_workers: Optional[DatabaseWorkers] = None
-        self.observation = Observation()
+        self._observation = ObservationProto()
 
         if create_exchange_process:
             port = get_random_free_port()
@@ -198,7 +199,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         )
 
     def _update_simulation_info(self, simulation_info: SimulationInfo) -> None:
-        self.observation = simulation_info.observation
+        self._observation = simulation_info.observation
         self._update_exchange_info(simulation_info.exchangeInfo)
 
     @property
@@ -260,6 +261,12 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         return [CoinbaseMatch.from_proto(m) for m in match_events]
 
     @property
+    def observation(self) -> Observation:
+        """Observation from latest step
+        """
+        return Observation.from_proto(self._observation)
+
+    @property
     def received_cancellations(self) -> List[CoinbaseCancellation]:
         """
         received_cancellations [summary]
@@ -288,6 +295,12 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             value (List[CoinbaseEvent]): [description]
         """
         self._received_orders = value
+
+    @property
+    def reward(self) -> float:
+        """Reward from latest step
+        """
+        return self._observation.reward.reward
 
     def start(
         self,

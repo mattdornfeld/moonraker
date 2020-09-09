@@ -1,6 +1,7 @@
 """
  [summary]
 """
+from __future__ import annotations
 from dataclasses import dataclass
 from math import inf
 from typing import Optional, NamedTuple, Tuple
@@ -10,6 +11,9 @@ from gym.spaces import Box
 from gym.spaces import Tuple as TupleSpace
 
 from coinbase_ml.common import constants as c
+from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
+    Observation as ObservationProto,
+)
 
 
 class ActionSpace(Box):
@@ -34,12 +38,22 @@ class ObservationSpaceShape:
 
 class Observation(NamedTuple):
     """
-    Observation [summary]
+    A tuple of features that can be fed into a machine learning model
     """
 
     account_funds: np.ndarray
     order_book: np.ndarray
     time_series: np.ndarray
+
+    @staticmethod
+    def from_proto(observation_proto: ObservationProto) -> Observation:
+        """Converts an ObservationProto to an Observation
+        """
+        return Observation(
+            np.expand_dims(np.array(observation_proto.features.account), 0),
+            np.expand_dims(np.array(observation_proto.features.orderBook), 0),
+            np.expand_dims(np.array(observation_proto.features.timeSeries), 0),
+        )
 
 
 class ObservationSpace(TupleSpace):
