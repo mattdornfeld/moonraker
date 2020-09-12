@@ -1,5 +1,6 @@
 package co.firstorderlabs.fakebase
 
+import co.firstorderlabs.common.InfoAggregator
 import co.firstorderlabs.fakebase.types.Exceptions.CheckpointNotFound
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 
@@ -29,6 +30,7 @@ object Checkpointer {
     Account.clear
     DatabaseWorkers.clear
     Exchange.clear
+    InfoAggregator.clear
     MatchingEngine.clear
     SnapshotBuffer.clear
     checkpointSnapshotBuffer.clear
@@ -38,6 +40,7 @@ object Checkpointer {
     (Account.isCleared
     && DatabaseWorkers.isCleared
     && Exchange.isCleared
+    && InfoAggregator.isCleared
     && MatchingEngine.isCleared
     && SnapshotBuffer.isCleared)
   }

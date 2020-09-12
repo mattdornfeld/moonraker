@@ -21,6 +21,52 @@ object RequestsData {
     ProductPrice.productId
   )
 
+  val fundsTooLargeOrderRequest = BuyMarketOrderRequest(
+    QuoteVolume.maxVolume * Right(2.0),
+    ProductPrice.productId
+  )
+
+  val fundsTooSmallOrderRequest = BuyMarketOrderRequest(
+    QuoteVolume.zeroVolume,
+    ProductPrice.productId
+  )
+
+  lazy val insufficientFundsOrderRequest = BuyMarketOrderRequest(
+    simulationStartRequest.initialQuoteFunds * Right(2.0),
+    ProductPrice.productId
+  )
+
+  val postOnlyOrderRequest = BuyLimitOrderRequest(
+    new ProductPrice(Right("1000.000")),
+    ProductPrice.productId,
+    new ProductVolume(Right("1.00")),
+    true
+  )
+
+  val priceTooLargeOrderRequest = BuyLimitOrderRequest(
+    ProductPrice.maxPrice / Right(0.5),
+    ProductPrice.productId,
+    new ProductVolume(Right("1.00")),
+  )
+
+  val priceTooSmallOrderRequest = BuyLimitOrderRequest(
+    ProductPrice.zeroPrice,
+    ProductPrice.productId,
+    new ProductVolume(Right("1.00")),
+  )
+
+  val sizeTooLargeOrderRequest = BuyLimitOrderRequest(
+    new ProductPrice(Right("1000.000")),
+    ProductPrice.productId,
+    ProductVolume.maxVolume * Right(2.0),
+  )
+
+  val sizeTooSmallOrderRequest = BuyLimitOrderRequest(
+    new ProductPrice(Right("1000.000")),
+    ProductPrice.productId,
+    ProductVolume.zeroVolume,
+  )
+
   val orderBooksRequest = new OrderBooksRequest(10)
 
   val sellLimitOrderRequest = new SellLimitOrderRequest(
