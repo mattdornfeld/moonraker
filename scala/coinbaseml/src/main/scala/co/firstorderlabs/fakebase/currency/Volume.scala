@@ -192,7 +192,7 @@ object Volume {
     val maxVolume = new BtcVolume(Right("1e4"))
     val minVolume = new BtcVolume(Right("1e-3"))
     val normalizationFactor = 1e3
-    val scale = 8
+    lazy val scale = 8
     val zeroVolume = new BtcVolume(Right("0.0"))
   }
 
@@ -207,7 +207,7 @@ object Volume {
     val maxVolume = new UsdVolume(Right("1e10"))
     val minVolume = new UsdVolume(Right("1e-2"))
     val normalizationFactor = 1e6
-    val scale = 2
+    lazy val scale = 2
     val zeroVolume = new UsdVolume(Right("0.0"))
   }
 }

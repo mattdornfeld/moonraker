@@ -27,23 +27,28 @@ object Types {
       val endDt = this.endTime.minus(duration)
       TimeInterval(startDt, endDt)
     }
+
+    def contains(instant: Instant): Boolean =
+      (instant.compareTo(startTime) >= 0
+        && instant.compareTo(endTime) < 0)
   }
 
   object OrderId {
-    implicit val typeMapper = TypeMapper[String, OrderId](
-      value => OrderId(value)
-    )(orderId => orderId.orderId)
+    implicit val typeMapper =
+      TypeMapper[String, OrderId](value => OrderId(value))(orderId =>
+        orderId.orderId
+      )
   }
 
   object OrderRequestId {
-    implicit val typeMapper = TypeMapper[String, OrderRequestId](
-      value => OrderRequestId(value)
+    implicit val typeMapper = TypeMapper[String, OrderRequestId](value =>
+      OrderRequestId(value)
     )(orderRequestId => orderRequestId.orderRequestId)
   }
 
   object ProductId {
-    implicit val typeMapper = TypeMapper[String, ProductId](
-      value => ProductId.fromString(value)
+    implicit val typeMapper = TypeMapper[String, ProductId](value =>
+      ProductId.fromString(value)
     )(productId => productId.toString)
 
     def fromString(productId: String): ProductId = {
@@ -66,8 +71,9 @@ object Types {
   }
 
   object TradeId {
-    implicit val typeMapper = TypeMapper[Long, TradeId](
-      value => TradeId(value)
-    )(tradeId => tradeId.tradeId)
+    implicit val typeMapper =
+      TypeMapper[Long, TradeId](value => TradeId(value))(tradeId =>
+        tradeId.tradeId
+      )
   }
 }

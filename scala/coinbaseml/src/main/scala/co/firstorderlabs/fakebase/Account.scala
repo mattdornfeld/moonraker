@@ -4,45 +4,12 @@ import java.util.UUID
 
 import co.firstorderlabs.common.utils.Utils.getResultOptional
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.currency.Volume.Volume
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  AccountInfo,
-  AccountServiceGrpc,
-  BuyLimitOrder,
-  BuyLimitOrderRequest,
-  BuyMarketOrder,
-  BuyMarketOrderRequest,
-  Cancellation,
-  CancellationRequest,
-  DoneReason,
-  Match,
-  MatchEvents,
-  Order,
-  OrderSide,
-  OrderStatus,
-  Orders,
-  RejectReason,
-  SellLimitOrder,
-  SellLimitOrderRequest,
-  SellMarketOrder,
-  SellMarketOrderRequest,
-  Wallets => WalletsProto
-}
+import co.firstorderlabs.fakebase.protos.fakebase.{AccountInfo, AccountServiceGrpc, BuyLimitOrder, BuyLimitOrderRequest, BuyMarketOrder, BuyMarketOrderRequest, Cancellation, CancellationRequest, DoneReason, Match, MatchEvents, Order, OrderSide, OrderStatus, Orders, RejectReason, SellLimitOrder, SellLimitOrderRequest, SellMarketOrder, SellMarketOrderRequest, Wallets => WalletsProto}
 import co.firstorderlabs.fakebase.types.Events._
-import co.firstorderlabs.fakebase.types.Exceptions.{
-  InvalidOrderStatus,
-  InvalidOrderType,
-  OrderNotFound
-}
-import co.firstorderlabs.fakebase.types.Types.{
-  OrderId,
-  OrderRequestId,
-  TimeInterval
-}
+import co.firstorderlabs.fakebase.types.Exceptions.{InvalidOrderStatus, InvalidOrderType, OrderNotFound}
+import co.firstorderlabs.fakebase.types.Types.{OrderId, OrderRequestId, TimeInterval}
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 
@@ -72,12 +39,12 @@ class MatchesHashMap extends HashMap[OrderId, ListBuffer[Match]] {
 }
 
 case class AccountSnapshot(
-                            orderRequests: HashMap[OrderRequestId, OrderRequest],
-                            placedCancellations: CancellationsHashMap,
-                            placedOrders: HashMap[OrderId, OrderEvent],
-                            matches: MatchesHashMap,
-                            walletsSnapshot: WalletsSnapshot,
-                            matchesInCurrentTimeInterval: ListBuffer[Match]
+    orderRequests: HashMap[OrderRequestId, OrderRequest],
+    placedCancellations: CancellationsHashMap,
+    placedOrders: HashMap[OrderId, OrderEvent],
+    matches: MatchesHashMap,
+    walletsSnapshot: WalletsSnapshot,
+    matchesInCurrentTimeInterval: ListBuffer[Match]
 ) extends Snapshot
 
 object Account
@@ -105,8 +72,8 @@ object Account
 
   def cancelExpiredOrders: Unit = {
     placedOrders
-      .filter(
-        item => item._2.orderStatus.isopen || item._2.orderStatus.isreceived
+      .filter(item =>
+        item._2.orderStatus.isopen || item._2.orderStatus.isreceived
       )
       .foreach { item =>
         item._2 match {
@@ -142,16 +109,17 @@ object Account
 
   @throws[OrderNotFound]
   @throws[InvalidOrderStatus]
-  def closeOrder[A <: OrderEvent](order: A,
-                                  doneReason: DoneReason): A = {
+  def closeOrder[A <: OrderEvent](order: A, doneReason: DoneReason): A = {
     if (!placedOrders.contains(order.orderId))
       throw OrderNotFound(
         s"orderId ${order.orderId} was not found in Account.placedOrders"
       )
 
-    if (!List(OrderStatus.received, OrderStatus.open).contains(
-          order.orderStatus
-        ))
+    if (
+      !List(OrderStatus.received, OrderStatus.open).contains(
+        order.orderStatus
+      )
+    )
       throw InvalidOrderStatus(
         s"${order.orderStatus} not in List(OrderStatus.received, OrderStatus.open)"
       )
@@ -187,7 +155,7 @@ object Account
   }
 
   def getOrderRequest[A <: OrderRequest](
-    orderRequestId: OrderRequestId
+      orderRequestId: OrderRequestId
   ): Option[A] = {
     if (orderRequests.contains(orderRequestId))
       Some(orderRequests.get(orderRequestId).get.asInstanceOf[A])
@@ -195,17 +163,22 @@ object Account
       None
   }
 
+  def getFilteredOrders(filter: OrderEvent => Boolean): Iterable[OrderEvent] =
+    for (
+      order <- placedOrders.values
+      if filter(order)
+    )
+      yield order
+
   def getReceivedCancellations: Iterable[Cancellation] = {
-    val timeInterval = Exchange.getSimulationMetadata.currentTimeInterval - Exchange.getSimulationMetadata.timeDelta
+    val timeInterval =
+      Exchange.getSimulationMetadata.currentTimeInterval - Exchange.getSimulationMetadata.timeDelta
     for (cancellation <- placedCancellations(timeInterval))
       yield cancellation
   }
 
-  def getReceivedOrders: Iterable[OrderEvent] = {
-    for (order <- placedOrders.values
-         if order.orderStatus == OrderStatus.received)
-      yield order
-  }
+  def getReceivedOrders: Iterable[OrderEvent] =
+    getFilteredOrders(_.orderStatus.isreceived)
 
   def hasSufficientFunds(order: BuyOrderEvent): Boolean = {
     val requiredBuyHold = Wallets.calcRequiredBuyHold(order)
@@ -248,7 +221,7 @@ object Account
   }
 
   override def cancelOrder(
-    cancellationRequest: CancellationRequest
+      cancellationRequest: CancellationRequest
   ): Future[Cancellation] = {
     val order = placedOrders.get(cancellationRequest.orderId)
 
@@ -274,7 +247,9 @@ object Account
       case order: LimitOrderEvent => {
         val cancellation = OrderUtils.cancellationFromOrder(order)
 
-        placedCancellations(Exchange.getSimulationMetadata.currentTimeInterval) += cancellation
+        placedCancellations(
+          Exchange.getSimulationMetadata.currentTimeInterval
+        ) += cancellation
 
         Future.successful(cancellation)
       }
@@ -292,7 +267,7 @@ object Account
     Future.successful(
       AccountInfo(
         getResultOptional(getWallets(request)),
-        getResultOptional(getMatches(request)),
+        getResultOptional(getMatches(request))
       )
     )
   }
@@ -305,16 +280,15 @@ object Account
   override def getOrders(request: Empty): Future[Orders] = {
     val orders = Orders(
       placedOrders
-        .map(
-          item =>
-            (
-              item._1,
-              OrderUtils
-                .addMatchesToOrder(item._2, matches(item._2.orderId).toSeq)
+        .map(item =>
+          (
+            item._1,
+            OrderUtils
+              .addMatchesToOrder(item._2, matches(item._2.orderId).toSeq)
           )
         )
-        .map(
-          item => (item._1.orderId, OrderUtils.orderEventToSealedOneOf(item._2))
+        .map(item =>
+          (item._1.orderId, OrderUtils.orderEventToSealedOneOf(item._2))
         )
         .toMap[String, Order]
     )
@@ -326,7 +300,7 @@ object Account
     Future.successful(Wallets.toProto)
 
   override def placeBuyMarketOrder(
-    buyMarketOrderRequest: BuyMarketOrderRequest
+      buyMarketOrderRequest: BuyMarketOrderRequest
   ): Future[BuyMarketOrder] = {
     val orderRequestId = storeOrderRequest(buyMarketOrderRequest)
 
@@ -346,7 +320,7 @@ object Account
   }
 
   override def placeBuyLimitOrder(
-    buyLimitOrderRequest: BuyLimitOrderRequest
+      buyLimitOrderRequest: BuyLimitOrderRequest
   ): Future[BuyLimitOrder] = {
     val orderRequestId = storeOrderRequest(buyLimitOrderRequest)
 
@@ -361,14 +335,14 @@ object Account
       rejectReason = RejectReason.notRejected,
       requestId = orderRequestId,
       matchEvents = Some(MatchEvents()),
-      timeToLive = buyLimitOrderRequest.timeToLive,
+      timeToLive = buyLimitOrderRequest.timeToLive
     )
 
     Future.successful(processOrder(buyLimitOrder))
   }
 
   override def placeSellLimitOrder(
-    sellLimitOrderRequest: SellLimitOrderRequest
+      sellLimitOrderRequest: SellLimitOrderRequest
   ): Future[SellLimitOrder] = {
     val orderRequestId = storeOrderRequest(sellLimitOrderRequest)
 
@@ -390,7 +364,7 @@ object Account
   }
 
   override def placeSellMarketOrder(
-    sellMarketOrderRequest: SellMarketOrderRequest
+      sellMarketOrderRequest: SellMarketOrderRequest
   ): Future[SellMarketOrder] = {
     val orderRequestId = storeOrderRequest(sellMarketOrderRequest)
 
@@ -431,7 +405,7 @@ object Account
 
 object OrderRejecter {
   def isBuyMarketOrderInvalid(
-    buyMarketOrder: BuyMarketOrder
+      buyMarketOrder: BuyMarketOrder
   ): Option[RejectReason] = {
     List(isFundsInvalid _, hasInsufficientFunds _).view
       .flatMap(f => f(buyMarketOrder))
@@ -439,7 +413,7 @@ object OrderRejecter {
   }
 
   private def isFundsInvalid(
-    buyMarketOrder: BuyMarketOrder
+      buyMarketOrder: BuyMarketOrder
   ): Option[RejectReason] = {
     buyMarketOrder.funds match {
       case funds if funds > QuoteVolume.maxVolume =>
@@ -487,7 +461,7 @@ object OrderRejecter {
   }
 
   private def isPriceInvalid(
-    limitOrder: LimitOrderEvent
+      limitOrder: LimitOrderEvent
   ): Option[RejectReason] = {
     limitOrder.price match {
       case price if price > ProductPrice.maxPrice =>
@@ -509,16 +483,17 @@ object OrderRejecter {
   }
 
   private def violatesPostOnly(
-    limitOrder: LimitOrderEvent
+      limitOrder: LimitOrderEvent
   ): Option[RejectReason] = {
     val orderRequest =
       Account.getOrderRequest[LimitOrderRequest](limitOrder.requestId)
-    val violatesPostOnly = Exchange.checkIsTaker(limitOrder) && orderRequest.get.postOnly
+    val violatesPostOnly =
+      Exchange.checkIsTaker(limitOrder) && orderRequest.get.postOnly
     if (violatesPostOnly) Some(RejectReason.postOnly) else None
   }
 
   def isSellMarketOrderInvalid(
-    sellMarketOrder: SellMarketOrder
+      sellMarketOrder: SellMarketOrder
   ): Option[RejectReason] = {
     List(isSizeInvalid _, hasInsufficientFunds _).view
       .flatMap(f => f(sellMarketOrder))

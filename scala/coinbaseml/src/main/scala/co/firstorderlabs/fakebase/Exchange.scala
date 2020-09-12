@@ -3,8 +3,8 @@ package co.firstorderlabs.fakebase
 import java.time.{Duration, Instant}
 import java.util.logging.Logger
 
+import co.firstorderlabs.common.InfoAggregator
 import co.firstorderlabs.common.featurizers.Featurizer
-import co.firstorderlabs.common.protos.{Observation, ObservationRequest}
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
@@ -134,6 +134,7 @@ object Exchange
     getSimulationMetadata.currentTimeInterval =
       Checkpointer.checkpointTimeInterval
     Checkpointer.restoreFromCheckpoint
+    InfoAggregator.clear
     logger.info(
       s"simulation reset to timeInterval ${getSimulationMetadata.currentTimeInterval}"
     )
@@ -199,6 +200,7 @@ object Exchange
       s"There are ${DatabaseWorkers.getResultMapSize.toString} entries in the results map queue"
     )
 
+    InfoAggregator.preStep
     Account.step
 
     val queryResult =
@@ -228,6 +230,7 @@ object Exchange
     matchingEngine.processEvents(receivedEvents)
 
     SnapshotBuffer.step
+    InfoAggregator.step
 
     Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
   }
