@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from dateutil import parser
 
-from coinbase_ml.common.featurizers import Metrics
+from coinbase_ml.common.featurizers.protos.featurizer_pb2 import InfoDictKey
 from coinbase_ml.common.utils.time_utils import (
     TimeInterval,
     generate_randomly_shifted_lookback_intervals,
@@ -24,8 +24,7 @@ def config():
     num_time_steps = 3
     num_warmup_time_steps = num_time_steps
     optimizer_name = "Adam"
-    result_metric = Metrics.ROI
-    result_metric_str = result_metric.value
+    result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
     reward_strategy_name = "ProfitRewardStrategy"
     test_end_dt = "2020-01-17 17:20:00.00"
     test_start_dt = "2020-01-17 17:00:00.00"

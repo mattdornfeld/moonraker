@@ -6,8 +6,6 @@ from decimal import Decimal
 from google.protobuf.empty_pb2 import Empty
 from sqlalchemy import create_engine
 
-from coinbase_ml.fakebase.protos.fakebase_pb2 import ExchangeInfoRequest
-
 # Fakebase server configs
 GRPC_CHANNEL_OPTIONS = [
     ("grpc.max_receive_message_length", 100 * 1000 * 1000),
@@ -17,7 +15,6 @@ GRPC_CHANNEL_OPTIONS = [
 FAKBASE_SERVER_JAR = "coinbaseml.jar"
 FAKBASE_SERVER_DEFAULT_PORT = 9090
 EMPTY_PROTO = Empty()
-EMPTY_EXCHANGE_INFO_REQUEST = ExchangeInfoRequest()
 
 # Coinbase configs
 COINBASE_WEBSOCKET_API_URL = "wss://ws-feed.pro.coinbase.com"

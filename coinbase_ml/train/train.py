@@ -18,7 +18,6 @@ from coinbase_ml.common.reward import REWARD_STRATEGIES
 from coinbase_ml.common.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
 from coinbase_ml.common.utils.ray_utils import register_custom_models
 from coinbase_ml.common.utils.sacred_utils import log_metrics_to_sacred
-from coinbase_ml.serve.metrics_recorder import Metrics
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
 from coinbase_ml.train.trainers import get_and_build_trainer
@@ -33,7 +32,7 @@ def main(
     _run: Run,
     custom_model_names: List[str],
     hyper_params: Dict[str, Any],
-    result_metric: Metrics,
+    result_metric: str,
     test_environment_configs: Dict[str, Any],
     train_environment_configs: Dict[str, Any],
     trainer_name: str,
@@ -45,7 +44,7 @@ def main(
     Args:
         _run (Run): [description]
         hyper_params (dict): [description]
-        result_metric (Metrics): Metric recorded as result in Sacred.
+        result_metric (str): Metric recorded as result in Sacred.
             Note that what's actually recorded is the mean of that metric,
             averaged over all episodes in an iteration.
         seed (int): [description]
@@ -55,7 +54,7 @@ def main(
     Returns:
         float: [description]
     """
-    result_metric_key = f"{result_metric.value}_mean"
+    result_metric_key = f"{result_metric}_mean"
 
     for configs in [test_environment_configs, train_environment_configs]:
         reward_strategy_name: str = configs.pop("reward_strategy_name")

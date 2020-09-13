@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -9,16 +10,34 @@ option (scalapb.options) = {
   flat_package: true
 };
 
+enum InfoDictKey {
+    buyFeesPaid = 0;
+    buyOrdersPlaced = 1;
+    buyVolumeTraded = 2;
+    numOrdersRejected = 3;
+    portfolioValue = 4;
+    sellFeesPaid = 5;
+    sellOrdersPlaced = 6;
+    sellVolumeTraded = 7;
+}
+
 enum RewardStrategy {
     ReturnRewardStrategy = 0;
     LogReturnRewardStrategy = 1;
 }
 
 service FeaturizerService {
+    rpc getInfoDict (google.protobuf.Empty) returns (InfoDict) {
+    }
     rpc getObservation (ObservationRequest) returns (Observation) {
     }
     rpc getReward (RewardRequest) returns (Reward) {
     }
+}
+
+message InfoDict {
+    option (scalapb.message).type = "co.firstorderlabs.common.InfoDict";
+    map<string, double> infoDict = 1;
 }
 
 message ObservationRequest {
@@ -36,6 +55,7 @@ message Features {
 message Observation {
     Features features = 1;
     Reward reward = 2;
+    InfoDict infoDict = 3;
 }
 
 message RewardRequest {

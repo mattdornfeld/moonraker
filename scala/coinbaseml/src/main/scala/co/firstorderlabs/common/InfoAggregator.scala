@@ -1,64 +1,66 @@
 package co.firstorderlabs.common
 
+import co.firstorderlabs.common.protos.{InfoDictKey, InfoDict => InfoDictProto}
 import co.firstorderlabs.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.common.utils.Utils.getResult
+import co.firstorderlabs.fakebase.{Account, Constants, Exchange, SnapshotBuffer}
 import co.firstorderlabs.fakebase.protos.fakebase.Match
 import co.firstorderlabs.fakebase.types.Events.OrderEvent
-import co.firstorderlabs.fakebase._
 
-import scala.collection.mutable.HashMap
+import scala.collection.mutable
 
-case class InfoAggregatorSnapshot(infoDict: HashMap[String, Double])
-    extends Snapshot
+class InfoDict extends mutable.HashMap[InfoDictKey, Double] {
+  def increment(key: InfoDictKey, incrementValue: Double): Unit = {
+    val currentValue = getOrElse(key, 0.0)
+    update(key, currentValue + incrementValue)
+  }
 
-object InfoDictKeys {
-  val buyFeesPaid = "buyFeesPaid"
-  val buyOrdersPlaced = "buyOrdersPlaced"
-  val buyVolumeTraded = "buyVolumeTraded"
-  val numOrdersRejected = "numOrdersRejected"
-  val portfolioValue = "portfolioValue"
-  val sellFeesPaid = "sellFeesPaid"
-  val sellOrdersPlaced = "sellOrdersPlaced"
-  val sellVolumeTraded = "sellVolumeTraded"
+  def instantiate: Unit =
+    InfoDictKey.values.foreach { key =>
+      put(key, 0.0)
+    }
+}
 
-  def toList: List[String] =
-    List(
-      buyFeesPaid,
-      buyOrdersPlaced,
-      buyVolumeTraded,
-      numOrdersRejected,
-      portfolioValue,
-      sellFeesPaid,
-      sellOrdersPlaced,
-      sellVolumeTraded
-    )
+object InfoDict {
+  def fromProto(infoDictProto: InfoDictProto): InfoDict = {
+    val infoDict = new InfoDict
+    infoDictProto.infoDict
+      .map { item =>
+        val key = InfoDictKey.fromName(item._1) match {
+          case Some(key) => key
+          case None =>
+            throw new IllegalArgumentException(
+              s"Key ${item._1} is not a member of InfoDictKeys"
+            )
+        }
+        (key, item._2)
+      }
+      .foreach(item => infoDict.put(item._1, item._2))
+
+    infoDict
+  }
+
+  def toProto(infoDict: InfoDict): InfoDictProto = {
+    InfoDictProto(infoDict.map(item => (item._1.name, item._2)).toMap)
+  }
 }
 
 object InfoAggregator {
-  implicit class HashMapIncrementer(hashMap: HashMap[String, Double]) {
-    def increment(key: String, incrementValue: Double): Unit = {
-      val currentValue = hashMap.getOrElse(key, 0.0)
-      hashMap.update(key, currentValue + incrementValue)
-    }
-  }
-
-  private val infoDict = new HashMap[String, Double]
+  private val infoDict = new InfoDict
   instantiateInfoDict
 
   private val buyMatchFilter = (matchEvent: Match) => matchEvent.side.isbuy
   private val buyOrderFilter = (orderEvent: OrderEvent) => orderEvent.side.isbuy
   private val sellMatchFilter = (matchEvent: Match) => matchEvent.side.issell
-  private val sellOrderFilter = (orderEvent: OrderEvent) => orderEvent.side.issell
+  private val sellOrderFilter = (orderEvent: OrderEvent) =>
+    orderEvent.side.issell
 
-  private def instantiateInfoDict: Unit =
-    InfoDictKeys.toList.foreach { key =>
-      infoDict.put(key, 0.0)
-    }
+  private def instantiateInfoDict: Unit = infoDict.instantiate
 
   private def incrementFeesPaid(matches: Seq[Match]): Unit =
     Seq(
-      (buyMatchFilter, InfoDictKeys.buyFeesPaid),
-      (sellMatchFilter, InfoDictKeys.sellFeesPaid)
+      (buyMatchFilter, InfoDictKey.buyFeesPaid),
+      (sellMatchFilter, InfoDictKey.sellFeesPaid)
     ).foreach { item =>
       val feesPaid = matches
         .filter(item._1)
@@ -72,8 +74,8 @@ object InfoAggregator {
     val placedOrders = Account.getReceivedOrders
 
     Seq(
-      (buyOrderFilter, InfoDictKeys.buyOrdersPlaced),
-      (sellOrderFilter, InfoDictKeys.sellOrdersPlaced)
+      (buyOrderFilter, InfoDictKey.buyOrdersPlaced),
+      (sellOrderFilter, InfoDictKey.sellOrdersPlaced)
     ).foreach { item =>
       val numOrdersPlaced = placedOrders.filter(item._1).size
       infoDict.increment(item._2, numOrdersPlaced)
@@ -90,13 +92,13 @@ object InfoAggregator {
       )
       .size
 
-    infoDict.increment(InfoDictKeys.numOrdersRejected, numOrdersRejected)
+    infoDict.increment(InfoDictKey.numOrdersRejected, numOrdersRejected)
   }
 
   private def incrementVolumeTraded(matches: Seq[Match]): Unit =
     Seq(
-      (buyMatchFilter, InfoDictKeys.buyVolumeTraded),
-      (sellMatchFilter, InfoDictKeys.sellVolumeTraded)
+      (buyMatchFilter, InfoDictKey.buyVolumeTraded),
+      (sellMatchFilter, InfoDictKey.sellVolumeTraded)
     ).foreach { item =>
       val volumeTraded =
         matches
@@ -116,10 +118,10 @@ object InfoAggregator {
         )
       else simulationMetadata.initialQuoteFunds.toDouble
 
-    infoDict.put(InfoDictKeys.portfolioValue, portfolioValue)
+    infoDict.put(InfoDictKey.portfolioValue, portfolioValue)
   }
 
-  def getInfoDict: HashMap[String, Double] = infoDict
+  def getInfoDict: InfoDict = infoDict
 
   def preStep: Unit = {
     incrementOrdersPlaced
@@ -142,6 +144,6 @@ object InfoAggregator {
   }
 
   def isCleared: Boolean =
-    (InfoDictKeys.toList.forall(key => infoDict.contains(key))
+    (InfoDictKey.values.forall(key => infoDict.contains(key))
       && infoDict.values.forall(_ == 0.0))
 }
