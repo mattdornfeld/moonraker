@@ -1,9 +1,7 @@
 """Summary
 """
 import logging
-from collections import deque
-from copy import deepcopy
-from typing import Deque, Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 from gym import Env
@@ -11,16 +9,13 @@ from gym import Env
 from ray.rllib.env.env_context import EnvContext
 
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common.action import ActionBase
 from coinbase_ml.common.actionizers import Actionizer
-from coinbase_ml.common.featurizers import Featurizer
 from coinbase_ml.common.observations import (
     ActionSpace,
     Observation,
     ObservationSpace,
     ObservationSpaceShape,
 )
-from coinbase_ml.common.types import StateAtTime
 from coinbase_ml.fakebase.account import Account
 from coinbase_ml.fakebase.exchange import Exchange
 from coinbase_ml.train import constants as c
@@ -39,16 +34,12 @@ class Environment(Env):  # pylint: disable=W0223
         _config = EnvironmentConfigs(**config)
         self._made_illegal_transaction = False
         self._warmed_up = False
-        self._warmed_up_buffer: Deque[StateAtTime] = deque(
-            maxlen=_config.num_time_steps
-        )
         self.action_space = ActionSpace()
         self.config = _config
-        self.featurizer: Optional[Featurizer] = None
         self.observation_space = ObservationSpace(
             shape=ObservationSpaceShape(
                 account_funds=(1, 4),
-                order_book=(1, _config.num_time_steps * 4 * cc.ORDER_BOOK_DEPTH,),
+                order_book=(1, _config.num_time_steps * 4 * cc.ORDER_BOOK_DEPTH),
                 time_series=(
                     1,
                     _config.num_time_steps * cc.NUM_CHANNELS_IN_TIME_SERIES,
@@ -98,18 +89,11 @@ class Environment(Env):  # pylint: disable=W0223
 
         return out_of_product and out_of_quote
 
-    def _exchange_step(self, action: ActionBase) -> None:
+    def _exchange_step(self) -> None:
         """
         _exchange_step [summary]
-
-        Args:
-            action (Optional[ActionBase]): [description]
         """
-        if c.VERBOSE and self._results_queue_is_empty:
-            LOGGER.info("Data queue is empty. Waiting for next entry.")
-
         self.exchange.step()
-        self.featurizer.update_state_buffer(action)
 
         if c.VERBOSE:
             interval_end_dt = self.exchange.interval_end_dt
@@ -118,31 +102,12 @@ class Environment(Env):  # pylint: disable=W0223
                 "Exchange stepped to %s-%s.", interval_start_dt, interval_end_dt
             )
 
-    @property
-    def _results_queue_is_empty(self) -> bool:
-        """Is results queue empty
-
-        Returns:
-            bool: Description
-        """
-        return self.exchange.database_workers.results_queue.qsize() == 0
-
     def _warmup(self) -> None:
         """Summary
         """
-        while self.featurizer.state_buffer:
-            self.featurizer.state_buffer.pop()
-
-        actionizer = Actionizer[Account](self.exchange.account)
-        no_transaction = actionizer.get_action()
         for _ in range(self.config.num_warmup_time_steps):
-            self._exchange_step(no_transaction)
+            self._exchange_step()
 
-        # Call self.featurizer.get_info_dict to inititialize values
-        # in InfoDictFeaturizer
-        self.featurizer.get_info_dict()
-
-        self._warmed_up_buffer = deepcopy(self.featurizer.state_buffer)
         self._warmed_up = True
 
     def close(self) -> None:
@@ -168,12 +133,6 @@ class Environment(Env):  # pylint: disable=W0223
             LOGGER.info("Resetting the environment.")
 
         if not self._warmed_up:
-            self.featurizer = Featurizer(
-                exchange=self.exchange,
-                reward_strategy=self.config.reward_strategy,
-                state_buffer_size=self.config.num_time_steps,
-            )
-
             self.exchange.start(
                 initial_product_funds=self.config.initial_btc,
                 initial_quote_funds=self.config.initial_usd,
@@ -185,10 +144,6 @@ class Environment(Env):  # pylint: disable=W0223
             self.exchange.checkpoint()
         else:
             self.exchange.reset()
-
-            self.featurizer.reset(
-                exchange=self.exchange, state_buffer=self._warmed_up_buffer
-            )
 
         self._made_illegal_transaction = False
 
@@ -218,10 +173,9 @@ class Environment(Env):  # pylint: disable=W0223
 
         actionizer = Actionizer[Account](self.exchange.account, action)
         action = actionizer.get_action()
-        action.cancel_expired_orders(self.exchange.interval_start_dt)
         action.execute()
 
-        self._exchange_step(action)
+        self._exchange_step()
 
         observation = self.exchange.observation
         reward = self.exchange.reward
@@ -230,6 +184,4 @@ class Environment(Env):  # pylint: disable=W0223
         if c.VERBOSE:
             LOGGER.info("reward = %s", reward)
 
-        info_dict = self.featurizer.get_info_dict()
-
-        return observation, reward, self.episode_finished, info_dict.keys_to_str()
+        return observation, reward, self.episode_finished, self.exchange.info_dict

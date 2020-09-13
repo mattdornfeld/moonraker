@@ -104,10 +104,10 @@ object Exchange
   }
 
   override def getExchangeInfo(
-      exchangeInfoRequest: ExchangeInfoRequest
+      request: Empty
   ): Future[ExchangeInfo] = {
     Future.successful(
-      getExchangeInfoHelper(exchangeInfoRequest)
+      getExchangeInfoHelper
     )
   }
 
@@ -242,29 +242,12 @@ object Exchange
     Future.successful(Constants.emptyProto)
   }
 
-  private def getExchangeInfoHelper(
-      exchangeInfoRequest: ExchangeInfoRequest
-  ): ExchangeInfo = {
+  private def getExchangeInfoHelper: ExchangeInfo = {
     if (simulationMetadata.isDefined) {
-      val orderBooks = exchangeInfoRequest.orderBooksRequest match {
-        case Some(orderBooksRequest) =>
-          getResultOptional(getOrderBooks(orderBooksRequest))
-        case None => None
-      }
-
-      val observation = exchangeInfoRequest.observationRequest match {
-        case Some(observationRequest) =>
-          getResultOptional(Featurizer.getObservation(observationRequest))
-        case None => None
-      }
-
       ExchangeInfo(
         getSimulationMetadata.currentTimeInterval.startTime,
         getSimulationMetadata.currentTimeInterval.endTime,
         getResultOptional(Account.getAccountInfo(Constants.emptyProto)),
-        orderBooks,
-        getResultOptional(getMatches(Constants.emptyProto)),
-        observation
       )
     } else {
       ExchangeInfo()
@@ -274,9 +257,7 @@ object Exchange
   def getSimulationInfo(simulationInfoRequest: Option[SimulationInfoRequest]): SimulationInfo = {
     if (simulationInfoRequest.isDefined) {
       val _simulationInfoRequest = simulationInfoRequest.get
-      val exchangeInfoRequest = _simulationInfoRequest.exchangeInfoRequest
-        .getOrElse(ExchangeInfoRequest())
-      val exchangeInfo = getExchangeInfoHelper(exchangeInfoRequest)
+      val exchangeInfo = getExchangeInfoHelper
       val observation = _simulationInfoRequest.observationRequest match {
         case Some(observationRequest) => Some(getResult(Featurizer.getObservation(observationRequest)))
         case None => None

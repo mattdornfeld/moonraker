@@ -20,7 +20,6 @@ from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     ExchangeInfo,
-    ExchangeInfoRequest,
     OrderBooksRequest,
     OrderBooks,
     SimulationInfo,
@@ -31,7 +30,6 @@ from coinbase_ml.fakebase.protos.fakebase_pb2 import (
 from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import ExchangeServiceStub
 from coinbase_ml.fakebase import constants as c
 from coinbase_ml.fakebase.base_classes.exchange import ExchangeBase
-from coinbase_ml.fakebase.database_workers import DatabaseWorkers
 from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.types import (
     BinnedOrderBook,
@@ -72,12 +70,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """
         super().__init__(end_dt, product_id, start_dt, time_delta)
 
-        self._matches: List[CoinbaseMatch] = []
-        self._order_books: Dict[OrderSide, BinnedOrderBook] = {}
-        self._received_cancellations: List[CoinbaseCancellation] = []
-        self._received_orders: List[CoinbaseOrder] = []
         self._simulation_info_request = SimulationInfoRequest()
-        self.database_workers: Optional[DatabaseWorkers] = None
         self._observation = ObservationProto()
 
         if create_exchange_process:
@@ -116,8 +109,11 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
 
         return return_val
 
-    def _bin_order_books_by_price(self, order_books: OrderBooks) -> None:
-        self._order_books = {
+    @staticmethod
+    def _bin_order_books_by_price(
+        order_books: OrderBooks,
+    ) -> Dict[OrderSide, BinnedOrderBook]:
+        return {
             OrderSide.buy: {
                 cc.PRODUCT_ID.price_type(price): cc.PRODUCT_ID.product_volume_type(
                     volume
@@ -143,19 +139,13 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         max_tries = 100
         for i in range(max_tries + 1):
             try:
-                self.stub.getExchangeInfo(c.EMPTY_EXCHANGE_INFO_REQUEST)
+                self.stub.getExchangeInfo(c.EMPTY_PROTO)
             except InactiveRpcError as inactive_rpc_error:
                 if i >= max_tries:
                     raise inactive_rpc_error
 
                 sleep(0.3)
                 continue
-
-    @classmethod
-    def _generate_exchange_info_request(cls) -> ExchangeInfoRequest:
-        return ExchangeInfoRequest(
-            orderBooksRequest=cls._generate_order_book_request(),
-        )
 
     @staticmethod
     def _generate_observation_request() -> ObservationRequest:
@@ -175,7 +165,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
     @classmethod
     def _generate_simulation_info_request(cls) -> SimulationInfoRequest:
         return SimulationInfoRequest(
-            exchangeInfoRequest=cls._generate_exchange_info_request(),
             observationRequest=cls._generate_observation_request(),
         )
 
@@ -186,10 +175,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Args:
             exchange_info (ExchangeInfo): [description]
         """
-        self._bin_order_books_by_price(exchange_info.orderBooks)
-        self._matches = [
-            CoinbaseMatch.from_proto(m) for m in exchange_info.matchEvents.matchEvents
-        ]
         self.account.account_info = exchange_info.accountInfo
         self.interval_start_dt = parser.parse(exchange_info.intervalStartTime).replace(
             tzinfo=None
@@ -232,19 +217,22 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Returns:
             BinnedOrderBook
         """
-        if len(self._order_books) == 0:
-            order_books: OrderBooks = self.stub.getOrderBooks(
-                self._generate_order_book_request()
-            )
-            self._bin_order_books_by_price(order_books)
+        order_books: OrderBooks = self.stub.getOrderBooks(
+            self._generate_order_book_request()
+        )
 
-        return self._order_books[order_side]
+        return self._bin_order_books_by_price(order_books)[order_side]
 
     def checkpoint(self) -> None:
-        """
-        checkpoint saves the current state of the Fakebase Exchange server
+        """Saves the current state of the Fakebase Exchange server
         """
         self.stub.checkpoint(c.EMPTY_PROTO)
+
+    @property
+    def info_dict(self) -> Dict[str, float]:
+        """Retrieves the InfoDict which contains summary information about the exchange
+        """
+        return dict(self._observation.infoDict.infoDict)
 
     @property
     def matches(self) -> List[CoinbaseMatch]:
@@ -254,9 +242,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Returns:
             List[CoinbaseMatch]: [description]
         """
-        if self._matches:
-            return self._matches
-
         match_events = self.stub.getMatches(c.EMPTY_PROTO).matchEvents
         return [CoinbaseMatch.from_proto(m) for m in match_events]
 
@@ -274,7 +259,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Returns:
             CoinbaseEvent: [description]
         """
-        return self._received_cancellations
+        return []
 
     @property
     def received_orders(self) -> List[CoinbaseOrder]:
@@ -284,7 +269,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Returns:
             CoinbaseEvent: [description]
         """
-        return self._received_orders
+        return []
 
     @received_orders.setter
     def received_orders(self, value: List[CoinbaseOrder]) -> None:
@@ -318,20 +303,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             num_warmup_time_steps (int): [description]
             snapshot_buffer_size (int): [description]
         """
-        self._order_books = {}
-
-        if self.database_workers:
-            self.stop_database_workers()
-
-        self.database_workers = DatabaseWorkers(
-            end_dt=self.end_dt,
-            num_workers=c.NUM_DATABASE_WORKERS,
-            product_id=self.product_id,
-            results_queue_size=c.DATABASE_RESULTS_QUEUE_SIZE,
-            start_dt=self.start_dt,
-            time_delta=self.time_delta,
-        )
-
         self._simulation_info_request = self._generate_simulation_info_request()
 
         message = SimulationStartRequest(
@@ -359,20 +330,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Reset the exchange to the state created with `checkpoint`. Useful when
         doing multiple simulations that need to start from the same warmed up state.
         """
-        self._order_books = {}
         simulation_info: SimulationInfo = self.stub.reset(self._simulation_info_request)
         self._update_simulation_info(simulation_info)
-
-        self.stop_database_workers()
-
-        self.database_workers = DatabaseWorkers(
-            end_dt=self.end_dt,
-            num_workers=c.NUM_DATABASE_WORKERS,
-            product_id=self.product_id,
-            results_queue_size=c.DATABASE_RESULTS_QUEUE_SIZE,
-            start_dt=self.interval_start_dt + self.time_delta,
-            time_delta=self.time_delta,
-        )
 
     def step(
         self,
@@ -407,41 +366,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         simulation_info: SimulationInfo = self.stub.step(step_request)
         self._update_simulation_info(simulation_info)
 
-        # It's useful to set c.NUM_DATABASE_WORKERS to 0 for some unit tests and skip the
-        # below block
-        if c.NUM_DATABASE_WORKERS > 0:
-
-            # Wait until first element of results queue is the data for the next time interval
-            # otherwise a race condition can cause the queue elements to be popped off out
-            # of sync
-            while True:
-                try:
-                    interval_start_dt = self.database_workers.results_queue.peek()[0]
-                except IndexError:
-                    continue
-
-                if interval_start_dt == self.interval_start_dt:
-                    break
-
-                sleep(0.001)
-
-            _, results = self.database_workers.results_queue.get()
-            self._received_cancellations = (
-                results.cancellations
-                + _insert_cancellations
-                + self.account.placed_cancellations
-            )
-            self._received_orders = (
-                results.orders + _insert_orders + self.account.placed_orders
-            )
-        else:
-            self._received_cancellations = (
-                _insert_cancellations + self.account.placed_cancellations
-            )
-            self._received_orders = _insert_orders + self.account.placed_orders
-
-        self.received_orders.sort(key=lambda event: event.time)
-        self.received_cancellations.sort(key=lambda event: event.time)
         self.account.placed_cancellations.clear()
         self.account.placed_orders.clear()
 
@@ -450,8 +374,3 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         stop [summary]
         """
         self.stub.stop(c.EMPTY_PROTO)
-
-    def stop_database_workers(self) -> None:
-        """Summary
-        """
-        self.database_workers.stop_workers()

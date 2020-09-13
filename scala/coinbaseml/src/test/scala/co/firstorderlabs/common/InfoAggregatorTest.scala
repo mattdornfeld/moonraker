@@ -1,6 +1,7 @@
 package co.firstorderlabs.common
 
 import co.firstorderlabs.common.TestUtils.doubleEquality
+import co.firstorderlabs.common.protos.InfoDictKey
 import co.firstorderlabs.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.common.utils.Utils.getResult
 import co.firstorderlabs.fakebase.TestData.OrdersData
@@ -30,10 +31,10 @@ class InfoAggregatorTest extends AnyFunSpec {
       "InfoAggregator should correctly count the number of orders placed for all order types"
     ) {
       Seq(
-        (buyLimitOrderRequest, InfoDictKeys.buyOrdersPlaced),
-        (buyMarketOrderRequest, InfoDictKeys.buyOrdersPlaced),
-        (sellLimitOrderRequest, InfoDictKeys.sellOrdersPlaced),
-        (sellMarketOrderRequest, InfoDictKeys.sellOrdersPlaced)
+        (buyLimitOrderRequest, InfoDictKey.buyOrdersPlaced),
+        (buyMarketOrderRequest, InfoDictKey.buyOrdersPlaced),
+        (sellLimitOrderRequest, InfoDictKey.sellOrdersPlaced),
+        (sellMarketOrderRequest, InfoDictKey.sellOrdersPlaced)
       ).foreach { item =>
         Exchange.start(simulationStartRequest)
         placeOrder(item._1)
@@ -64,7 +65,7 @@ class InfoAggregatorTest extends AnyFunSpec {
         Exchange.step(Constants.emptyStepRequest)
         assert(
           InfoAggregator.getInfoDict
-            .get(InfoDictKeys.numOrdersRejected)
+            .get(InfoDictKey.numOrdersRejected)
             .get === 1.0
         )
       }
@@ -107,13 +108,13 @@ class InfoAggregatorTest extends AnyFunSpec {
       Seq(
         (
           buyLimitOrderRequest,
-          InfoDictKeys.sellFeesPaid,
-          InfoDictKeys.sellVolumeTraded
+          InfoDictKey.sellFeesPaid,
+          InfoDictKey.sellVolumeTraded
         ),
         (
           sellLimitOrderRequest,
-          InfoDictKeys.buyFeesPaid,
-          InfoDictKeys.buyVolumeTraded
+          InfoDictKey.buyFeesPaid,
+          InfoDictKey.buyVolumeTraded
         )
       ).foreach { item =>
         Exchange.start(simulationStartRequest)

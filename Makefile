@@ -5,6 +5,9 @@ PYTEST_IGNORE = --ignore=coinbase_ml/fakebase/protos \
 	--ignore=featurizer_pb2_grpc.py \
 	--ignore=scalapb
 
+build:
+	make build-scala build-python-protos
+
 build-scala:
 	cd scala/coinbaseml && \
 	sbt clean assembly && \

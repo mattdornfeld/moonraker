@@ -1,5 +1,7 @@
 package co.firstorderlabs.common.featurizers
 
+import co.firstorderlabs.common
+import co.firstorderlabs.common.InfoAggregator
 import co.firstorderlabs.common.protos.FeaturizerServiceGrpc.FeaturizerService
 import co.firstorderlabs.common.protos.{
   Features,
@@ -15,6 +17,7 @@ import co.firstorderlabs.common.rewards.{
 }
 import co.firstorderlabs.common.types.Exceptions.UnrecognizedRewardStrategy
 import co.firstorderlabs.common.utils.Utils.getResult
+import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future
 
@@ -27,7 +30,7 @@ object Featurizer extends FeaturizerService {
       case None                => None
     }
 
-    val observation = Observation(Some(construct(observationRequest)), reward)
+    val observation = Observation(Some(construct(observationRequest)), reward, Some(InfoAggregator.getInfoDict))
 
     Future.successful(observation)
   }
@@ -50,4 +53,7 @@ object Featurizer extends FeaturizerService {
 
     Future.successful(reward)
   }
+
+  override def getInfoDict(request: Empty): Future[common.InfoDict] =
+    Future.successful(InfoAggregator.getInfoDict)
 }

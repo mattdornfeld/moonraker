@@ -263,7 +263,7 @@ message Wallets {
 service ExchangeService {
     rpc checkpoint (google.protobuf.Empty) returns (google.protobuf.Empty){
     }
-    rpc getExchangeInfo (ExchangeInfoRequest) returns (ExchangeInfo) {
+    rpc getExchangeInfo (google.protobuf.Empty) returns (ExchangeInfo) {
     }
     rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
     }
@@ -283,14 +283,7 @@ message ExchangeInfo {
     string intervalStartTime = 1 [(scalapb.field).type = "java.time.Instant"];
     string intervalEndTime = 2 [(scalapb.field).type = "java.time.Instant"];
     AccountInfo accountInfo = 3;
-    OrderBooks orderBooks = 4;
-    MatchEvents matchEvents = 5;
-    Observation observation = 6;
-}
-
-message ExchangeInfoRequest {
-    OrderBooksRequest orderBooksRequest = 1;
-    ObservationRequest observationRequest = 2;
+    Observation observation = 4;
 }
 
 message OrderBooksRequest {
@@ -310,8 +303,7 @@ message SimulationInfo {
 }
 
 message SimulationInfoRequest {
-    ExchangeInfoRequest exchangeInfoRequest = 1;
-    ObservationRequest observationRequest = 2;
+    ObservationRequest observationRequest = 1;
 }
 
 message SimulationStartRequest {

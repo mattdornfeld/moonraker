@@ -1,8 +1,18 @@
 package co.firstorderlabs.common.featurizers
 
 import co.firstorderlabs.common.protos.ObservationRequest
-import co.firstorderlabs.fakebase.protos.fakebase.{BuyLimitOrder, Cancellation, Match, SellLimitOrder}
-import co.firstorderlabs.fakebase.types.Events.{Event, OrderEvent, SpecifiesPrice, SpecifiesSize}
+import co.firstorderlabs.fakebase.protos.fakebase.{
+  BuyLimitOrder,
+  Cancellation,
+  Match,
+  SellLimitOrder
+}
+import co.firstorderlabs.fakebase.types.Events.{
+  Event,
+  OrderEvent,
+  SpecifiesPrice,
+  SpecifiesSize
+}
 import co.firstorderlabs.fakebase.{SimulationSnapshot, SnapshotBuffer}
 
 import scala.math.pow
@@ -12,53 +22,53 @@ object TimeSeriesFeaturizer extends FeaturizerBase {
   private val priceMapper = (event: Event) =>
     event match {
       case event: SpecifiesPrice => event.price.toDouble
-  }
+    }
   private val sizeMapper = (event: Event) =>
     event match {
       case event: SpecifiesSize => event.size.toDouble
-  }
+    }
 
   // Specify filters for selecting values from receivedEvents
   private val buyCancellationFilter = (event: Event) =>
     event match {
       case event: Cancellation if event.side.isbuy => true
       case _                                       => false
-  }
+    }
   private val buyMatchFilter = (event: Event) =>
     event match {
       case event: Match if event.side.isbuy => true
       case _                                => false
-  }
+    }
   private val buyOrderFilter = (event: Event) =>
     event match {
       case event: OrderEvent if event.side.isbuy => true
       case _                                     => false
-  }
+    }
   private val buyLimitOrderFilter = (event: Event) =>
     event match {
       case _: BuyLimitOrder => true
       case _                => false
-  }
+    }
   private val sellCancellationFilter = (event: Event) =>
     event match {
       case event: Cancellation if event.side.issell => true
       case _                                        => false
-  }
+    }
   private val sellMatchFilter = (event: Event) =>
     event match {
       case event: Match if event.side.issell => true
       case _                                 => false
-  }
+    }
   private val sellOrderFilter = (event: Event) =>
     event match {
       case event: OrderEvent if event.side.issell => true
       case _                                      => false
-  }
+    }
   private val sellLimitOrderFilter = (event: Event) =>
     event match {
       case _: SellLimitOrder => true
       case _                 => false
-  }
+    }
 
   // Gather filters for values that will be aggregated similarly into lists
   private val eventFilters = List(
@@ -83,31 +93,30 @@ object TimeSeriesFeaturizer extends FeaturizerBase {
     buyLimitOrderFilter,
     sellLimitOrderFilter
   )
-  private val filters = eventFilters ++ specifiesPriceFilters ++ specifiesSizeFilters
 
-  private val eventCountFeatureFunctions = List(
-    (events: List[Event]) => events.size.toDouble
-  )
   private val priceFeatureFunctions = List(mean _, std _)
   private val sizeFeatureFunctions = List(mean _, std _)
 
   def mean(x: List[Double]): Double =
     if (x.size > 0)
       x.sum / x.size
-    else 0
+    else 0.0
 
   def std(x: List[Double]): Double = {
     val mean_of_x_squared = mean(x.map(item => pow(item, 2)))
     val square_of_mean_of_x = pow(mean(x), 2)
+    val variance = mean_of_x_squared - square_of_mean_of_x
 
-    pow(mean_of_x_squared - square_of_mean_of_x, 0.5)
+    if (variance > 0) pow(variance, 0.5) else 0.0
   }
 
   def constructFeaturesFromSnapshot(
-    simulationSnapshot: SimulationSnapshot
+      simulationSnapshot: SimulationSnapshot
   ): List[Double] = {
     val events = getEvents(simulationSnapshot)
-    constructEventCountFeatures(events) ++ constructPriceFeatures(events) ++ constructSizeFeatures(
+    constructEventCountFeatures(events) ++ constructPriceFeatures(
+      events
+    ) ++ constructSizeFeatures(
       events
     )
   }
