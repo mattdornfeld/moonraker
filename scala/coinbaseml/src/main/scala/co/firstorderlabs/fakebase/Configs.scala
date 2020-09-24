@@ -8,7 +8,7 @@ object Configs {
   //Database configs
   val maxResultsQueueSize = 50
   val numDatabaseWorkers = 4
-  val postgresDbHost = envOrElse("DB_HOST", "localhost")
+  val postgresDbHost = envOrElse("POSTGRES_HOST", "postgres")
   val postgresPassword = envOrElse("POSTGRES_PASSWORD", "password")
   val postgresTable = "moonraker"
   val postgresUsername = "postgres"

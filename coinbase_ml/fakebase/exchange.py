@@ -55,6 +55,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         product_id: ProductId,
         start_dt: datetime,
         time_delta: timedelta,
+        reward_strategy: str,
         create_exchange_process: bool = True,
         test_mode: bool = False,
     ) -> None:
@@ -73,6 +74,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self._simulation_id = ""
         self._simulation_info_request = SimulationInfoRequest()
         self._observation = ObservationProto()
+        self._reward_strategy = RewardStrategy.Value(reward_strategy)
 
         if create_exchange_process:
             port = get_random_free_port()
@@ -148,11 +150,8 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
                 sleep(0.3)
                 continue
 
-    @staticmethod
-    def _generate_observation_request() -> ObservationRequest:
-        reward_request = RewardRequest(
-            rewardStrategy=RewardStrategy.LogReturnRewardStrategy
-        )
+    def _generate_observation_request(self) -> ObservationRequest:
+        reward_request = RewardRequest(rewardStrategy=self._reward_strategy)
         return ObservationRequest(
             orderBookDepth=cc.ORDER_BOOK_DEPTH,
             normalize=False,
@@ -163,10 +162,9 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
     def _generate_order_book_request() -> OrderBooksRequest:
         return OrderBooksRequest(orderBookDepth=cc.ORDER_BOOK_DEPTH)
 
-    @classmethod
-    def _generate_simulation_info_request(cls) -> SimulationInfoRequest:
+    def _generate_simulation_info_request(self) -> SimulationInfoRequest:
         return SimulationInfoRequest(
-            observationRequest=cls._generate_observation_request(),
+            observationRequest=self._generate_observation_request(),
         )
 
     def _update_exchange_info(self, exchange_info: ExchangeInfo) -> None:
@@ -224,11 +222,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         )
 
         return self._bin_order_books_by_price(order_books)[order_side]
-
-    def checkpoint(self) -> None:
-        """Saves the current state of the Fakebase Exchange server
-        """
-        self.stub.checkpoint(c.EMPTY_PROTO)
 
     @property
     def info_dict(self) -> Dict[str, float]:
@@ -307,25 +300,19 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """
         self._simulation_info_request = self._generate_simulation_info_request()
 
-        message = SimulationStartRequest(
+        simulation_start_request = SimulationStartRequest(
             startTime=self.start_dt.isoformat() + "Z",
             endTime=self.end_dt.isoformat() + "Z",
             timeDelta=Duration(seconds=int(self.time_delta.total_seconds())),
-            numWarmUpSteps=0,
+            numWarmUpSteps=num_warmup_time_steps,
             initialProductFunds=str(initial_product_funds),
             initialQuoteFunds=str(initial_quote_funds),
             simulationInfoRequest=self._simulation_info_request,
             snapshotBufferSize=snapshot_buffer_size,
         )
 
-        simulation_info: SimulationInfo = self.stub.start(message)
+        simulation_info: SimulationInfo = self.stub.start(simulation_start_request)
         self._update_simulation_info(simulation_info)
-
-        for _ in range(num_warmup_time_steps):
-            self.step()
-
-        if num_warmup_time_steps > 0:
-            self.stub.checkpoint(c.EMPTY_PROTO)
 
     def reset(self) -> None:
         """

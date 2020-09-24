@@ -39,10 +39,10 @@ class Environment(Env):  # pylint: disable=W0223
         self.observation_space = ObservationSpace(
             shape=ObservationSpaceShape(
                 account_funds=(1, 4),
-                order_book=(1, _config.num_time_steps * 4 * cc.ORDER_BOOK_DEPTH),
+                order_book=(1, _config.snapshot_buffer_size * 4 * cc.ORDER_BOOK_DEPTH),
                 time_series=(
                     1,
-                    _config.num_time_steps * cc.NUM_CHANNELS_IN_TIME_SERIES,
+                    _config.snapshot_buffer_size * cc.NUM_CHANNELS_IN_TIME_SERIES,
                 ),
             )
         )
@@ -69,6 +69,7 @@ class Environment(Env):  # pylint: disable=W0223
                 product_id=cc.PRODUCT_ID,
                 start_dt=self._start_dt,
                 time_delta=self.config.time_delta,
+                reward_strategy=self.config.reward_strategy,
             )
             self.reset()
 
@@ -102,14 +103,6 @@ class Environment(Env):  # pylint: disable=W0223
                 "Exchange stepped to %s-%s.", interval_start_dt, interval_end_dt
             )
 
-    def _warmup(self) -> None:
-        """Summary
-        """
-        for _ in range(self.config.num_warmup_time_steps):
-            self._exchange_step()
-
-        self._warmed_up = True
-
     def close(self) -> None:
         """Summary
         """
@@ -136,12 +129,11 @@ class Environment(Env):  # pylint: disable=W0223
             self.exchange.start(
                 initial_product_funds=self.config.initial_btc,
                 initial_quote_funds=self.config.initial_usd,
-                num_warmup_time_steps=0,
-                snapshot_buffer_size=3,
+                num_warmup_time_steps=self.config.num_warmup_time_steps,
+                snapshot_buffer_size=self.config.snapshot_buffer_size,
             )
 
-            self._warmup()
-            self.exchange.checkpoint()
+            self._warmed_up = True
         else:
             self.exchange.reset()
 

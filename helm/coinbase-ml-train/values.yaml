@@ -1,7 +1,7 @@
 job:
   memory: 25000Mi
-  num_cpus: 7.5
-  num_gpus: 1
+  num_cpus: 0.0
+  num_gpus: 0
   node_group: n1-standard-8-nvidia-tesla-p100
   sacred_config: staging
 
@@ -22,7 +22,7 @@ ray:
     cpu-workers:
       num_cpus_per_replica: 3.6
       num_gpus_per_replica: 0
-      num_replicas: 1
+      num_replicas: 0
       node_group: c2-standard-4
 
 
