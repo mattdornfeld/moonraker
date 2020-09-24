@@ -6,6 +6,7 @@ import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
 import java.util.logging.Logger
 
 import cats.effect.IO
+import co.firstorderlabs.fakebase.DatabaseWorkers.logger
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume, productId}
 import co.firstorderlabs.fakebase.protos.fakebase._
@@ -85,6 +86,7 @@ class DatabaseWorkers extends Thread {
   @tailrec
   final def isPaused: Boolean = {
     Thread.sleep(10)
+    logger.fine("in recursive loop")
     val threadState = synchronized { getState }
     if (threadState.compareTo(Thread.State.WAITING) == 0 || threadState.compareTo(Thread.State.TIMED_WAITING) == 0) {
       true

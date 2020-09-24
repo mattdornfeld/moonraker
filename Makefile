@@ -44,7 +44,7 @@ test-pylint:
 	python3 setup.py test --addopts "${PYTEST_IGNORE} -m pylint --pylint --pylint-rcfile=setup.cfg"
 
 test-unit:
-	python3 setup.py test --addopts "${PYTEST_IGNORE}"
+	python3 setup.py test --addopts "-s ${PYTEST_IGNORE}"
 
 test-scala:
 	cd scala/coinbaseml && sbt test

@@ -5,9 +5,8 @@ from collections.abc import ItemsView
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import List, Type
+from typing import List
 
-from coinbase_ml.common.reward import BaseRewardStrategy
 from coinbase_ml.common.utils.time_utils import TimeInterval
 from coinbase_ml.fakebase.types import ProductVolume, QuoteVolume
 
@@ -22,9 +21,9 @@ class EnvironmentConfigs:
     initial_btc: ProductVolume
     num_actors: int
     num_episodes: int
-    num_time_steps: int
+    snapshot_buffer_size: int
     num_warmup_time_steps: int
-    reward_strategy: Type[BaseRewardStrategy]
+    reward_strategy: str
     time_delta: timedelta
     is_test_environment: bool = False
 

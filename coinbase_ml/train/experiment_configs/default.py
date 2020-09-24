@@ -5,7 +5,10 @@ from datetime import timedelta
 
 from dateutil import parser
 
-from coinbase_ml.common.featurizers.protos.featurizer_pb2 import InfoDictKey
+from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
+    InfoDictKey,
+    RewardStrategy,
+)
 from coinbase_ml.common.utils.time_utils import (
     TimeInterval,
     generate_randomly_shifted_lookback_intervals,
@@ -21,17 +24,17 @@ def config():
     trainer_name = "ppo"
     initial_btc = "1.000000"
     initial_usd = "10000.00"
-    num_time_steps = 3
-    num_warmup_time_steps = num_time_steps
+    snapshot_buffer_size = 3
+    num_warmup_time_steps = snapshot_buffer_size
     optimizer_name = "Adam"
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
-    reward_strategy_name = "ProfitRewardStrategy"
-    test_end_dt = "2020-01-17 17:20:00.00"
-    test_start_dt = "2020-01-17 17:00:00.00"
-    time_delta = timedelta(seconds=30)
+    reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
+    test_end_dt = "2020-01-17 10:00:00.00"
+    test_start_dt = "2020-01-16 10:00:00.00"
+    time_delta = timedelta(seconds=300)
     time_delta_str = str(time_delta)
 
-    latest_train_end_dt = "2020-01-17 09:20:00.00"
+    latest_train_end_dt = "2020-01-18 00:00:00.00"
     latest_train_start_dt = "2020-01-17 09:00:00.00"
     num_lookback_intervals = 0
 
@@ -70,9 +73,9 @@ def config():
         initial_usd=initial_usd,
         num_actors=len(train_time_intervals),
         num_episodes=1,
-        num_time_steps=num_time_steps,
+        snapshot_buffer_size=snapshot_buffer_size,
         num_warmup_time_steps=num_warmup_time_steps,
-        reward_strategy_name=reward_strategy_name,
+        reward_strategy=reward_strategy,
         time_delta=time_delta,
     )
 
@@ -85,9 +88,9 @@ def config():
         initial_btc=initial_btc,
         initial_usd=initial_usd,
         num_actors=1,
-        num_episodes=1,
-        num_time_steps=num_time_steps,
+        num_episodes=2,
+        snapshot_buffer_size=snapshot_buffer_size,
         num_warmup_time_steps=num_warmup_time_steps,
-        reward_strategy_name=reward_strategy_name,
+        reward_strategy=reward_strategy,
         time_delta=time_delta,
     )

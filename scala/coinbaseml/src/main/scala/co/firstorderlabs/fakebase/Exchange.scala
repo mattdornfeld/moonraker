@@ -134,13 +134,13 @@ object Exchange
   override def reset(
       simulationInfoRequest: SimulationInfoRequest
   ): Future[SimulationInfo] = {
+    logger.info(
+      s"Resetting simulation to ${getSimulationMetadata.currentTimeInterval}"
+    )
     getSimulationMetadata.currentTimeInterval =
       Checkpointer.checkpointTimeInterval
     Checkpointer.restoreFromCheckpoint
     InfoAggregator.clear
-    logger.info(
-      s"simulation reset to timeInterval ${getSimulationMetadata.currentTimeInterval}"
-    )
 
     Future successful getSimulationInfo(Some(simulationInfoRequest))
   }
@@ -191,6 +191,7 @@ object Exchange
   }
 
   override def step(stepRequest: StepRequest): Future[SimulationInfo] = {
+    val startTime = System.currentTimeMillis
     getSimulationMetadata.incrementCurrentTimeInterval
     require(
       !getSimulationMetadata.simulationIsOver,
@@ -228,21 +229,23 @@ object Exchange
         s"No events queried for time interval ${getSimulationMetadata.currentTimeInterval}"
       )
     else
-      logger.fine(s"Processing ${receivedEvents.length} events")
+      logger.info(s"Processing ${receivedEvents.length} events")
 
     matchingEngine.matches.clear
     matchingEngine.processEvents(receivedEvents)
 
     SnapshotBuffer.step
     InfoAggregator.step
+    val endTime = System.currentTimeMillis
+    logger.info(s"Processing took ${endTime - startTime} ms")
 
     Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
   }
 
   override def stop(request: Empty): Future[Empty] = {
+    logger.info("stopping simulation")
     Checkpointer.clear
     simulationMetadata = None
-    logger.info("simulation stopped")
     Future.successful(Constants.emptyProto)
   }
 

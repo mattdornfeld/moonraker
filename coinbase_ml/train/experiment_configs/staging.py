@@ -5,7 +5,10 @@ from datetime import timedelta
 
 from dateutil import parser
 
-from coinbase_ml.common.featurizers import Metrics
+from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
+    InfoDictKey,
+    RewardStrategy,
+)
 from coinbase_ml.common.utils.time_utils import (
     TimeInterval,
     generate_randomly_shifted_lookback_intervals,
@@ -22,19 +25,18 @@ def staging():
     trainer_name = "ppo"
     initial_btc = "1.000000"
     initial_usd = "10000.00"
-    num_time_steps = 100
+    snapshot_buffer_size = 100
     num_warmup_time_steps = 100
     optimizer_name = "Adam"
-    result_metric = Metrics.ROI
-    result_metric_str = result_metric.value
-    reward_strategy_name = "ProfitRewardStrategy"
-    test_end_dt = "2019-10-20 19:00:00.00"
-    test_start_dt = "2019-10-20 17:00:00.00"
-    time_delta = timedelta(seconds=30)
+    result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
+    reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
+    test_end_dt = "2019-10-19 00:00:00.00"
+    test_start_dt = "2019-10-18 00:00:00.00"
+    time_delta = timedelta(seconds=300)
     time_delta_str = str(time_delta)
 
-    latest_train_end_dt = "2019-10-20 17:00:00.00"
-    latest_train_start_dt = "2019-10-20 09:00:00.00"
+    latest_train_end_dt = "2019-10-18 00:00:00.00"
+    latest_train_start_dt = "2019-10-17 0:00:00.00"
     num_lookback_intervals = 5
 
     train_time_intervals = generate_randomly_shifted_lookback_intervals(
@@ -72,10 +74,9 @@ def staging():
         initial_usd=initial_usd,
         num_actors=len(train_time_intervals),
         num_episodes=10,
-        num_time_steps=num_time_steps,
+        snapshot_buffer_size=snapshot_buffer_size,
         num_warmup_time_steps=num_warmup_time_steps,
-        num_workers=3,
-        reward_strategy_name=reward_strategy_name,
+        reward_strategy=reward_strategy,
         time_delta=time_delta,
     )
 
@@ -88,10 +89,9 @@ def staging():
         initial_btc=initial_btc,
         initial_usd=initial_usd,
         num_actors=1,
-        num_episodes=10,
-        num_time_steps=num_time_steps,
+        num_episodes=1,
+        snapshot_buffer_size=snapshot_buffer_size,
         num_warmup_time_steps=num_warmup_time_steps,
-        num_workers=3,
-        reward_strategy_name=reward_strategy_name,
+        reward_strategy=reward_strategy,
         time_delta=time_delta,
     )

@@ -14,7 +14,6 @@ from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common import models
-from coinbase_ml.common.reward import REWARD_STRATEGIES
 from coinbase_ml.common.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
 from coinbase_ml.common.utils.ray_utils import register_custom_models
 from coinbase_ml.common.utils.sacred_utils import log_metrics_to_sacred
@@ -57,8 +56,7 @@ def main(
     result_metric_key = f"{result_metric}_mean"
 
     for configs in [test_environment_configs, train_environment_configs]:
-        reward_strategy_name: str = configs.pop("reward_strategy_name")
-        configs["reward_strategy"] = REWARD_STRATEGIES[reward_strategy_name]
+        configs["reward_strategy"] = configs.pop("reward_strategy")
         configs["initial_usd"] = cc.PRODUCT_ID.quote_volume_type(configs["initial_usd"])
         configs["initial_btc"] = cc.PRODUCT_ID.quote_volume_type(configs["initial_btc"])
 
