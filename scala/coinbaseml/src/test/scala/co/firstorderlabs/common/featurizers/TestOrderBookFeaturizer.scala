@@ -1,6 +1,6 @@
 package co.firstorderlabs.common.featurizers
 
-import co.firstorderlabs.common.TestUtils.doubleEquality
+import co.firstorderlabs.common.utils.TestUtils.doubleEquality
 import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase._

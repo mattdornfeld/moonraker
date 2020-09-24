@@ -14,6 +14,7 @@ lazy val app = (project in file("."))
   .enablePlugins(AssemblyPlugin)
 
 assemblyMergeStrategy in assembly := {
+    case "git.properties" => MergeStrategy.first
     case "META-INF/io.netty.versions.properties" => MergeStrategy.first
     case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
@@ -27,6 +28,7 @@ resolvers in Global ++= Seq(
   "TypeSafe Repository Snapshots" at "http://repo.typesafe.com/typesafe/snapshots/"
 )
 
+val apacheArrowVersion = "1.0.1"
 val doobieVersion = "0.9.0"
 val scalaTestVersion = "3.1.1"
 
@@ -34,19 +36,23 @@ resolvers ++= Seq(
   Resolver.sonatypeRepo("releases"),
 )
 
-libraryDependencies += "org.scalactic" %% "scalactic" % scalaTestVersion
 libraryDependencies += "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
-libraryDependencies += "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0"
 
 libraryDependencies ++= Seq(
+  "org.apache.arrow" % "arrow-algorithm" % apacheArrowVersion,
+  "org.apache.arrow" % "arrow-memory-netty" % apacheArrowVersion,
+)
+
+libraryDependencies ++= Seq(
   "org.tpolecat" %% "doobie-core" % doobieVersion,
-  "org.tpolecat" %% "doobie-postgres"  % doobieVersion
+  "org.tpolecat" %% "doobie-postgres"  % doobieVersion,
 )
 
 libraryDependencies ++= Seq(
     "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
-    "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
+    "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
+    "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
 )
 
 PB.targets in Compile := Seq(

@@ -13,13 +13,14 @@ import scala.collection.mutable.{HashMap, TreeMap}
 import scala.math.Ordering
 
 case class OrderBookSnapshot(
-  orderIdLookup: HashMap[OrderId, LimitOrderEvent],
-  priceTimeTree: TreeMap[OrderBookKey, LimitOrderEvent]
+    orderIdLookup: HashMap[OrderId, LimitOrderEvent],
+    priceTimeTree: TreeMap[OrderBookKey, LimitOrderEvent]
 ) extends Snapshot
 
 case class OrderBookKey(price: ProductPrice, time: Duration, degeneracy: Int)
 
-class OrderBook(snapshot: Option[OrderBookSnapshot] = None) extends Snapshotable[OrderBookSnapshot] {
+class OrderBook(snapshot: Option[OrderBookSnapshot] = None)
+    extends Snapshotable[OrderBookSnapshot] {
   private val orderIdLookup = new HashMap[OrderId, LimitOrderEvent]
   private val priceTimeTree =
     new TreeMap[OrderBookKey, LimitOrderEvent]()(OrderBook.OrderBookKeyOrdering)
@@ -58,11 +59,11 @@ class OrderBook(snapshot: Option[OrderBookSnapshot] = None) extends Snapshotable
   }
 
   def aggregateToMap(
-    depth: Int,
-    fromTop: Boolean = false
+      depth: Int,
+      fromTop: Boolean = false
   ): Map[ProductPrice, ProductVolume] = {
     def filterItemsBeyondPriceDepth(
-      item: (OrderBookKey, LimitOrderEvent)
+        item: (OrderBookKey, LimitOrderEvent)
     ): Boolean = {
       val priceAtDepth = getPriceAtDepth(depth, fromTop)
       if (fromTop) item._2.price >= priceAtDepth
@@ -77,7 +78,7 @@ class OrderBook(snapshot: Option[OrderBookSnapshot] = None) extends Snapshotable
   }
 
   def getOrderByOrderBookKey(
-    orderBookKey: OrderBookKey
+      orderBookKey: OrderBookKey
   ): Option[LimitOrderEvent] = priceTimeTree.get(orderBookKey)
 
   def getOrderByOrderId(orderId: OrderId): Option[LimitOrderEvent] =
@@ -87,7 +88,7 @@ class OrderBook(snapshot: Option[OrderBookSnapshot] = None) extends Snapshotable
     orderIdLookup.isEmpty
   }
 
-  def iterator: Iterator[(OrderBookKey, LimitOrderEvent)]= {
+  def iterator: Iterator[(OrderBookKey, LimitOrderEvent)] = {
     priceTimeTree.iterator
   }
 
@@ -152,9 +153,15 @@ object OrderBook {
 
   implicit val OrderBookKeyValueOrdering =
     new Ordering[(OrderBookKey, LimitOrderEvent)] {
-      override def compare(a: (OrderBookKey, LimitOrderEvent),
-                           b: (OrderBookKey, LimitOrderEvent)): Int = {
-        (a._1.price, a._1.time, a._1.degeneracy) compare (b._1.price, b._1.time, b._1.degeneracy)
+      override def compare(
+          a: (OrderBookKey, LimitOrderEvent),
+          b: (OrderBookKey, LimitOrderEvent)
+      ): Int = {
+        (
+          a._1.price,
+          a._1.time,
+          a._1.degeneracy
+        ) compare (b._1.price, b._1.time, b._1.degeneracy)
       }
     }
 

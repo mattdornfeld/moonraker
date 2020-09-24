@@ -47,6 +47,7 @@ message ObservationRequest {
 }
 
 message Features {
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.FeaturesBase";
     repeated double account = 1;
     repeated double orderBook = 2;
     repeated double timeSeries = 3;

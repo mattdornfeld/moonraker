@@ -283,7 +283,7 @@ message ExchangeInfo {
     string intervalStartTime = 1 [(scalapb.field).type = "java.time.Instant"];
     string intervalEndTime = 2 [(scalapb.field).type = "java.time.Instant"];
     AccountInfo accountInfo = 3;
-    Observation observation = 4;
+    string simulationId = 4;
 }
 
 message OrderBooksRequest {

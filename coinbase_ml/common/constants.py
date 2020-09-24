@@ -32,3 +32,6 @@ SERVICE_ACCOUNT_JSON = Path(
 # mongodb configs
 MONGO_DB_URL = os.environ.get("MONGO_DB_URL", "mongodb://root:password@mongo:27017")
 SACRED_DB_NAME = "sacred"
+
+# arrow configs
+ARROW_SOCKETS_BASE_DIR = Path("/tmp/coinbaseml/arrow_sockets")

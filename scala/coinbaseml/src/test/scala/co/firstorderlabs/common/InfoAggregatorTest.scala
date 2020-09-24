@@ -1,6 +1,6 @@
 package co.firstorderlabs.common
 
-import co.firstorderlabs.common.TestUtils.doubleEquality
+import co.firstorderlabs.common.utils.TestUtils.doubleEquality
 import co.firstorderlabs.common.protos.InfoDictKey
 import co.firstorderlabs.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.common.utils.Utils.getResult

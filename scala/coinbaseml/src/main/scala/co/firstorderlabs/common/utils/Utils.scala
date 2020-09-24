@@ -1,7 +1,7 @@
 package co.firstorderlabs.common.utils
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 object Utils {
   implicit class When[A, B](a: A) {
@@ -33,4 +33,15 @@ object Utils {
   def getResultOptional[A](future: Future[A]): Option[A] = {
     Some(getResult(future))
   }
+
+  def measureRunTime[R](block: => R, tag: Option[String] = None): R = {
+    val t0 = System.currentTimeMillis
+    val result = block
+    val t1 = System.currentTimeMillis()
+    tag match {
+      case Some(tag) => println(s"${tag} @ Elapsed time: " + (t1 - t0) + "ms")
+      case None => println("Elapsed time: " + (t1 - t0) + "ms")
+    }
+    result
+}
 }

@@ -3,18 +3,8 @@ package co.firstorderlabs.common.featurizers
 import co.firstorderlabs.common
 import co.firstorderlabs.common.InfoAggregator
 import co.firstorderlabs.common.protos.FeaturizerServiceGrpc.FeaturizerService
-import co.firstorderlabs.common.protos.{
-  Features,
-  Observation,
-  ObservationRequest,
-  Reward,
-  RewardRequest,
-  RewardStrategy
-}
-import co.firstorderlabs.common.rewards.{
-  LogReturnRewardStrategy,
-  ReturnRewardStrategy
-}
+import co.firstorderlabs.common.protos.{Features, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
+import co.firstorderlabs.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
 import co.firstorderlabs.common.types.Exceptions.UnrecognizedRewardStrategy
 import co.firstorderlabs.common.utils.Utils.getResult
 import com.google.protobuf.empty.Empty
@@ -30,7 +20,10 @@ object Featurizer extends FeaturizerService {
       case None                => None
     }
 
-    val observation = Observation(Some(construct(observationRequest)), reward, Some(InfoAggregator.getInfoDict))
+    //Features are too large to send via grpc. Instead write to socket files using Arrow.
+    construct(observationRequest).writeToSockets
+    val observation =
+      Observation(reward = reward, infoDict = Some(InfoAggregator.getInfoDict))
 
     Future.successful(observation)
   }
