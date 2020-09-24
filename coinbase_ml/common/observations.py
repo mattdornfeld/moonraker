@@ -14,6 +14,7 @@ from coinbase_ml.common import constants as c
 from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
     Observation as ObservationProto,
 )
+from coinbase_ml.common.utils.arrow_utils import read_from_arrow_socket
 
 
 class ActionSpace(Box):
@@ -53,6 +54,22 @@ class Observation(NamedTuple):
             np.expand_dims(np.array(observation_proto.features.account), 0),
             np.expand_dims(np.array(observation_proto.features.orderBook), 0),
             np.expand_dims(np.array(observation_proto.features.timeSeries), 0),
+        )
+
+    @staticmethod
+    def from_arrow_sockets(simulation_id: str) -> Observation:
+        """Reconstructs the latest observation for the current simulation from an Arrow socket
+        """
+        arrow_sockets_dir = c.ARROW_SOCKETS_BASE_DIR / simulation_id
+
+        account_funds = read_from_arrow_socket(arrow_sockets_dir / "account.socket")[0]
+        order_book = read_from_arrow_socket(arrow_sockets_dir / "orderBook.socket")[0]
+        time_series = read_from_arrow_socket(arrow_sockets_dir / "timeSeries.socket")[0]
+
+        return Observation(
+            account_funds.to_numpy().transpose(),
+            order_book.to_numpy().transpose(),
+            time_series.to_numpy().transpose(),
         )
 
 

@@ -1,10 +1,12 @@
 package co.firstorderlabs.fakebase
 
 import java.time.{Duration, Instant}
+import java.util.UUID.randomUUID
 import java.util.logging.Logger
 
 import co.firstorderlabs.common.InfoAggregator
 import co.firstorderlabs.common.featurizers.Featurizer
+import co.firstorderlabs.common.types.FeaturesBase
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
@@ -24,7 +26,8 @@ case class SimulationMetadata(
     timeDelta: Duration,
     numWarmUpSteps: Int,
     initialProductFunds: ProductVolume,
-    initialQuoteFunds: QuoteVolume
+    initialQuoteFunds: QuoteVolume,
+    simulationId: String,
 ) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
@@ -158,7 +161,8 @@ object Exchange
         simulationStartRequest.timeDelta.get,
         simulationStartRequest.numWarmUpSteps,
         simulationStartRequest.initialProductFunds,
-        simulationStartRequest.initialQuoteFunds
+        simulationStartRequest.initialQuoteFunds,
+        randomUUID.toString,
       )
     )
 
@@ -248,6 +252,7 @@ object Exchange
         getSimulationMetadata.currentTimeInterval.startTime,
         getSimulationMetadata.currentTimeInterval.endTime,
         getResultOptional(Account.getAccountInfo(Constants.emptyProto)),
+        getSimulationMetadata.simulationId,
       )
     } else {
       ExchangeInfo()

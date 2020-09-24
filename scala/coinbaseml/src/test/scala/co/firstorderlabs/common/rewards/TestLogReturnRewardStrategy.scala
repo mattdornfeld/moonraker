@@ -1,7 +1,7 @@
 package co.firstorderlabs.common.rewards
 
 import co.firstorderlabs.common.utils.Utils.logEpsilon
-import co.firstorderlabs.common.TestUtils.doubleEquality
+import co.firstorderlabs.common.utils.TestUtils.doubleEquality
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.protos.fakebase.CancellationRequest
 import co.firstorderlabs.fakebase.{Account, Configs, Constants, Exchange}

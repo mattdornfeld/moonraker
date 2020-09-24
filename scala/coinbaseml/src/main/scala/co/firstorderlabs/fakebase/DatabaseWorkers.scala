@@ -86,7 +86,7 @@ class DatabaseWorkers extends Thread {
   final def isPaused: Boolean = {
     Thread.sleep(10)
     val threadState = synchronized { getState }
-    if (threadState.compareTo(Thread.State.WAITING) == 0) {
+    if (threadState.compareTo(Thread.State.WAITING) == 0 || threadState.compareTo(Thread.State.TIMED_WAITING) == 0) {
       true
     } else {
       isPaused
