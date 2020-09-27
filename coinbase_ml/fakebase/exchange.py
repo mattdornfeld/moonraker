@@ -309,6 +309,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             initialQuoteFunds=str(initial_quote_funds),
             simulationInfoRequest=self._simulation_info_request,
             snapshotBufferSize=snapshot_buffer_size,
+            observationRequest=self._generate_observation_request(),
         )
 
         simulation_info: SimulationInfo = self.stub.start(simulation_start_request)

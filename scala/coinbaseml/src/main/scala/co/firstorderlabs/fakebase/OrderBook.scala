@@ -2,6 +2,7 @@ package co.firstorderlabs.fakebase
 
 import java.time.{Duration, Instant}
 
+import co.firstorderlabs.common.utils.Utils.When
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.fakebase.protos.fakebase._
@@ -9,8 +10,14 @@ import co.firstorderlabs.fakebase.types.Events.LimitOrderEvent
 import co.firstorderlabs.fakebase.types.Exceptions.OrderBookEmpty
 import co.firstorderlabs.fakebase.types.Types.OrderId
 
+import scala.annotation.tailrec
 import scala.collection.mutable.{HashMap, TreeMap}
 import scala.math.Ordering
+
+class AggregatedMap extends HashMap[ProductPrice, ProductVolume] {
+  override def apply(key: ProductPrice): ProductVolume =
+    super.getOrElseUpdate(key, ProductVolume.zeroVolume)
+}
 
 case class OrderBookSnapshot(
     orderIdLookup: HashMap[OrderId, LimitOrderEvent],
@@ -48,33 +55,29 @@ class OrderBook(snapshot: Option[OrderBookSnapshot] = None)
     orderIdLookup.isEmpty && priceTimeTree.isEmpty
   }
 
-  private def getPriceAtDepth(depth: Int, fromTop: Boolean): ProductPrice = {
-    val distinctPrices = priceTimeTree.toList.distinctBy(item => item._2.price)
-
-    if (distinctPrices.size >= depth)
-      if (fromTop) distinctPrices(distinctPrices.size - depth)._2.price
-      else distinctPrices(depth)._2.price
-    else if (fromTop) ProductPrice.zeroPrice
-    else ProductPrice.maxPrice
-  }
-
   def aggregateToMap(
       depth: Int,
       fromTop: Boolean = false
   ): Map[ProductPrice, ProductVolume] = {
-    def filterItemsBeyondPriceDepth(
-        item: (OrderBookKey, LimitOrderEvent)
-    ): Boolean = {
-      val priceAtDepth = getPriceAtDepth(depth, fromTop)
-      if (fromTop) item._2.price >= priceAtDepth
-      else item._2.price < priceAtDepth
+    val priceTimeTreeIterator =
+      priceTimeTree.whenElse(fromTop)(_.toList.reverseIterator, _.iterator)
+    val aggregatedMap = new AggregatedMap
+
+    @tailrec
+    def populateAggregatedMap: Unit = {
+      if (!priceTimeTreeIterator.hasNext) return
+
+      val (_, limitOrder) = priceTimeTreeIterator.next()
+      if (
+        aggregatedMap.size >= depth && !aggregatedMap.contains(limitOrder.price)
+      ) {} else {
+        aggregatedMap(limitOrder.price) += limitOrder.size
+        populateAggregatedMap
+      }
     }
 
-    priceTimeTree
-      .filter(filterItemsBeyondPriceDepth)
-      .groupMapReduce[ProductPrice, ProductVolume](item => item._2.price)(
-        item => item._2.size
-      )(_ + _)
+    populateAggregatedMap
+    aggregatedMap.toMap
   }
 
   def getOrderByOrderBookKey(

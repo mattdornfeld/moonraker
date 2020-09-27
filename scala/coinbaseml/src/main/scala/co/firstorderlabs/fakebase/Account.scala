@@ -35,7 +35,6 @@ class MatchesHashMap extends HashMap[OrderId, ListBuffer[Match]] {
 
   override def apply(key: OrderId): ListBuffer[Match] =
     super.getOrElseUpdate(key, ListBuffer())
-
 }
 
 case class AccountSnapshot(
