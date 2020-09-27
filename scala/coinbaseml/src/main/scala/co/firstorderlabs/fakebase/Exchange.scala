@@ -6,7 +6,7 @@ import java.util.logging.Logger
 
 import co.firstorderlabs.common.InfoAggregator
 import co.firstorderlabs.common.featurizers.Featurizer
-import co.firstorderlabs.common.types.FeaturesBase
+import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
@@ -28,6 +28,7 @@ case class SimulationMetadata(
     initialProductFunds: ProductVolume,
     initialQuoteFunds: QuoteVolume,
     simulationId: String,
+    observationRequest: ObservationRequest,
 ) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
@@ -59,6 +60,8 @@ object Exchange
   def checkIsTaker(limitOrder: LimitOrderEvent): Boolean = {
     matchingEngine.checkIsTaker(limitOrder)
   }
+
+  def getReceivedEvents: List[Event] = receivedEvents
 
   override def createSnapshot: ExchangeSnapshot = {
     ExchangeSnapshot(receivedEvents)
@@ -163,6 +166,7 @@ object Exchange
         simulationStartRequest.initialProductFunds,
         simulationStartRequest.initialQuoteFunds,
         randomUUID.toString,
+        simulationStartRequest.observationRequest.get,
       )
     )
 
@@ -234,10 +238,11 @@ object Exchange
     matchingEngine.matches.clear
     matchingEngine.processEvents(receivedEvents)
 
+    Featurizer.step
     SnapshotBuffer.step
     InfoAggregator.step
     val endTime = System.currentTimeMillis
-    logger.info(s"Processing took ${endTime - startTime} ms")
+    logger.info(s"Exchange.step took ${endTime - startTime} ms")
 
     Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
   }

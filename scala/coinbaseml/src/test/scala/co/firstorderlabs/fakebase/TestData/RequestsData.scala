@@ -82,6 +82,9 @@ object RequestsData {
     new ProductVolume(Right("1.000000")),
   )
 
+  val observationRequest = new ObservationRequest(10)
+  val normalizeObservationRequest = new ObservationRequest(10, true)
+
   val simulationStartRequest = new SimulationStartRequest(
     Instant.parse("2019-11-20T19:20:50.63Z"),
     Instant.parse("2019-11-20T19:25:50.63Z"),
@@ -90,6 +93,7 @@ object RequestsData {
     new ProductVolume(Right("100.000000")),
     new QuoteVolume(Right("10000.00")),
     snapshotBufferSize = 3,
+    observationRequest = Some(observationRequest),
   )
 
   val simulationStartRequestWarmup = new SimulationStartRequest(
@@ -100,6 +104,7 @@ object RequestsData {
     new ProductVolume(Right("100.000000")),
     new QuoteVolume(Right("10000.00")),
     snapshotBufferSize = 3,
+    observationRequest = Some(observationRequest),
   )
 
   val checkpointedSimulationStartRequest = new SimulationStartRequest(
@@ -110,8 +115,6 @@ object RequestsData {
     new ProductVolume(Right("100.000000")),
     new QuoteVolume(Right("10000.00")),
     snapshotBufferSize = 3,
+    observationRequest = Some(observationRequest),
   )
-
-  val observationRequest = new ObservationRequest(10)
-  val normalizeObservationRequest = new ObservationRequest(10, true)
 }

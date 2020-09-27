@@ -1,17 +1,11 @@
 package co.firstorderlabs.common.featurizers
 
+import co.firstorderlabs.common.utils.TestUtils.{mean, std}
 import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  BuyLimitOrder,
-  Cancellation,
-  OrderSide,
-  OrderStatus,
-  SellLimitOrder,
-  StepRequest
-}
+import co.firstorderlabs.fakebase.protos.fakebase.{BuyLimitOrder, Cancellation, OrderSide, OrderStatus, SellLimitOrder, StepRequest}
 import co.firstorderlabs.fakebase.types.Types.OrderId
 import co.firstorderlabs.fakebase._
 import org.scalactic.TolerantNumerics
@@ -42,10 +36,10 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
   val volumes =
     List(new ProductVolume(Right("1.01")), new ProductVolume(Right("1.1")))
   val productVolume = new ProductVolume(Right("1.01"))
-  val expectedPriceMean = TimeSeriesFeaturizer.mean(prices.map(_.toDouble))
-  val expectedPriceStd = TimeSeriesFeaturizer.std(prices.map(_.toDouble))
-  val expectedSizeMean = TimeSeriesFeaturizer.mean(volumes.map(_.toDouble))
-  val expectedSizeStd = TimeSeriesFeaturizer.std(volumes.map(_.toDouble))
+  val expectedPriceMean = mean(prices.map(_.toDouble))
+  val expectedPriceStd = std(prices.map(_.toDouble))
+  val expectedSizeMean = mean(volumes.map(_.toDouble))
+  val expectedSizeStd = std(volumes.map(_.toDouble))
   val testOrderId = OrderId("testId")
 
   describe("TimeSeriesFeaturizer") {
@@ -199,11 +193,11 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
 
       val features = TimeSeriesFeaturizer.construct(observationRequest)
 
-      val expectedBuyMatchPriceMean = TimeSeriesFeaturizer.mean(
+      val expectedBuyMatchPriceMean = mean(
         buyOrders
           .map(order => order.asMessage.getBuyLimitOrder.price.toDouble)
       )
-      val expectedBuyMatchPriceStd = TimeSeriesFeaturizer.std(
+      val expectedBuyMatchPriceStd = std(
         buyOrders
           .map(order => order.asMessage.getBuyLimitOrder.price.toDouble)
       )
@@ -233,11 +227,11 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
 
       val features = TimeSeriesFeaturizer.construct(observationRequest)
 
-      val expectedSellMatchPriceMean = TimeSeriesFeaturizer.mean(
+      val expectedSellMatchPriceMean = mean(
         sellOrders
           .map(order => order.asMessage.getSellLimitOrder.price.toDouble)
       )
-      val expectedSellMatchPriceStd = TimeSeriesFeaturizer.std(
+      val expectedSellMatchPriceStd = std(
         sellOrders
           .map(order => order.asMessage.getSellLimitOrder.price.toDouble)
       )
@@ -307,7 +301,51 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       )
       assert(features3.dropRight(numChannels).containsOnly(0.0))
       assert(features4.containsOnly(0.0))
+    }
+    it("test new") {
+  Configs.testMode = true
+  implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(1e-10)
+  val prices =
+    List(new ProductPrice(Right("900.00")), new ProductPrice(Right("901.00")))
+      Exchange.start(simulationStartRequestWarmup)
+      val sellOrders = OrdersData.insertSellOrders(
+        minPrice = new ProductPrice(Right("890.00")),
+        numOrders = 2
+      )
 
+      val buyOrders = OrdersData.insertBuyOrders(
+        maxPrice = new ProductPrice(Right("900.00")),
+        numOrders = 2
+      )
+
+      val buyCancellations = prices.map(
+        price =>
+          Cancellation(
+            OrderId("testId"),
+            price,
+            ProductPrice.productId,
+            OrderSide.buy
+          )
+      )
+
+      val sellCancellations = prices.map(
+        price =>
+          Cancellation(
+            OrderId("testId"),
+            price,
+            ProductPrice.productId,
+            OrderSide.sell
+          )
+      )
+
+      Exchange.step(
+        StepRequest(
+          buyOrders ++ sellOrders,
+          buyCancellations ++ sellCancellations
+        )
+      )
+
+      TimeSeriesFeaturizer.step
     }
   }
 }

@@ -24,6 +24,7 @@ class TestArrowUtils extends AnyFunSpec{
         new ProductVolume(Right("100.000000")),
         new QuoteVolume(Right("10000.00")),
         snapshotBufferSize = 5,
+        observationRequest = Some(observationRequest),
       )
 
       Exchange.start(simulationStartRequest)
