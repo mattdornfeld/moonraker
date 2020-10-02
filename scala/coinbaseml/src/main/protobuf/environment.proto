@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "events.proto";
+
 import "google/protobuf/empty.proto";
 import "scalapb/scalapb.proto";
 
@@ -9,6 +11,10 @@ option (scalapb.options) = {
   package_name: "co.firstorderlabs.common.protos"
   flat_package: true
 };
+
+enum Actionizer {
+    SignalPositionSize = 0;
+}
 
 enum InfoDictKey {
     buyFeesPaid = 0;
@@ -26,13 +32,20 @@ enum RewardStrategy {
     LogReturnRewardStrategy = 1;
 }
 
-service FeaturizerService {
+service EnvironmentService {
+    rpc executeAction (ActionRequest) returns (Order) {
+    }
     rpc getInfoDict (google.protobuf.Empty) returns (InfoDict) {
     }
     rpc getObservation (ObservationRequest) returns (Observation) {
     }
     rpc getReward (RewardRequest) returns (Reward) {
     }
+}
+
+message ActionRequest {
+    repeated double actorOutput = 1;
+    Actionizer actionizer = 2;
 }
 
 message InfoDict {

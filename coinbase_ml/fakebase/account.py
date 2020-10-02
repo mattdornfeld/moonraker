@@ -11,19 +11,21 @@ import coinbase_ml.common.constants as cc
 import coinbase_ml.fakebase.constants as c
 from coinbase_ml.fakebase.base_classes.account import AccountBase, Funds
 from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
-from coinbase_ml.fakebase.protos.fakebase_pb2 import (
-    AccountInfo,
+from coinbase_ml.fakebase.protos.events_pb2 import (
     Cancellation,
-    CancellationRequest,
     BuyLimitOrder,
-    BuyLimitOrderRequest,
-    BuyMarketOrderRequest,
     BuyMarketOrder,
     MatchEvents,
     Orders,
     SellLimitOrder,
-    SellLimitOrderRequest,
     SellMarketOrder,
+)
+from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+    AccountInfo,
+    CancellationRequest,
+    BuyLimitOrderRequest,
+    BuyMarketOrderRequest,
+    SellLimitOrderRequest,
     SellMarketOrderRequest,
     Wallets,
 )

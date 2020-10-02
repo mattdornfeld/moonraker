@@ -11,8 +11,8 @@ class TestVolume extends AnyFunSpec {
       assert((vol + vol).equalTo(vol * Right(2.0)))
       assert((vol - vol).equalTo(BtcVolume.zeroVolume))
       assert((vol / Right(0.5)).equalTo(vol + vol))
-      assert(!vol.isZero())
-      assert(BtcVolume.zeroVolume.isZero())
+      assert(!vol.isZero)
+      assert(BtcVolume.zeroVolume.isZero)
     }
   }
 
@@ -23,8 +23,8 @@ class TestVolume extends AnyFunSpec {
       assert((vol + vol).equalTo(vol * Right(2.0)))
       assert((vol - vol).equalTo(UsdVolume.zeroVolume))
       assert((vol / Right(0.5)).equalTo(vol + vol))
-      assert(!vol.isZero())
-      assert(UsdVolume.zeroVolume.isZero())
+      assert(!vol.isZero)
+      assert(UsdVolume.zeroVolume.isZero)
     }
   }
 }

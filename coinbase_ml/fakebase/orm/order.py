@@ -15,7 +15,7 @@ import coinbase_ml.common.constants as cc
 from coinbase_ml.fakebase import constants as c
 from coinbase_ml.fakebase.orm.match import CoinbaseMatch
 from coinbase_ml.fakebase.orm.mixins import Base, MatchOrderEvent
-from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+from coinbase_ml.fakebase.protos.events_pb2 import (
     BuyLimitOrder,
     BuyMarketOrder,
     SellLimitOrder,

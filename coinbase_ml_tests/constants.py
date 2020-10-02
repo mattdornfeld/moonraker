@@ -6,7 +6,7 @@ import os
 
 from dateutil import parser
 
-from coinbase_ml.common.featurizers.protos.featurizer_pb2 import RewardStrategy
+from coinbase_ml.common.protos.environment_pb2 import RewardStrategy
 from coinbase_ml.fakebase.types import (
     Currency,
     OrderId,

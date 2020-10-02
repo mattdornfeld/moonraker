@@ -2,7 +2,8 @@ package co.firstorderlabs.fakebase.currency
 
 import java.math.{BigDecimal, RoundingMode}
 
-import co.firstorderlabs.fakebase.protos.fakebase.Currency
+import co.firstorderlabs.fakebase.Constants
+import co.firstorderlabs.fakebase.protos.fakebase.{Currency, Liquidity}
 import scalapb.TypeMapper
 
 /**Contains objects for representing currencies and volumes of those currencies.
@@ -68,13 +69,33 @@ object Volume {
       */
     def /(that: Either[BigDecimal, Double]): T
 
+    /** Returns new Volume object plus fees
+      *
+      * @param liquidity
+      * @return
+      */
+    def addFees(liquidity: Liquidity): T = {
+      val feeFraction = Constants.feeFraction(liquidity)
+      this * Left(feeFraction.add(new BigDecimal("1.0")))
+    }
+
     def normalize: Double = this.toDouble / companion.normalizationFactor
 
     /**Checks if this volume is zero.
       *
       * @return
       */
-    def isZero(): Boolean = this.amount.compareTo(BigDecimal.ZERO) == 0
+    def isZero: Boolean = this.amount.compareTo(BigDecimal.ZERO) == 0
+
+    /** Returns new Volume object minus fees
+      *
+      * @param liquidity
+      * @return
+      */
+    def subtractFees(liquidity: Liquidity): T = {
+      val feeFraction = Constants.feeFraction(liquidity)
+      this * Left((new BigDecimal("1.0")).subtract(feeFraction))
+    }
   }
 
   /**Used to represent volumes of BTC

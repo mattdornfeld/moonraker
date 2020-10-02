@@ -1,7 +1,7 @@
 """Utils for working with fakebase protos
 """
 from coinbase_ml.fakebase.orm import CoinbaseOrder
-from coinbase_ml.fakebase.protos.fakebase_pb2 import Order
+from coinbase_ml.fakebase.protos.events_pb2 import Order
 from coinbase_ml.fakebase.utils.exceptions import OrderNotFoundException
 
 

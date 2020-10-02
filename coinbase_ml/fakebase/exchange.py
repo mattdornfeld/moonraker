@@ -11,7 +11,7 @@ from grpc._channel import _InactiveRpcError as InactiveRpcError
 
 import coinbase_ml.fakebase.account as _account
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
+from coinbase_ml.common.protos.environment_pb2 import (
     Observation as ObservationProto,
     ObservationRequest,
     RewardRequest,

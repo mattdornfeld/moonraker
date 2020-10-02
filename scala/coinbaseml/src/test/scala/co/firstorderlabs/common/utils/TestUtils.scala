@@ -20,6 +20,15 @@ object TestUtils {
         new ProductVolume(Right("0.5"))
       ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00")))
     )
+  }
+
+  def advanceExchangeAndPlaceOrders: Unit = {
+    Exchange step StepRequest(
+      insertOrders = OrdersData.insertSellOrders(
+        new ProductPrice(Right("100.00")),
+        new ProductVolume(Right("0.5"))
+      ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00")))
+    )
 
     Account.placeBuyMarketOrder(buyMarketOrderRequest)
 

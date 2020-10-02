@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from dateutil import parser
 
-from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
+from coinbase_ml.common.protos.environment_pb2 import (
     InfoDictKey,
     RewardStrategy,
 )

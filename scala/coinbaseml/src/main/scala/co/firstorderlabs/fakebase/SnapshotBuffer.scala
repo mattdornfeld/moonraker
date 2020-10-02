@@ -2,7 +2,7 @@ package co.firstorderlabs.fakebase
 
 import java.time.Duration
 
-import co.firstorderlabs.common.featurizers.{Featurizer, FeaturizerSnapshot}
+import co.firstorderlabs.common.{Environment, FeaturizerSnapshot}
 import co.firstorderlabs.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 
@@ -89,7 +89,7 @@ object SnapshotBuffer {
     DatabaseWorkers.createSnapshot,
     Exchange.createSnapshot,
     MatchingEngine.createSnapshot,
-    Featurizer.createSnapshot,
+    Environment.createSnapshot,
     Exchange.getSimulationMetadata.currentTimeInterval
   )
 
@@ -142,7 +142,7 @@ object SnapshotBuffer {
   def start(snapshotBufferSize: Int): Unit = {
     snapshotBuffer.setMaxSize(snapshotBufferSize)
     Checkpointer.start(snapshotBufferSize)
-    Featurizer.start(snapshotBufferSize)
+    Environment.start(snapshotBufferSize)
   }
 
   def step: Unit = snapshotBuffer.enqueue(createSnapshot)

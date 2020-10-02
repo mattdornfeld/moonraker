@@ -12,7 +12,7 @@ from sqlalchemy.orm import reconstructor
 
 from coinbase_ml.common import constants as cc
 from coinbase_ml.fakebase.orm.mixins import Base, CoinbaseEvent
-from coinbase_ml.fakebase.protos.fakebase_pb2 import Cancellation
+from coinbase_ml.fakebase.protos.events_pb2 import Cancellation
 from coinbase_ml.fakebase.types import (
     InvalidTypeError,
     OrderId,
