@@ -73,8 +73,11 @@ trait RewardStrategy {
     */
   def calcReward: Double
 
-  protected def currentPortfolioValue: Double =
+  def currentPortfolioValue: Double =
     calcPortfolioValue(Exchange.getSimulationMetadata.currentTimeInterval)
+
+  def currentMidPrice: Double =
+  calcMidPrice(Exchange.getSimulationMetadata.currentTimeInterval)
 
   protected def previousPortfolioValue: Double =
     calcPortfolioValue(Exchange.getSimulationMetadata.previousTimeInterval)

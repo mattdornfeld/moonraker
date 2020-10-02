@@ -284,7 +284,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
 
           createMatch(filledVolume, makerOrder, order)
 
-          if (makerOrder.remainingSize.isZero()) {
+          if (makerOrder.remainingSize.isZero) {
             orderBooks(makerOrder.side).removeByOrderId(makerOrder.orderId)
           }
 
@@ -316,7 +316,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
 
           createMatch(filledVolume, makerOrder, order)
 
-          if (makerOrder.remainingSize.isZero()) {
+          if (makerOrder.remainingSize.isZero) {
             orderBooks(makerOrder.side).removeByOrderId(makerOrder.orderId)
           }
 
@@ -382,7 +382,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
 
           createMatch(filledVolume, makerOrder, order)
 
-          if (makerOrder.remainingSize.isZero()) {
+          if (makerOrder.remainingSize.isZero) {
             orderBooks(makerOrder.side).removeByOrderId(makerOrder.orderId)
           }
 

@@ -1,8 +1,12 @@
 phony: build build-image-cpu install install-dev install-gpu test test-mypy test-pylint
 
-PYTEST_IGNORE = --ignore=coinbase_ml/fakebase/protos \
-	--ignore=featurizer_pb2.py \
-	--ignore=featurizer_pb2_grpc.py \
+PYTEST_IGNORE = --ignore=fakebase_pb2.py \
+	--ignore=fakebase_pb2_grpc.py \
+	--ignore=events_pb2.py \
+	--ignore=events_pb2_grpc.py \
+	--ignore=environment_pb2_grpc.py \
+	--ignore=environment_pb2.py \
+	--ignore=environment_pb2_grpc.py \
 	--ignore=scalapb
 
 build:

@@ -4,8 +4,7 @@ import java.time.{Duration, Instant}
 import java.util.UUID.randomUUID
 import java.util.logging.Logger
 
-import co.firstorderlabs.common.InfoAggregator
-import co.firstorderlabs.common.featurizers.Featurizer
+import co.firstorderlabs.common.{Environment, InfoAggregator}
 import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
@@ -238,11 +237,16 @@ object Exchange
     matchingEngine.matches.clear
     matchingEngine.processEvents(receivedEvents)
 
-    Featurizer.step
+    Environment.step
     SnapshotBuffer.step
     InfoAggregator.step
     val endTime = System.currentTimeMillis
     logger.info(s"Exchange.step took ${endTime - startTime} ms")
+
+    stepRequest.actionRequest match {
+      case Some(actionRequest) => Environment.executeAction(actionRequest)
+      case None =>
+    }
 
     Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
   }
@@ -272,7 +276,7 @@ object Exchange
       val _simulationInfoRequest = simulationInfoRequest.get
       val exchangeInfo = getExchangeInfoHelper
       val observation = _simulationInfoRequest.observationRequest match {
-        case Some(observationRequest) => Some(getResult(Featurizer.getObservation(observationRequest)))
+        case Some(observationRequest) => Some(getResult(Environment.getObservation(observationRequest)))
         case None => None
       }
 

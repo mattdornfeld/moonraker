@@ -2,7 +2,7 @@ package co.firstorderlabs.common.utils
 
 import java.time.{Duration, Instant}
 
-import co.firstorderlabs.common.featurizers.Featurizer
+import co.firstorderlabs.common.Environment
 import co.firstorderlabs.common.types.FeaturesBase
 import co.firstorderlabs.fakebase.TestData.RequestsData.observationRequest
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.{ProductVolume, QuoteVolume}
@@ -28,8 +28,8 @@ class TestArrowUtils extends AnyFunSpec{
       )
 
       Exchange.start(simulationStartRequest)
-      TestUtils.advanceExchange
-      val writeFeatures = Featurizer.construct(observationRequest)
+      TestUtils.advanceExchangeAndPlaceOrders
+      val writeFeatures = Environment.construct(observationRequest)
       writeFeatures.writeToSockets
       val readFeatures = FeaturesBase.fromArrowSockets
 

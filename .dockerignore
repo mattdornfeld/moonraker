@@ -22,5 +22,8 @@ scala/coinbaseml/target
 scala/coinbaseml/project/target
 scala/coinbaseml/project/project
 .idea
-scalapb
-coinbase_ml/fakebase/protos/fakebase_pb2*
+/scalapb
+/fakebase_pb2*
+/environment_pb2*
+/events_pb2*
+

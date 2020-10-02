@@ -11,9 +11,7 @@ from gym.spaces import Box
 from gym.spaces import Tuple as TupleSpace
 
 from coinbase_ml.common import constants as c
-from coinbase_ml.common.featurizers.protos.featurizer_pb2 import (
-    Observation as ObservationProto,
-)
+from coinbase_ml.common.protos.environment_pb2 import Observation as ObservationProto
 from coinbase_ml.common.utils.arrow_utils import read_from_arrow_socket
 
 

@@ -7,15 +7,16 @@ from decimal import Decimal
 from enum import Enum
 from typing import Dict, NewType, Optional
 
+import coinbase_ml.fakebase.protos.events_pb2 as events_pb2
 import coinbase_ml.fakebase.protos.fakebase_pb2 as fakebase_pb2
-from coinbase_ml.fakebase.protos.fakebase_pb2 import (
+from coinbase_ml.fakebase.protos.events_pb2 import (
     DoneReason as DoneReasonProto,
     OrderSide as OrderSideProto,
     OrderStatus as OrderStatusProto,
-    OrderType as OrderTypeProto,
     Liquidity as LiquidityProto,
     RejectReason as RejectReasonProto,
 )
+from coinbase_ml.fakebase.protos.fakebase_pb2 import OrderType as OrderTypeProto
 from coinbase_ml.fakebase.types.currency import (
     Currency,
     InvalidTypeError,
@@ -43,12 +44,12 @@ class DoneReason(Enum):
     filled = "filled"
 
     @staticmethod
-    def from_proto(done_reason: "fakebase_pb2.DoneReasonValue") -> DoneReason:
+    def from_proto(done_reason: "events_pb2.DoneReasonValue") -> DoneReason:
         """
         from_proto [summary]
 
         Args:
-            done_reason (fakebase_pb2.DoneReasonValue): [description]
+            done_reason (events_pb2.DoneReasonValue): [description]
 
         Returns:
             DoneReason: [description]
@@ -97,12 +98,12 @@ class Liquidity(Enum):
         return self._fee_fraction
 
     @staticmethod
-    def from_proto(liquidity: "fakebase_pb2.LiquidityValue") -> Liquidity:
+    def from_proto(liquidity: "events_pb2.LiquidityValue") -> Liquidity:
         """
         from_proto [summary]
 
         Args:
-            liquidity (fakebase_pb2.LiquidityValue): [description]
+            liquidity (events_pb2.LiquidityValue): [description]
 
         Returns:
             Liquidity: [description]
@@ -128,12 +129,12 @@ class OrderSide(Enum):
     sell = "sell"
 
     @staticmethod
-    def from_proto(order_side: "fakebase_pb2.OrderSideValue") -> OrderSide:
+    def from_proto(order_side: "events_pb2.OrderSideValue") -> OrderSide:
         """
         from_proto [summary]
 
         Args:
-            order_side (fakebase_pb2.OrderSideValue): [description]
+            order_side (events_pb2.OrderSideValue): [description]
 
         Returns:
             OrderSide: [description]
@@ -188,12 +189,12 @@ class OrderStatus(Enum):
     rejected = "rejected"
 
     @staticmethod
-    def from_proto(order_status: "fakebase_pb2.OrderStatusValue") -> OrderStatus:
+    def from_proto(order_status: "events_pb2.OrderStatusValue") -> OrderStatus:
         """
         from_proto [summary]
 
         Args:
-            order_status (fakebase_pb2.OrderStatusValue): [description]
+            order_status (events_pb2.OrderStatusValue): [description]
 
         Returns:
             OrderStatus: [description]
@@ -302,12 +303,12 @@ class RejectReason(Enum):
     size_too_small = "size_too_small"
 
     @staticmethod
-    def from_proto(reject_reason: "fakebase_pb2.RejectReasonValue") -> RejectReason:
+    def from_proto(reject_reason: "events_pb2.RejectReasonValue") -> RejectReason:
         """
         from_proto [summary]
 
         Args:
-            reject_reason (fakebase_pb2.RejectReasonValue): [description]
+            reject_reason (events_pb2.RejectReasonValue): [description]
 
         Returns:
             RejectReason: [description]

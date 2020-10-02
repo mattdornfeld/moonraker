@@ -4,6 +4,10 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 object Utils {
+  implicit class DoubleEquality(x: Double) {
+    def ===(y: Double, tolerance: Double = 1e-10): Boolean = Math.abs(x - y) < tolerance
+  }
+
   implicit class When[A, B](a: A) {
     def when(condition: Boolean)(f: A => A): A = if (condition) f(a) else a
 

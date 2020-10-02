@@ -10,7 +10,7 @@ from sqlalchemy import BigInteger, Column, String
 from sqlalchemy.orm import reconstructor
 
 from coinbase_ml.common import constants as c
-from coinbase_ml.fakebase.protos.fakebase_pb2 import Match
+from coinbase_ml.fakebase.protos.events_pb2 import Match
 from coinbase_ml.fakebase.orm.mixins import Base, MatchOrderEvent
 from coinbase_ml.fakebase.types import (
     Liquidity,

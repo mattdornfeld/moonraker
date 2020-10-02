@@ -1,14 +1,22 @@
-SCALAPB_PACKAGE_DIR=./
-FAKEBASE_PROTOS_DIR=./coinbase_ml/fakebase/protos
-FEATURIZERS_PROTOS_DIR=./
+EVENTS_PROTOS_DIR=./
+SCALAPB_PROTOS_DIR=./
+FAKEBASE_PROTOS_DIR=./
+ENVIRONMENT_PROTOS_DIR=./
 
 mkdir -p scalapb
 
 python3 -m grpc_tools.protoc \
     -I scala/coinbaseml/src/main/protobuf \
-    --mypy_out=$SCALAPB_PACKAGE_DIR \
-    --python_out=$SCALAPB_PACKAGE_DIR \
-    --grpc_python_out=$SCALAPB_PACKAGE_DIR \
+    --mypy_out=$EVENTS_PROTOS_DIR \
+    --python_out=$EVENTS_PROTOS_DIR \
+    --grpc_python_out=$EVENTS_PROTOS_DIR \
+    scala/coinbaseml/src/main/protobuf/events.proto
+
+python3 -m grpc_tools.protoc \
+    -I scala/coinbaseml/src/main/protobuf \
+    --mypy_out=$SCALAPB_PROTOS_DIR \
+    --python_out=$SCALAPB_PROTOS_DIR \
+    --grpc_python_out=$SCALAPB_PROTOS_DIR \
     scala/coinbaseml/src/main/protobuf/scalapb/scalapb.proto
 
 python3 -m grpc_tools.protoc \
@@ -20,9 +28,7 @@ python3 -m grpc_tools.protoc \
 
 python3 -m grpc_tools.protoc \
     -I scala/coinbaseml/src/main/protobuf \
-    --mypy_out=$FEATURIZERS_PROTOS_DIR \
-    --python_out=$FEATURIZERS_PROTOS_DIR \
-    --grpc_python_out=$FEATURIZERS_PROTOS_DIR \
-    scala/coinbaseml/src/main/protobuf/featurizer.proto
-
-2to3 -n -w $FAKEBASE_PROTOS_DIR
+    --mypy_out=$ENVIRONMENT_PROTOS_DIR \
+    --python_out=$ENVIRONMENT_PROTOS_DIR \
+    --grpc_python_out=$ENVIRONMENT_PROTOS_DIR \
+    scala/coinbaseml/src/main/protobuf/environment.proto

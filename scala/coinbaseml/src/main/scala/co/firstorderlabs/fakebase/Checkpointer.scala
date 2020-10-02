@@ -1,7 +1,6 @@
 package co.firstorderlabs.fakebase
 
-import co.firstorderlabs.common.InfoAggregator
-import co.firstorderlabs.common.featurizers.Featurizer
+import co.firstorderlabs.common.{Environment, InfoAggregator}
 import co.firstorderlabs.fakebase.types.Exceptions.CheckpointNotFound
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 
@@ -34,7 +33,7 @@ object Checkpointer {
     InfoAggregator.clear
     MatchingEngine.clear
     SnapshotBuffer.clear
-    Featurizer.clear
+    Environment.clear
     checkpointSnapshotBuffer.clear
   }
 
@@ -44,7 +43,7 @@ object Checkpointer {
     && Exchange.isCleared
     && InfoAggregator.isCleared
     && MatchingEngine.isCleared
-    && Featurizer.isCleared
+    && Environment.isCleared
     && SnapshotBuffer.isCleared)
   }
 
@@ -54,7 +53,7 @@ object Checkpointer {
     DatabaseWorkers.restore(checkpointSnapshot.databaseWorkersSnapshot)
     Exchange.restore(checkpointSnapshot.exchangeSnapshot)
     MatchingEngine.restore(checkpointSnapshot.matchingEngineSnapshot)
-    Featurizer.restore(checkpointSnapshot.featurizerSnapshot)
+    Environment.restore(checkpointSnapshot.featurizerSnapshot)
   }
 
   def start(snapshotBufferSize: Int): Unit =

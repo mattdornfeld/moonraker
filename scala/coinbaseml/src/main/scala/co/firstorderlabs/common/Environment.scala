@@ -1,15 +1,17 @@
-package co.firstorderlabs.common.featurizers
+package co.firstorderlabs.common
 
 import java.util.logging.Logger
 
 import co.firstorderlabs.common
-import co.firstorderlabs.common.InfoAggregator
-import co.firstorderlabs.common.protos.FeaturizerServiceGrpc.FeaturizerService
-import co.firstorderlabs.common.protos.{Features, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
+import co.firstorderlabs.common.actions.actionizers.SignalPositionSize
+import co.firstorderlabs.common.featurizers._
+import co.firstorderlabs.common.protos.EnvironmentServiceGrpc.EnvironmentService
+import co.firstorderlabs.common.protos.{ActionRequest, Actionizer, Features, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
-import co.firstorderlabs.common.types.Exceptions.UnrecognizedRewardStrategy
+import co.firstorderlabs.common.types.Exceptions.{UnrecognizedActionizer, UnrecognizedRewardStrategy}
 import co.firstorderlabs.common.utils.Utils.getResult
-import co.firstorderlabs.fakebase.{Snapshot, Snapshotable}
+import co.firstorderlabs.fakebase.protos.fakebase.{Order, OrderMessage}
+import co.firstorderlabs.fakebase.{OrderUtils, Snapshot, Snapshotable}
 import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future
@@ -19,10 +21,24 @@ case class FeaturizerSnapshot(
     timeSeriesFeaturizerSnapshot: TimeSeriesFeaturizerSnapshot
 ) extends Snapshot
 
-object Featurizer
-    extends FeaturizerService
+object Environment
+    extends EnvironmentService
     with Snapshotable[FeaturizerSnapshot] {
-  private val logger = Logger.getLogger(Featurizer.toString)
+  private val logger = Logger.getLogger(Environment.toString)
+
+  override def executeAction(request: ActionRequest): Future[Order] = {
+    val action = request.actionizer match {
+      case Actionizer.SignalPositionSize => SignalPositionSize.construct(request.actorOutput)
+      case _ => throw new UnrecognizedActionizer
+    }
+
+    val order = action.execute match {
+      case Some(orderEvent) => OrderUtils.orderEventToSealedOneOf(orderEvent)
+      case None => new OrderMessage().toOrder
+    }
+
+    Future.successful(order)
+  }
 
   def getObservation(
       observationRequest: ObservationRequest
@@ -49,6 +65,7 @@ object Featurizer
       OrderBookFeaturizer.construct(observationRequest),
       TimeSeriesFeaturizer.construct(observationRequest)
     )
+
 
   def getReward(rewardRequest: RewardRequest): Future[Reward] = {
     val rewardStrategy = rewardRequest.rewardStrategy match {
@@ -93,4 +110,5 @@ object Featurizer
     OrderBookFeaturizer.restore(snapshot.orderBookFeaturizerSnapshot)
     TimeSeriesFeaturizer.restore(snapshot.timeSeriesFeaturizerSnapshot)
   }
+
 }
