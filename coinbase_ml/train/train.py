@@ -61,9 +61,9 @@ def main(
         configs["initial_btc"] = cc.PRODUCT_ID.quote_volume_type(configs["initial_btc"])
 
     ray.init(
-        include_webui=c.RAY_INCLUDE_WEBUI,
+        address=c.RAY_REDIS_ADDRESS,
+        include_dashboard=c.RAY_INCLUDE_WEBUI,
         object_store_memory=c.RAY_OBJECT_STORE_MEMORY,
-        redis_address=c.RAY_REDIS_ADDRESS,
     )
 
     custom_models: List[TFModelV2] = [

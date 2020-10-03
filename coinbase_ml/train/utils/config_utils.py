@@ -64,9 +64,9 @@ class EnvironmentConfigs:
         )
 
     @property
-    def sample_batch_size(self) -> int:
+    def rollout_fragment_length(self) -> int:
         """
-        sample_batch_size is the number of samples a set of rollout workers
+        rollout_fragment_length is the number of samples a set of rollout workers
         will collect before terminating their episodes and starting the next sample.
         This is set so each rollout worker will finish one episode before starting the
         next one.
@@ -86,7 +86,7 @@ class EnvironmentConfigs:
         Returns:
             int: [description]
         """
-        return self.num_episodes * self.sample_batch_size
+        return self.num_episodes * self.rollout_fragment_length
 
 
 @dataclass

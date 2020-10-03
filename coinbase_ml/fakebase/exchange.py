@@ -157,7 +157,6 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
     def _generate_action_request(
         self, actor_output: Optional[NDArray[float]]
     ) -> Optional[ActionRequest]:
-        print(actor_output)
         return (
             ActionRequest(actorOutput=list(actor_output), actionizer=self._actionizer)
             if actor_output is not None
