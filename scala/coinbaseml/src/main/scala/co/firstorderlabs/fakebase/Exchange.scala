@@ -202,7 +202,7 @@ object Exchange
     )
 
     logger.fine(
-      s"Stepped to time interval ${getSimulationMetadata.currentTimeInterval}"
+      s"Stepped to ${getSimulationMetadata.currentTimeInterval}"
     )
     logger.fine(
       s"There are ${DatabaseWorkers.getResultMapSize.toString} entries in the results map queue"
@@ -232,21 +232,16 @@ object Exchange
         s"No events queried for time interval ${getSimulationMetadata.currentTimeInterval}"
       )
     else
-      logger.info(s"Processing ${receivedEvents.length} events")
+      logger.fine(s"Processing ${receivedEvents.length} events")
 
     matchingEngine.matches.clear
     matchingEngine.processEvents(receivedEvents)
 
-    Environment.step
+    Environment.step(stepRequest.actionRequest)
     SnapshotBuffer.step
     InfoAggregator.step
     val endTime = System.currentTimeMillis
-    logger.info(s"Exchange.step took ${endTime - startTime} ms")
-
-    stepRequest.actionRequest match {
-      case Some(actionRequest) => Environment.executeAction(actionRequest)
-      case None =>
-    }
+    logger.fine(s"Exchange.step took ${endTime - startTime} ms")
 
     Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
   }

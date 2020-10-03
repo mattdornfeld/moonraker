@@ -103,7 +103,7 @@ object TimeSeriesFeaturizer
     featureBuffer enqueue eventAggregators.map(_.value)
 
     val endTime = System.currentTimeMillis()
-    logger.info(s"TimeSeriesFeaturizer.step took ${endTime - startTime} ms")
+    logger.fine(s"TimeSeriesFeaturizer.step took ${endTime - startTime} ms")
   }
 
   def numEventCountFeatureChannels: Int = eventFilters.size

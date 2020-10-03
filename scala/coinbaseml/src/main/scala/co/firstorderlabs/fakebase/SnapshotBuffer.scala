@@ -112,6 +112,15 @@ object SnapshotBuffer {
     toArray.apply(i)
   }
 
+  def getSnapshotOrElse(timeInterval: TimeInterval, default: Option[SimulationSnapshot] = None): Option[SimulationSnapshot] = {
+    val i = getSnapshotBufferIndex(timeInterval)
+    if (isIndexOutOfBounds(i)) {
+      default
+    } else {
+      Some(toArray.apply(i))
+    }
+  }
+
   private def getSnapshotBufferIndex(timeInterval: TimeInterval): Int = {
     val simulationMetaData = Exchange.getSimulationMetadata
 

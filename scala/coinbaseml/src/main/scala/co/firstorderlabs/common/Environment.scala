@@ -33,7 +33,10 @@ object Environment
     }
 
     val order = action.execute match {
-      case Some(orderEvent) => OrderUtils.orderEventToSealedOneOf(orderEvent)
+      case Some(orderEvent) => {
+        println(orderEvent)
+        OrderUtils.orderEventToSealedOneOf(orderEvent)
+      }
       case None => new OrderMessage().toOrder
     }
 
@@ -54,7 +57,7 @@ object Environment
     val observation =
       Observation(reward = reward, infoDict = Some(InfoAggregator.getInfoDict))
     val endTime = System.currentTimeMillis
-    logger.info(s"Featurizer.getObservation took ${endTime - startTime} ms")
+    logger.fine(s"Featurizer.getObservation took ${endTime - startTime} ms")
 
     Future.successful(observation)
   }
@@ -87,7 +90,12 @@ object Environment
     TimeSeriesFeaturizer.start(snapshotBufferSize)
   }
 
-  def step: Unit = {
+  def step(actionRequest: Option[ActionRequest]): Unit = {
+    actionRequest match {
+      case Some(actionRequest) => Environment.executeAction(actionRequest)
+      case None =>
+    }
+
     OrderBookFeaturizer.step
     TimeSeriesFeaturizer.step
   }

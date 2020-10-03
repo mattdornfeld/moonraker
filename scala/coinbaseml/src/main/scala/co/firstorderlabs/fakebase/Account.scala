@@ -4,15 +4,49 @@ import java.util.UUID
 
 import co.firstorderlabs.common.utils.Utils.getResultOptional
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.fakebase.currency.Volume.Volume
-import co.firstorderlabs.fakebase.protos.fakebase.{AccountInfo, AccountServiceGrpc, BuyLimitOrder, BuyLimitOrderRequest, BuyMarketOrder, BuyMarketOrderRequest, Cancellation, CancellationRequest, DoneReason, Match, MatchEvents, Order, OrderSide, OrderStatus, Orders, RejectReason, SellLimitOrder, SellLimitOrderRequest, SellMarketOrder, SellMarketOrderRequest, Wallets => WalletsProto}
+import co.firstorderlabs.fakebase.protos.fakebase.{
+  AccountInfo,
+  AccountServiceGrpc,
+  BuyLimitOrder,
+  BuyLimitOrderRequest,
+  BuyMarketOrder,
+  BuyMarketOrderRequest,
+  Cancellation,
+  CancellationRequest,
+  DoneReason,
+  Match,
+  MatchEvents,
+  Order,
+  OrderSide,
+  OrderStatus,
+  Orders,
+  RejectReason,
+  SellLimitOrder,
+  SellLimitOrderRequest,
+  SellMarketOrder,
+  SellMarketOrderRequest,
+  Wallets => WalletsProto
+}
 import co.firstorderlabs.fakebase.types.Events._
-import co.firstorderlabs.fakebase.types.Exceptions.{InvalidOrderStatus, InvalidOrderType, OrderNotFound}
-import co.firstorderlabs.fakebase.types.Types.{OrderId, OrderRequestId, TimeInterval}
+import co.firstorderlabs.fakebase.types.Exceptions.{
+  InvalidOrderStatus,
+  InvalidOrderType,
+  OrderNotFound
+}
+import co.firstorderlabs.fakebase.types.Types.{
+  OrderId,
+  OrderRequestId,
+  TimeInterval
+}
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 
+import scala.collection.mutable
 import scala.collection.mutable.{HashMap, ListBuffer}
 import scala.concurrent.Future
 
@@ -40,7 +74,7 @@ class MatchesHashMap extends HashMap[OrderId, ListBuffer[Match]] {
 case class AccountSnapshot(
     orderRequests: HashMap[OrderRequestId, OrderRequest],
     placedCancellations: CancellationsHashMap,
-    placedOrders: HashMap[OrderId, OrderEvent],
+    placedOrders: mutable.HashMap[OrderId, OrderEvent],
     matches: MatchesHashMap,
     walletsSnapshot: WalletsSnapshot,
     matchesInCurrentTimeInterval: ListBuffer[Match]

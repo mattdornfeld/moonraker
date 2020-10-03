@@ -6,6 +6,7 @@ from datetime import timedelta
 from dateutil import parser
 
 from coinbase_ml.common.protos.environment_pb2 import (
+    Actionizer,
     InfoDictKey,
     RewardStrategy,
 )
@@ -28,13 +29,14 @@ def config():
     num_warmup_time_steps = snapshot_buffer_size
     optimizer_name = "Adam"
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
+    actionizer = Actionizer.Name(Actionizer.SignalPositionSize)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
-    test_end_dt = "2020-01-17 10:00:00.00"
+    test_end_dt = "2020-01-16 10:05:00.00"
     test_start_dt = "2020-01-16 10:00:00.00"
-    time_delta = timedelta(seconds=300)
+    time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)
 
-    latest_train_end_dt = "2020-01-18 00:00:00.00"
+    latest_train_end_dt = "2020-01-17 09:05:00.00"
     latest_train_start_dt = "2020-01-17 09:00:00.00"
     num_lookback_intervals = 0
 
@@ -68,6 +70,7 @@ def config():
     )
 
     train_environment_configs = dict(
+        actionizer=actionizer,
         environment_time_intervals=train_time_intervals,
         initial_btc=initial_btc,
         initial_usd=initial_usd,
@@ -80,6 +83,7 @@ def config():
     )
 
     test_environment_configs = dict(
+        actionizer=actionizer,
         environment_time_intervals=[
             TimeInterval(
                 end_dt=parser.parse(test_end_dt), start_dt=parser.parse(test_start_dt)

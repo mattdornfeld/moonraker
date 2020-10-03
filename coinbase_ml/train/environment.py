@@ -3,20 +3,18 @@
 import logging
 from typing import Dict, Tuple
 
-import numpy as np
 from gym import Env
+from nptyping import NDArray
 
 from ray.rllib.env.env_context import EnvContext
 
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common.actionizers import Actionizer
 from coinbase_ml.common.observations import (
     ActionSpace,
     Observation,
     ObservationSpace,
     ObservationSpaceShape,
 )
-from coinbase_ml.fakebase.account import Account
 from coinbase_ml.fakebase.exchange import Exchange
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs
@@ -70,6 +68,7 @@ class Environment(Env):  # pylint: disable=W0223
                 start_dt=self._start_dt,
                 time_delta=self.config.time_delta,
                 reward_strategy=self.config.reward_strategy,
+                actionizer=self.config.actionizer,
             )
             self.reset()
 
@@ -90,11 +89,14 @@ class Environment(Env):  # pylint: disable=W0223
 
         return out_of_product and out_of_quote
 
-    def _exchange_step(self) -> None:
+    def _exchange_step(self, action: NDArray[float]) -> None:
         """
         _exchange_step [summary]
+
+        Args:
+            action (NDArray[float]): [description]
         """
-        self.exchange.step()
+        self.exchange.step(actor_output=action)
 
         if c.VERBOSE:
             interval_end_dt = self.exchange.interval_end_dt
@@ -147,12 +149,12 @@ class Environment(Env):  # pylint: disable=W0223
         return observation
 
     def step(
-        self, action: np.ndarray
+        self, action: NDArray[float]
     ) -> Tuple[Observation, float, bool, Dict[str, float]]:
         """Summary
 
         Args:
-            action (np.ndarray): Description
+            action (NDArray[float]): Description
 
         Returns:
             Tuple[Observation, float, bool, Dict]: Description
@@ -163,11 +165,7 @@ class Environment(Env):  # pylint: disable=W0223
         if self.episode_finished:
             raise EnvironmentFinishedException
 
-        actionizer = Actionizer[Account](self.exchange.account, action)
-        action = actionizer.get_action()
-        action.execute()
-
-        self._exchange_step()
+        self._exchange_step(action)
 
         observation = self.exchange.observation
         reward = self.exchange.reward

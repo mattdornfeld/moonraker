@@ -8,7 +8,6 @@ logging.basicConfig()
 LOGGER = logging.getLogger(__name__)
 
 GRPC_REQUIRES = [
-    "2to3",
     "grpcio>=1.28.0,<2.0.0",
     "grpcio-tools>=1.28.0,<1.30.0",
     "mypy-protobuf",
@@ -34,6 +33,7 @@ INSTALL_REQUIRES = [
     "funcy>=1.11.0,<2.0.0",
     "google-cloud-storage>=1.15.0,<2.0.0",
     "incense>=0.0.10",
+    "nptyping>=1.3.0<2.0.0",
     "python-dateutil>=2.6.0,<3.0.0",
     "pytimeparse>=1.1.0,<2.0.0",
     "requests>=2.20.0,<3.0.0",
