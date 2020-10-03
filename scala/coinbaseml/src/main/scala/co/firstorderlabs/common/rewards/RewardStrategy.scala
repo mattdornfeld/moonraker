@@ -3,17 +3,18 @@ package co.firstorderlabs.common.rewards
 import java.util.logging.Logger
 
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.protos.fakebase.OrderSide
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
-import co.firstorderlabs.fakebase.{Exchange, OrderBook, SnapshotBuffer}
+import co.firstorderlabs.fakebase._
 
 /** RewardStrategy is a base trait for all reward strategies
   */
 trait RewardStrategy {
   private val logger = Logger.getLogger(this.toString)
+
+  private def currentTimeInterval: TimeInterval =
+    Exchange.getSimulationMetadata.currentTimeInterval
 
   /** Calculates mid price for a given TimeInterval
     *
@@ -21,13 +22,23 @@ trait RewardStrategy {
     * @return
     */
   def calcMidPrice(timeInterval: TimeInterval): Double = {
-    val snapshot = SnapshotBuffer.getSnapshot(timeInterval)
-    val buyOrderBook = new OrderBook(
-      Some(snapshot.matchingEngineSnapshot.buyOrderBookSnapshot)
-    )
-    val sellOrderBook = new OrderBook(
-      Some(snapshot.matchingEngineSnapshot.sellOrderBookSnapshot)
-    )
+    val (buyOrderBook, sellOrderBook) =
+      if (timeInterval == currentTimeInterval) {
+        (
+          Exchange.getOrderBook(OrderSide.buy),
+          Exchange.getOrderBook(OrderSide.sell)
+        )
+      } else {
+        val snapshot = SnapshotBuffer.getSnapshot(timeInterval)
+        (
+          new OrderBook(
+            Some(snapshot.matchingEngineSnapshot.buyOrderBookSnapshot)
+          ),
+          new OrderBook(
+            Some(snapshot.matchingEngineSnapshot.sellOrderBookSnapshot)
+          )
+        )
+      }
 
     val bestAskPrice = sellOrderBook.minPrice.getOrElse {
       logger.warning(
@@ -51,18 +62,25 @@ trait RewardStrategy {
     * @return
     */
   def calcPortfolioValue(timeInterval: TimeInterval): Double = {
-    val snapshot = SnapshotBuffer.getSnapshot(timeInterval)
+    val (productWallet, quoteWallet) =
+      if (timeInterval == currentTimeInterval) {
+        (Wallets.getWallet(ProductVolume), Wallets.getWallet(QuoteVolume))
+      } else {
+        val walletsMap = SnapshotBuffer
+          .getSnapshot(timeInterval)
+          .accountSnapshot
+          .walletsSnapshot
+          .walletsMap
 
-    val productVolume = snapshot.accountSnapshot.walletsSnapshot.walletsMap
-      .get(ProductVolume.currency)
-      .get
-      .balance
-      .toDouble
-    val quoteVolume = snapshot.accountSnapshot.walletsSnapshot.walletsMap
-      .get(QuoteVolume.currency)
-      .get
-      .balance
-      .toDouble
+        (
+          walletsMap(ProductVolume.currency)
+            .asInstanceOf[Wallet[ProductVolume]],
+          walletsMap(QuoteVolume.currency).asInstanceOf[Wallet[QuoteVolume]]
+        )
+      }
+
+    val productVolume = productWallet.balance.toDouble
+    val quoteVolume = quoteWallet.balance.toDouble
 
     productVolume * calcMidPrice(timeInterval) + quoteVolume
   }
@@ -74,10 +92,10 @@ trait RewardStrategy {
   def calcReward: Double
 
   def currentPortfolioValue: Double =
-    calcPortfolioValue(Exchange.getSimulationMetadata.currentTimeInterval)
+    calcPortfolioValue(currentTimeInterval)
 
   def currentMidPrice: Double =
-  calcMidPrice(Exchange.getSimulationMetadata.currentTimeInterval)
+    calcMidPrice(currentTimeInterval)
 
   protected def previousPortfolioValue: Double =
     calcPortfolioValue(Exchange.getSimulationMetadata.previousTimeInterval)

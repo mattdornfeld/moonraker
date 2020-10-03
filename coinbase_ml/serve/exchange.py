@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, List, Optional
 
 from dateutil.tz import UTC
+from nptyping import NDArray
 
 from coinbase_ml.fakebase.base_classes import ExchangeBase
 from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
@@ -119,6 +120,7 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
         self,
         insert_cancellations: Optional[List[CoinbaseCancellation]] = None,
         insert_orders: Optional[List[CoinbaseOrder]] = None,
+        actor_output: Optional[NDArray[float]] = None,
     ) -> None:
         """
         step advances the interval, clears self.received_cancellations, self.received_orders,
@@ -128,7 +130,7 @@ class Exchange(ExchangeBase["coinbase_ml.serve.account.Account"]):
             insert_cancellations (Optional[List[CoinbaseCancellation]], optional): Defaults to None
             insert_orders (Optional[List[CoinbaseOrder]], optional): Defaults to None
         """
-        super().step(insert_cancellations, insert_orders)
+        super().step(insert_cancellations, insert_orders, actor_output)
         self.interval_start_dt = datetime.now(UTC)
         self.stream_processor.flush()
 

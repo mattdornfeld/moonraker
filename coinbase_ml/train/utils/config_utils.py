@@ -16,6 +16,7 @@ class EnvironmentConfigs:
     """Summary
     """
 
+    actionizer: str
     environment_time_intervals: List[TimeInterval]
     initial_usd: QuoteVolume
     initial_btc: ProductVolume

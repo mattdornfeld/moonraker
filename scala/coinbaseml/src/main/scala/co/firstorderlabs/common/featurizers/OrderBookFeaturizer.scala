@@ -91,7 +91,7 @@ object OrderBookFeaturizer
     )
     val endTime = System.currentTimeMillis
 
-    logger.info(s"OrderBookFeaturizer.step took ${endTime - startTime} ms")
+    logger.fine(s"OrderBookFeaturizer.step took ${endTime - startTime} ms")
   }
 
   override def clear: Unit = featureBuffer.clear

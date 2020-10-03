@@ -9,4 +9,5 @@ object Exceptions {
   final class SelfTrade extends IllegalStateException
   final case class SimulationNotStarted(message: String) extends IllegalStateException
   final case class SnapshotBufferNotFull(message: String) extends IllegalStateException
+  final class SnapshotNotFound extends IllegalStateException
 }

@@ -6,6 +6,7 @@ from datetime import timedelta
 from dateutil import parser
 
 from coinbase_ml.common.protos.environment_pb2 import (
+    Actionizer,
     InfoDictKey,
     RewardStrategy,
 )
@@ -29,6 +30,7 @@ def staging():
     num_warmup_time_steps = 100
     optimizer_name = "Adam"
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
+    actionizer = Actionizer.Name(Actionizer.SignalPositionSize)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
     test_end_dt = "2019-10-19 00:00:00.00"
     test_start_dt = "2019-10-18 00:00:00.00"
@@ -69,6 +71,7 @@ def staging():
     )
 
     train_environment_configs = dict(
+        actionizer=actionizer,
         environment_time_intervals=train_time_intervals,
         initial_btc=initial_btc,
         initial_usd=initial_usd,
@@ -81,6 +84,7 @@ def staging():
     )
 
     test_environment_configs = dict(
+        actionizer=actionizer,
         environment_time_intervals=[
             TimeInterval(
                 end_dt=parser.parse(test_end_dt), start_dt=parser.parse(test_start_dt)

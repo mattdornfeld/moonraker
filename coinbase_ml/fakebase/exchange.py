@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from dateutil import parser
 from google.protobuf.duration_pb2 import Duration
+from nptyping import NDArray
 from grpc._channel import _InactiveRpcError as InactiveRpcError
 
 import coinbase_ml.fakebase.account as _account
@@ -18,6 +19,7 @@ from coinbase_ml.common.protos.environment_pb2 import (
     RewardStrategy,
 )
 from coinbase_ml.common.observations import Observation
+from coinbase_ml.common.protos.environment_pb2 import ActionRequest, Actionizer
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     ExchangeInfo,
     OrderBooksRequest,
@@ -56,6 +58,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         start_dt: datetime,
         time_delta: timedelta,
         reward_strategy: str,
+        actionizer: str,
         create_exchange_process: bool = True,
         test_mode: bool = False,
     ) -> None:
@@ -75,6 +78,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self._simulation_info_request = SimulationInfoRequest()
         self._observation = ObservationProto()
         self._reward_strategy = RewardStrategy.Value(reward_strategy)
+        self._actionizer = Actionizer.Value(actionizer)
 
         if create_exchange_process:
             port = get_random_free_port()
@@ -149,6 +153,16 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
 
                 sleep(0.3)
                 continue
+
+    def _generate_action_request(
+        self, actor_output: Optional[NDArray[float]]
+    ) -> Optional[ActionRequest]:
+        print(actor_output)
+        return (
+            ActionRequest(actorOutput=list(actor_output), actionizer=self._actionizer)
+            if actor_output is not None
+            else None
+        )
 
     def _generate_observation_request(self) -> ObservationRequest:
         reward_request = RewardRequest(rewardStrategy=self._reward_strategy)
@@ -327,19 +341,16 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self,
         insert_cancellations: Optional[List[CoinbaseCancellation]] = None,
         insert_orders: Optional[List[CoinbaseOrder]] = None,
+        actor_output: Optional[NDArray[float]] = None,
     ) -> None:
         """
-        step advances the exchange by time increment self.time_delta.
-        Increments self.interval_start_dt and self.interval_end_dt by
-        self.time_delta. Loads new orders and cancellations from
-        DatabaseWorkers.results_queue. Goes through simulated exchange logic
-        to updated self.matches and self.order_book.
+        step calls the Exchange.step method on the Fakebase Scala server
 
         Args:
             insert_cancellations (Optional[List[CoinbaseCancellation]], optional): Defaults to None
             insert_orders (Optional[List[CoinbaseOrder]], optional): Defaults to None
         """
-        super().step(insert_cancellations, insert_orders)
+        super().step(insert_cancellations, insert_orders, actor_output)
         _insert_cancellations = (
             [] if insert_cancellations is None else insert_cancellations
         )
@@ -351,6 +362,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
                 cancellation.to_proto() for cancellation in _insert_cancellations
             ],
             simulationInfoRequest=self._simulation_info_request,
+            actionRequest=self._generate_action_request(actor_output),
         )
 
         simulation_info: SimulationInfo = self.stub.step(step_request)

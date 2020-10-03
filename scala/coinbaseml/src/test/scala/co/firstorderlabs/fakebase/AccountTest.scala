@@ -42,12 +42,12 @@ class AccountTest extends AnyFunSpec {
 
         order match {
           case order: BuyOrderEvent => {
-            assert(order.holds equalTo  Wallets.calcRequiredBuyHold(order))
+            assert(order.holds equalTo Wallets.calcRequiredBuyHold(order))
             assert(productWallet.holds equalTo ProductVolume.zeroVolume)
             assert(quoteWallet.holds equalTo order.holds)
           }
           case order: SellOrderEvent => {
-            assert(order.holds equalTo  order.size)
+            assert(order.holds equalTo order.size)
             assert(productWallet.holds equalTo order.holds)
             assert(quoteWallet.holds equalTo QuoteVolume.zeroVolume)
           }
@@ -628,6 +628,7 @@ class AccountTest extends AnyFunSpec {
           val fees = matchEvents.map(m => m.fee).reduce(_ + _)
           val productWallet = Wallets.getWallet(ProductVolume)
           val quoteWallet = Wallets.getWallet(QuoteVolume)
+
           doneOrder match {
             case _: BuyOrderEvent => {
               assert(

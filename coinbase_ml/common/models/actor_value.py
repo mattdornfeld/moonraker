@@ -14,6 +14,7 @@ import tensorflow as tf
 
 # pylint: disable=import-error
 from tensorflow.keras import backend as K
+from tensorflow.keras.activations import sigmoid
 from tensorflow.keras.layers import (
     Concatenate,
     Conv2D,
@@ -163,7 +164,7 @@ class ActorValueModel(TFModelV2):
         )
 
         actions = compose(
-            Dense(num_outputs, activation="linear"),
+            Dense(num_outputs, activation=sigmoid),
             l.DenseBlock(
                 depth=hyper_params.output_tower_depth,
                 units=hyper_params.output_tower_num_units,
