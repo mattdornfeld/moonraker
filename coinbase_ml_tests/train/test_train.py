@@ -42,18 +42,18 @@ def train_environment_configs(request: SubRequest) -> EnvironmentConfigs:
     return EnvironmentConfigs(**experiment_config()[key])
 
 
-def test_sample_batch_size_greater_than_zero(
+def test_rollout_fragment_length_greater_than_zero(
     environment_configs: EnvironmentConfigs,
 ) -> None:
 
-    assert environment_configs.sample_batch_size > 0
+    assert environment_configs.rollout_fragment_length > 0
 
 
-def test_sample_less_then_train_batch_size(
+def test_rollout_fragment_length_less_then_train_batch_size(
     train_environment_configs: EnvironmentConfigs,
 ) -> None:
     assert (
-        train_environment_configs.sample_batch_size
+        train_environment_configs.rollout_fragment_length
         <= train_environment_configs.train_batch_size
     )
 

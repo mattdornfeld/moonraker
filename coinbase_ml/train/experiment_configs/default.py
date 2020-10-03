@@ -75,7 +75,7 @@ def config():
         initial_btc=initial_btc,
         initial_usd=initial_usd,
         num_actors=len(train_time_intervals),
-        num_episodes=1,
+        num_episodes=2,
         snapshot_buffer_size=snapshot_buffer_size,
         num_warmup_time_steps=num_warmup_time_steps,
         reward_strategy=reward_strategy,

@@ -34,7 +34,6 @@ object Environment
 
     val order = action.execute match {
       case Some(orderEvent) => {
-        println(orderEvent)
         OrderUtils.orderEventToSealedOneOf(orderEvent)
       }
       case None => new OrderMessage().toOrder

@@ -53,6 +53,7 @@ class ActorValueModel(TFModelV2):
         num_outputs: int,
         model_config: Dict[str, Any],
         name: str,
+        hyper_params: HyperParameters,
     ):
         """
         __init__ [summary]
@@ -122,7 +123,6 @@ class ActorValueModel(TFModelV2):
         self.time_series = Reshape(self._obs_space.time_series_space.shape)(time_series)
 
         vf_share_layers = model_config.get("vf_share_layers", True)
-        hyper_params: HyperParameters = model_config["custom_options"]["hyper_params"]
         self.actor = self._build_actor(hyper_params, num_outputs, vf_share_layers)
         self.register_variables(self.actor.variables)
 
@@ -286,6 +286,9 @@ class ActorValueModel(TFModelV2):
             ),
             Concatenate(),
         )
+
+    def import_from_h5(self, h5_file: str) -> None:
+        """Imports weights from an h5 file. Not implemented."""
 
     def forward(
         self, input_dict: Dict[str, Any], state: List, seq_lens: tf.Tensor

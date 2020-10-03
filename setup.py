@@ -34,12 +34,13 @@ INSTALL_REQUIRES = [
     "google-cloud-storage>=1.15.0,<2.0.0",
     "incense>=0.0.10",
     "nptyping>=1.3.0<2.0.0",
+    "pyarrow==1.0.1",
     "python-dateutil>=2.6.0,<3.0.0",
     "pytimeparse>=1.1.0,<2.0.0",
     "requests>=2.20.0,<3.0.0",
     "sacred",
-    "ray[rllib]==0.7.6",
-    "tensorflow==2.0.0",
+    "ray[rllib]==1.0.0",
+    "tensorflow==2.3.0",
     "kafka-python>=1.4.7,<2.0.0",
 ]
 
