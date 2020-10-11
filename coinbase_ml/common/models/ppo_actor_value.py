@@ -36,7 +36,7 @@ from coinbase_ml.common.utils import prod
 from coinbase_ml.train.utils.config_utils import HyperParameters
 
 
-class ActorValueModel(TFModelV2):
+class PPOActorValue(TFModelV2):
     """
     Attributes:
         account_funds (tf.Tensor): Description

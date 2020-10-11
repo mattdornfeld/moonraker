@@ -177,7 +177,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
 
     def _generate_simulation_info_request(self) -> SimulationInfoRequest:
         return SimulationInfoRequest(
-            observationRequest=self._generate_observation_request(),
+            observationRequest=self._generate_observation_request()
         )
 
     def _update_exchange_info(self, exchange_info: ExchangeInfo) -> None:

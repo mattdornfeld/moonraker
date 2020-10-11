@@ -1,25 +1,25 @@
 """Summary
 """
-import io
 import logging
-from pprint import pformat
-from tempfile import TemporaryDirectory
+from pathlib import Path
+from shutil import rmtree
 from typing import Any, Dict, List
 
 from sacred.run import Run
 
 import ray
-import ray.cloudpickle as cloudpickle
+from ray import tune
+from ray.tune.checkpoint_manager import Checkpoint
+from ray.tune.trial import Trial
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common import models
 from coinbase_ml.common.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
 from coinbase_ml.common.utils.ray_utils import register_custom_models
-from coinbase_ml.common.utils.sacred_utils import log_metrics_to_sacred
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
-from coinbase_ml.train.trainers import get_and_build_trainer
+from coinbase_ml.train.trainers import get_trainer_and_config
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs, HyperParameters
 
 
@@ -71,7 +71,7 @@ def main(
     ]
     register_custom_models(custom_models)
 
-    trainer = get_and_build_trainer(
+    trainer, trainer_config = get_trainer_and_config(
         hyper_params=HyperParameters(**hyper_params),
         test_environment_configs=EnvironmentConfigs(
             is_test_environment=True, **test_environment_configs
@@ -80,97 +80,52 @@ def main(
         trainer_name=trainer_name,
     )
 
-    checkpoint_dir = TemporaryDirectory()
-    best_iteration_result = float("-inf")
-    best_results: Dict[str, Any] = {}
-
-    for iteration in range(hyper_params["num_iterations"]):
-        results: Dict[str, Any] = trainer.train()
-
-        LOGGER.info("iteration: %s", iteration)
-        LOGGER.info("train_metrics: %s", pformat(results["custom_metrics"]))
-        LOGGER.info("train_performance: %s", pformat(results["sampler_perf"]))
-        LOGGER.info(
-            "eval_metrics: %s", pformat(results["evaluation"]["custom_metrics"])
-        )
-        LOGGER.info(
-            "eval_performance: %s", pformat(results["evaluation"]["sampler_perf"])
-        )
-
-        checkpoint: str = trainer.save(checkpoint_dir.name)
-
-        if "best_checkpoint" not in locals():
-            best_checkpoint = checkpoint
-
-        if (
-            results["evaluation"]["custom_metrics"][result_metric_key]
-            > best_iteration_result
-        ):
-            best_iteration_result = results["evaluation"]["custom_metrics"][
-                result_metric_key
-            ]
-            best_checkpoint = checkpoint
-            best_results = results
-
-        log_metrics_to_sacred(
-            SACRED_EXPERIMENT, results["custom_metrics"], prefix="train"
-        )
-        log_metrics_to_sacred(
-            SACRED_EXPERIMENT,
-            results["info"]["learner"]["default_policy"],
-            prefix="train",
-        )
-        log_metrics_to_sacred(
-            SACRED_EXPERIMENT, results["evaluation"]["custom_metrics"], prefix="test"
-        )
-
-    LOGGER.info(
-        "best_eval_metrics: %s", pformat(best_results["evaluation"]["custom_metrics"])
+    experiment_analysis = tune.run(
+        checkpoint_freq=1,
+        config=trainer_config,
+        metric=result_metric_key,
+        mode="max",
+        run_or_experiment=trainer,
+        stop={"training_iteration": hyper_params["num_iterations"]},
     )
 
-    # upload best checkpoint
-    checkpoint_key = f"{get_gcs_base_path(_run)}/rllib_checkpoint"
-    upload_file_to_gcs(
-        bucket_name=cc.MODEL_BUCKET_NAME,
-        credentials_path=cc.SERVICE_ACCOUNT_JSON,
-        filename=best_checkpoint,
-        gcp_project_name=cc.GCP_PROJECT_NAME,
-        key=checkpoint_key,
-    )
+    trial: Trial = experiment_analysis.trials[0]
+    checkpoints: List[Checkpoint] = trial.checkpoint_manager.best_checkpoints()
+    checkpoints.sort(key=lambda c: c.result["custom_metrics"][result_metric_key])
+    best_checkpoint = checkpoints[-1]
 
-    # upload best checkpoint metadata
-    checkpoint_metadata_key = (
-        f"{get_gcs_base_path(_run)}/rllib_checkpoint.tune_metadata"
-    )
-    upload_file_to_gcs(
-        bucket_name=cc.MODEL_BUCKET_NAME,
-        credentials_path=cc.SERVICE_ACCOUNT_JSON,
-        filename=best_checkpoint + ".tune_metadata",
-        gcp_project_name=cc.GCP_PROJECT_NAME,
-        key=checkpoint_metadata_key,
-    )
+    best_checkpoint_path = Path(best_checkpoint.value)
+    path_keys = [
+        (best_checkpoint_path, f"{get_gcs_base_path(_run)}/rllib_checkpoint"),
+        (
+            best_checkpoint_path.with_suffix(".tune_metadata"),
+            f"{get_gcs_base_path(_run)}/rllib_checkpoint.tune_metadata",
+        ),
+        (
+            best_checkpoint_path.parent.parent / "params.pkl",
+            f"{get_gcs_base_path(_run)}/trainer_config.pkl",
+        ),
+    ]
 
-    # upload trainer config
-    trainer_config_key = f"{get_gcs_base_path(_run)}/trainer_config.pkl"
-    with io.BytesIO() as config_pickle_file:
-        cloudpickle.dump(trainer.config, config_pickle_file)
-        config_pickle_file.seek(0)
+    for (path, gcs_key) in path_keys:
         upload_file_to_gcs(
             bucket_name=cc.MODEL_BUCKET_NAME,
             credentials_path=cc.SERVICE_ACCOUNT_JSON,
-            file=config_pickle_file,
+            filename=path,
             gcp_project_name=cc.GCP_PROJECT_NAME,
-            key=trainer_config_key,
+            key=gcs_key,
         )
 
-    checkpoint_dir.cleanup()
+    rmtree(trial.logdir, ignore_errors=True)
 
     _run.info["model_bucket_name"] = cc.MODEL_BUCKET_NAME
-    _run.info["checkpoint_gcs_key"] = checkpoint_key
-    _run.info["checkpoint_metadata_gcs_key"] = checkpoint_metadata_key
-    _run.info["trainer_config_gcs_key"] = trainer_config_key
+    _run.info["checkpoint_gcs_key"] = path_keys[0][1]
+    _run.info["checkpoint_metadata_gcs_key"] = path_keys[1][1]
+    _run.info["trainer_config_gcs_key"] = path_keys[2][1]
 
-    return float(best_results["evaluation"]["custom_metrics"][result_metric_key])
+    return float(
+        best_checkpoint.result["evaluation"]["custom_metrics"][result_metric_key]
+    )
 
 
 if __name__ == "__main__":

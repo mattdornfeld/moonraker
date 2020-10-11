@@ -26,6 +26,10 @@ FAKEBASE_REQUIRES = [
     f"cbpro @ {DEPENDENCY_LINKS['cbpro']}",
 ]
 
+GPU_REQUIRES = [
+    "gputil>=1.4.0,<2.0.0",
+    "tensorflow-gpu==2.0.0",
+]
 
 INSTALL_REQUIRES = [
     "GitPython>=2.1.10,<3.0.0",
@@ -39,8 +43,8 @@ INSTALL_REQUIRES = [
     "pytimeparse>=1.1.0,<2.0.0",
     "requests>=2.20.0,<3.0.0",
     "sacred",
-    "ray[rllib]==1.0.0",
-    "tensorflow==2.3.0",
+    "ray[rllib,tune]==1.0.0",
+    "tensorflow==2.0.0",
     "kafka-python>=1.4.7,<2.0.0",
 ]
 
@@ -68,7 +72,7 @@ setup(
     author_email="matt@firstorderlabs.co",
     extras_require=dict(
         dev=["black>=19.3b0,<20.0"] + TESTS_REQUIRE,
-        gpu=["tensorflow-gpu==2.0.0"],
+        gpu=GPU_REQUIRES,
         grpc=GRPC_REQUIRES,
     ),
     install_requires=INSTALL_REQUIRES + FAKEBASE_REQUIRES,
