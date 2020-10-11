@@ -36,6 +36,7 @@ resolvers ++= Seq(
   Resolver.sonatypeRepo("releases"),
 )
 
+libraryDependencies += "me.tongfei" % "progressbar" % "0.9.0"
 libraryDependencies += "org.scalactic" %% "scalactic" % scalaTestVersion
 libraryDependencies += "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0"

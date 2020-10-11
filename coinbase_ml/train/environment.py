@@ -133,6 +133,7 @@ class Environment(Env):  # pylint: disable=W0223
                 initial_quote_funds=self.config.initial_usd,
                 num_warmup_time_steps=self.config.num_warmup_time_steps,
                 snapshot_buffer_size=self.config.snapshot_buffer_size,
+                enable_progress_bar=self.config.enable_progress_bar,
             )
 
             self._warmed_up = True

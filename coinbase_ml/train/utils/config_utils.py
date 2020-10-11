@@ -27,6 +27,7 @@ class EnvironmentConfigs:
     reward_strategy: str
     time_delta: timedelta
     is_test_environment: bool = False
+    enable_progress_bar: bool = True
 
     @staticmethod
     def _time_delta_key(time_interval: TimeInterval) -> timedelta:
