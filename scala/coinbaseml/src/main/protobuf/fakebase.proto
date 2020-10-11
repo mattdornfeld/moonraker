@@ -159,6 +159,7 @@ message SimulationStartRequest {
     SimulationInfoRequest simulationInfoRequest = 7;
     int32 snapshotBufferSize = 8;
     ObservationRequest observationRequest = 9;
+    bool enableProgressBar = 10;
 }
 
 message StepRequest {

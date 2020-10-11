@@ -301,15 +301,9 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         initial_quote_funds: QuoteVolume,
         num_warmup_time_steps: int,
         snapshot_buffer_size: int,
+        enable_progress_bar: bool = False,
     ) -> None:
-        """
-        start [summary]
-
-        Args:
-            initial_product_funds (ProductVolume): [description]
-            initial_quote_funds (QuoteVolume): [description]
-            num_warmup_time_steps (int): [description]
-            snapshot_buffer_size (int): [description]
+        """Start a simulation
         """
         self._simulation_info_request = self._generate_simulation_info_request()
 
@@ -323,6 +317,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             simulationInfoRequest=self._simulation_info_request,
             snapshotBufferSize=snapshot_buffer_size,
             observationRequest=self._generate_observation_request(),
+            enableProgressBar=enable_progress_bar,
         )
 
         simulation_info: SimulationInfo = self.stub.start(simulation_start_request)

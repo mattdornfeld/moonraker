@@ -4,9 +4,9 @@ import java.time.{Duration, Instant}
 import java.util.UUID.randomUUID
 import java.util.logging.Logger
 
-import co.firstorderlabs.common.{Environment, InfoAggregator}
 import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
+import co.firstorderlabs.common.{Environment, InfoAggregator}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
@@ -14,6 +14,7 @@ import co.firstorderlabs.fakebase.types.Exceptions
 import co.firstorderlabs.fakebase.types.Exceptions.SimulationNotStarted
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
+import me.tongfei.progressbar.ProgressBar
 
 import scala.concurrent.Future
 
@@ -28,20 +29,47 @@ case class SimulationMetadata(
     initialQuoteFunds: QuoteVolume,
     simulationId: String,
     observationRequest: ObservationRequest,
+    enableProgressBar: Boolean
 ) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
 
+  private val progressBar: Option[ProgressBar] =
+    if (enableProgressBar)
+      Some(new ProgressBar(s"Simulation ${simulationId} progress: ", numSteps))
+    else None
+
   def incrementCurrentTimeInterval: Unit = {
     currentTimeInterval = currentTimeInterval + timeDelta
+    progressBar match {
+      case Some(progressBar) => progressBar.step
+      case None              =>
+    }
   }
+
+  def numSteps: Long =
+    Duration.between(startTime, endTime).dividedBy(timeDelta)
 
   def previousTimeInterval: TimeInterval = {
     currentTimeInterval - timeDelta
   }
 
+  def reset: Unit = {
+    currentTimeInterval = Checkpointer.checkpointTimeInterval
+    progressBar match {
+      case Some(progressBar) => progressBar.stepTo(numWarmUpSteps)
+      case None              =>
+    }
+  }
+
   def simulationIsOver: Boolean =
     currentTimeInterval.startTime isAfter endTime
+
+  def stop: Unit =
+    progressBar match {
+      case Some(progressBar) => progressBar.close
+      case None              =>
+    }
 }
 
 object Exchange
@@ -97,9 +125,11 @@ object Exchange
 
   override def checkpoint(request: Empty): Future[Empty] = {
     if (SnapshotBuffer.size < SnapshotBuffer.maxSize) {
-      throw Exceptions.SnapshotBufferNotFull("Cannot checkpoint simulation as SnapshotBuffer is not yet full. " +
-        s"It has ${SnapshotBuffer.size} and requires ${SnapshotBuffer.maxSize} elements. You must call step " +
-        s"${SnapshotBuffer.maxSize - SnapshotBuffer.size} more times.")
+      throw Exceptions.SnapshotBufferNotFull(
+        "Cannot checkpoint simulation as SnapshotBuffer is not yet full. " +
+          s"It has ${SnapshotBuffer.size} and requires ${SnapshotBuffer.maxSize} elements. You must call step " +
+          s"${SnapshotBuffer.maxSize - SnapshotBuffer.size} more times."
+      )
     }
     logger.info(
       s"creating checkpoint at timeInterval ${Exchange.getSimulationMetadata.currentTimeInterval}"
@@ -139,8 +169,7 @@ object Exchange
     logger.info(
       s"Resetting simulation to ${getSimulationMetadata.currentTimeInterval}"
     )
-    getSimulationMetadata.currentTimeInterval =
-      Checkpointer.checkpointTimeInterval
+    getSimulationMetadata.reset
     Checkpointer.restoreFromCheckpoint
     InfoAggregator.clear
 
@@ -166,6 +195,7 @@ object Exchange
         simulationStartRequest.initialQuoteFunds,
         randomUUID.toString,
         simulationStartRequest.observationRequest.get,
+        simulationStartRequest.enableProgressBar
       )
     )
 
@@ -190,7 +220,9 @@ object Exchange
       checkpoint(Constants.emptyProto)
     }
 
-    Future successful getSimulationInfo(simulationStartRequest.simulationInfoRequest)
+    Future successful getSimulationInfo(
+      simulationStartRequest.simulationInfoRequest
+    )
   }
 
   override def step(stepRequest: StepRequest): Future[SimulationInfo] = {
@@ -249,6 +281,7 @@ object Exchange
   override def stop(request: Empty): Future[Empty] = {
     logger.info("stopping simulation")
     Checkpointer.clear
+    getSimulationMetadata.stop
     simulationMetadata = None
     Future.successful(Constants.emptyProto)
   }
@@ -259,19 +292,22 @@ object Exchange
         getSimulationMetadata.currentTimeInterval.startTime,
         getSimulationMetadata.currentTimeInterval.endTime,
         getResultOptional(Account.getAccountInfo(Constants.emptyProto)),
-        getSimulationMetadata.simulationId,
+        getSimulationMetadata.simulationId
       )
     } else {
       ExchangeInfo()
     }
   }
 
-  def getSimulationInfo(simulationInfoRequest: Option[SimulationInfoRequest]): SimulationInfo = {
+  def getSimulationInfo(
+      simulationInfoRequest: Option[SimulationInfoRequest]
+  ): SimulationInfo = {
     if (simulationInfoRequest.isDefined) {
       val _simulationInfoRequest = simulationInfoRequest.get
       val exchangeInfo = getExchangeInfoHelper
       val observation = _simulationInfoRequest.observationRequest match {
-        case Some(observationRequest) => Some(getResult(Environment.getObservation(observationRequest)))
+        case Some(observationRequest) =>
+          Some(getResult(Environment.getObservation(observationRequest)))
         case None => None
       }
 
