@@ -106,7 +106,6 @@ class HyperParameters:
     learning_rate: float
     num_epochs_per_iteration: int
     num_iterations: int
-    optimizer_name: str
     output_tower_depth: int
     output_tower_num_units: int
     time_series_tower_attention_dim: int

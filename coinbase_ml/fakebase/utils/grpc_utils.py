@@ -46,7 +46,9 @@ def start_fakebase_server(port: int, test_mode: bool) -> Popen:
     Returns:
         Popen: daemon process handle
     """
-    process = Popen(["java", "-jar", c.FAKBASE_SERVER_JAR, str(port), str(test_mode)])
+    process = Popen(
+        ["java", "-jar", c.FAKBASE_SERVER_JAR.as_posix(), str(port), str(test_mode)]
+    )
 
     register(lambda process: process.terminate(), process)
 

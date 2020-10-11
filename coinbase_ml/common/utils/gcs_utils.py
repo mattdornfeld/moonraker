@@ -68,7 +68,7 @@ def upload_file_to_gcs(
     gcp_project_name: str,
     key: str,
     file: Optional[BinaryIO] = None,
-    filename: Optional[str] = None,
+    filename: Optional[Path] = None,
 ) -> None:
     """
     upload_file_to_gcs [summary]
@@ -79,7 +79,7 @@ def upload_file_to_gcs(
         gcp_project_name (str): [description]
         key (str): [description]
         file (Optional[BinaryIO], optional): [description]. Defaults to None.
-        filename (Optional[str], optional): [description]. Defaults to None.
+        filename (Optional[Path], optional): [description]. Defaults to None.
 
     Returns:
         None: [description]
@@ -93,6 +93,6 @@ def upload_file_to_gcs(
     if file:
         blob.upload_from_file(file)
     elif filename:
-        blob.upload_from_filename(filename)
+        blob.upload_from_filename(filename.as_posix())
     else:
         ValueError("specify exactly one of 'file' or 'file_name'")

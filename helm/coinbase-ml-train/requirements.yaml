@@ -5,4 +5,4 @@ dependencies:
 
   - name: ray
     repository: gs://moonraker-helm-repo
-    version: 0.1.0-18b99aee9672fd6529d0db26c3f6983bf498bdfa
+    version: 0.1.0-6ef7f91d3582b21dc62c3544941833e1d2bc31c3

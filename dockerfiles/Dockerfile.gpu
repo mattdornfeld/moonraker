@@ -10,7 +10,7 @@ RUN make build-scala
 
 FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:${BASE_IMAGE_VERSION}
 
-ENV PYTHONPATH=/app LANG=C.UTF-8
+ENV PYTHONPATH=/app LANG=C.UTF-8 RAY_USE_MULTIPROCESSING_CPU_COUNT=1
 
 ADD ./ /app
 

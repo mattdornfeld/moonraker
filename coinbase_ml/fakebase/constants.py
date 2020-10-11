@@ -2,6 +2,7 @@
 """
 import os
 from decimal import Decimal
+from pathlib import Path
 
 from google.protobuf.empty_pb2 import Empty
 from sqlalchemy import create_engine
@@ -12,7 +13,7 @@ GRPC_CHANNEL_OPTIONS = [
     ("grpc.max_send_message_length", 100 * 1000 * 1000),
     ("grpc.max_metadata_size", 100 * 1000 * 1000),
 ]
-FAKBASE_SERVER_JAR = "coinbaseml.jar"
+FAKBASE_SERVER_JAR = Path(__file__).parent.parent.parent / "coinbaseml.jar"
 FAKBASE_SERVER_DEFAULT_PORT = 9090
 EMPTY_PROTO = Empty()
 
