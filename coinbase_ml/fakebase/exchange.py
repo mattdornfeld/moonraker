@@ -20,6 +20,7 @@ from coinbase_ml.common.protos.environment_pb2 import (
 )
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.protos.environment_pb2 import ActionRequest, Actionizer
+from coinbase_ml.fakebase.protos import fakebase_pb2  # pylint: disable=unused-import
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     ExchangeInfo,
     OrderBooksRequest,
@@ -27,6 +28,7 @@ from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     SimulationInfo,
     SimulationInfoRequest,
     SimulationStartRequest,
+    SimulationType,
     StepRequest,
 )
 from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import ExchangeServiceStub
@@ -302,6 +304,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         num_warmup_time_steps: int,
         snapshot_buffer_size: int,
         enable_progress_bar: bool = False,
+        simulation_type: "fakebase_pb2.SimulationTypeValue" = SimulationType.evaluation,
     ) -> None:
         """Start a simulation
         """
@@ -318,6 +321,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             snapshotBufferSize=snapshot_buffer_size,
             observationRequest=self._generate_observation_request(),
             enableProgressBar=enable_progress_bar,
+            simulationType=simulation_type,
         )
 
         simulation_info: SimulationInfo = self.stub.start(simulation_start_request)

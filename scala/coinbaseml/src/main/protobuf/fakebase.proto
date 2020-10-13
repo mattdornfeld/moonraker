@@ -45,6 +45,11 @@ enum OrderType {
     market = 1;
 }
 
+enum SimulationType {
+    train = 0;
+    evaluation = 1;
+}
+
 message AccountInfo {
     Wallets wallets = 1;
     MatchEvents matchEvents = 2;
@@ -160,6 +165,7 @@ message SimulationStartRequest {
     int32 snapshotBufferSize = 8;
     ObservationRequest observationRequest = 9;
     bool enableProgressBar = 10;
+    SimulationType simulationType = 11;
 }
 
 message StepRequest {

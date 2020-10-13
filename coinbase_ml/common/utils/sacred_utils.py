@@ -27,6 +27,9 @@ def create_sacred_experiment(experiment_name: str) -> Experiment:
     sacred_experiment = Experiment(name=experiment_name)
     sacred_experiment.observers.append(MongoObserver.create(url=c.MONGO_DB_URL))
     sacred_experiment.logger = logging.getLogger(__name__)
+    sacred_experiment.captured_out_filter = (
+        lambda captured_output: "Output capturing disabled."
+    )
 
     return sacred_experiment
 

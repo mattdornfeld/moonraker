@@ -7,14 +7,20 @@ import java.util.logging.Logger
 import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.common.{Environment, InfoAggregator}
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
+import co.firstorderlabs.fakebase.types.Events.{
+  Event,
+  LimitOrderEvent,
+  OrderEvent
+}
 import co.firstorderlabs.fakebase.types.Exceptions
 import co.firstorderlabs.fakebase.types.Exceptions.SimulationNotStarted
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
-import me.tongfei.progressbar.ProgressBar
 
 import scala.concurrent.Future
 
@@ -29,23 +35,24 @@ case class SimulationMetadata(
     initialQuoteFunds: QuoteVolume,
     simulationId: String,
     observationRequest: ObservationRequest,
-    enableProgressBar: Boolean
+    enableProgressBar: Boolean,
+    simulationType: SimulationType
 ) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
 
   private val progressBar: Option[ProgressBar] =
     if (enableProgressBar)
-      Some(new ProgressBar(s"Simulation ${simulationId} progress: ", numSteps))
+      Some(
+        new ProgressBar(
+          s"${simulationType.name} simulation ${simulationId} progress",
+          numSteps
+        )
+      )
     else None
 
-  def incrementCurrentTimeInterval: Unit = {
+  def incrementCurrentTimeInterval: Unit =
     currentTimeInterval = currentTimeInterval + timeDelta
-    progressBar match {
-      case Some(progressBar) => progressBar.step
-      case None              =>
-    }
-  }
 
   def numSteps: Long =
     Duration.between(startTime, endTime).dividedBy(timeDelta)
@@ -57,19 +64,19 @@ case class SimulationMetadata(
   def reset: Unit = {
     currentTimeInterval = Checkpointer.checkpointTimeInterval
     progressBar match {
-      case Some(progressBar) => progressBar.stepTo(numWarmUpSteps)
+      case Some(progressBar) => progressBar.resetTo(numWarmUpSteps)
       case None              =>
     }
   }
 
-  def simulationIsOver: Boolean =
-    currentTimeInterval.startTime isAfter endTime
-
-  def stop: Unit =
+  def stepProgressBar(stepDuration: Long): Unit =
     progressBar match {
-      case Some(progressBar) => progressBar.close
+      case Some(progressBar) => progressBar.step(stepDuration)
       case None              =>
     }
+
+  def simulationIsOver: Boolean =
+    currentTimeInterval.startTime isAfter endTime
 }
 
 object Exchange
@@ -195,7 +202,8 @@ object Exchange
         simulationStartRequest.initialQuoteFunds,
         randomUUID.toString,
         simulationStartRequest.observationRequest.get,
-        simulationStartRequest.enableProgressBar
+        simulationStartRequest.enableProgressBar,
+        simulationStartRequest.simulationType
       )
     )
 
@@ -272,8 +280,10 @@ object Exchange
     Environment.step(stepRequest.actionRequest)
     SnapshotBuffer.step
     InfoAggregator.step
-    val endTime = System.currentTimeMillis
-    logger.fine(s"Exchange.step took ${endTime - startTime} ms")
+    val endTime = System.currentTimeMillis()
+    val stepDuration = endTime - startTime
+    logger.fine(s"Exchange.step took ${stepDuration} ms")
+    getSimulationMetadata.stepProgressBar(stepDuration)
 
     Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
   }
@@ -281,7 +291,6 @@ object Exchange
   override def stop(request: Empty): Future[Empty] = {
     logger.info("stopping simulation")
     Checkpointer.clear
-    getSimulationMetadata.stop
     simulationMetadata = None
     Future.successful(Constants.emptyProto)
   }

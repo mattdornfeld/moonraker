@@ -42,19 +42,19 @@ def train_environment_configs(request: SubRequest) -> EnvironmentConfigs:
     return EnvironmentConfigs(**experiment_config()[key])
 
 
-def test_rollout_fragment_length_greater_than_zero(
+def test_num_max_episode_steps_per_rollout_greater_than_zero(
     environment_configs: EnvironmentConfigs,
 ) -> None:
 
-    assert environment_configs.rollout_fragment_length > 0
+    assert environment_configs.num_max_episode_steps_per_rollout > 0
 
 
-def test_rollout_fragment_length_less_then_train_batch_size(
+def test_num_max_episode_steps_per_rollout_less_then_timesteps_per_iteration(
     train_environment_configs: EnvironmentConfigs,
 ) -> None:
     assert (
-        train_environment_configs.rollout_fragment_length
-        <= train_environment_configs.train_batch_size
+        train_environment_configs.num_max_episode_steps_per_rollout
+        <= train_environment_configs.timesteps_per_iteration
     )
 
 

@@ -90,6 +90,7 @@ spec:
         resources:
           limits:
             cpu: {{.Values.notebook.num_cpus}}
+            memory: {{.Values.notebook.memory}}
             nvidia.com/gpu: {{.Values.notebook.num_gpus}}
 
         volumeMounts:
