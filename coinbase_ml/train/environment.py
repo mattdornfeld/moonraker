@@ -134,6 +134,7 @@ class Environment(Env):  # pylint: disable=W0223
                 num_warmup_time_steps=self.config.num_warmup_time_steps,
                 snapshot_buffer_size=self.config.snapshot_buffer_size,
                 enable_progress_bar=self.config.enable_progress_bar,
+                simulation_type=self.config.simulation_type,
             )
 
             self._warmed_up = True

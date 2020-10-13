@@ -35,7 +35,7 @@ def staging():
 
     latest_train_end_dt = "2019-10-18 00:00:00.00"
     latest_train_start_dt = "2019-10-17 0:00:00.00"
-    num_actors = 10
+    num_actors = 6
     train_time_intervals = num_actors * [
         TimeInterval(
             end_dt=parser.parse(latest_train_end_dt),

@@ -8,6 +8,8 @@ from datetime import timedelta
 from typing import List
 
 from coinbase_ml.common.utils.time_utils import TimeInterval
+from coinbase_ml.fakebase.protos import fakebase_pb2  # pylint: disable=unused-import
+from coinbase_ml.fakebase.protos.fakebase_pb2 import SimulationType
 from coinbase_ml.fakebase.types import ProductVolume, QuoteVolume
 
 
@@ -45,12 +47,8 @@ class EnvironmentConfigs:
     @property
     def num_max_episode_steps(self) -> int:
         """
-        nb_max_episode_steps returns the max number of steps in an episodes.
-        Calculated by returning the maximum number of steps the environment
-        with the largest time interval can take.
-
-        Returns:
-            int: [description]
+        The max number of steps in an episodes. Calculated by returning the maximum
+        number of steps the environment with the largest time interval can take.
         """
         environment_time_intervals: List[TimeInterval] = deepcopy(
             self.environment_time_intervals
@@ -65,29 +63,30 @@ class EnvironmentConfigs:
         )
 
     @property
-    def rollout_fragment_length(self) -> int:
+    def num_max_episode_steps_per_rollout(self) -> int:
         """
-        rollout_fragment_length is the number of samples a set of rollout workers
-        will collect before terminating their episodes and starting the next sample.
-        This is set so each rollout worker will finish one episode before starting the
-        next one.
-
-        Returns:
-            int: [description]
+        The max number of steps in an episode multiplied by the number of actors
+        in the rollout set.
         """
         return self.num_actors * self.num_max_episode_steps
 
     @property
-    def train_batch_size(self) -> int:
+    def simulation_type(self) -> "fakebase_pb2.SimulationTypeValue":
         """
-        train_batch_size is the number of training samples in an iteration. The
-        trainer will collect sample batches until it has this number of samples.
-        At that point it will do SGD on the samples, updating the model parameters.
+        Either SimulationType.evaluation or SimulationType.train
+        """
+        return (
+            SimulationType.evaluation
+            if self.is_test_environment
+            else SimulationType.train
+        )
 
-        Returns:
-            int: [description]
+    @property
+    def timesteps_per_iteration(self) -> int:
         """
-        return self.num_episodes * self.rollout_fragment_length
+        The number of training samples gathered in an iteration.
+        """
+        return self.num_episodes * self.num_max_episode_steps_per_rollout
 
 
 @dataclass

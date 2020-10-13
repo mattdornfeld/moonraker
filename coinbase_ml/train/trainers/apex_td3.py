@@ -26,11 +26,11 @@ def build_common_configs(
         "env_config": train_environment_configs.__dict__,
         "evaluation_config": {
             "env_config": test_environment_configs.__dict__,
-            "rollout_fragment_length": test_environment_configs.rollout_fragment_length,
+            "timesteps_per_iteration": test_environment_configs.timesteps_per_iteration,
         },
         "evaluation_interval": 1,
         "evaluation_num_episodes": test_environment_configs.num_episodes,
-        "log_level": "ERROR",
+        "log_level": "INFO",
         "model": {
             "custom_model_config": {"hyper_params": hyper_params},
             "custom_model": "CustomModel0",
@@ -39,7 +39,7 @@ def build_common_configs(
         "num_cpus_per_worker": 2,
         "num_gpus": c.NUM_GPUS,
         "num_workers": train_environment_configs.num_actors,
-        "rollout_fragment_length": train_environment_configs.rollout_fragment_length,
+        "train_batch_size": hyper_params.batch_size,
     }
 
 
@@ -58,7 +58,8 @@ def build_apex_configs(
         },
         "buffer_size": 100000,
         "learning_starts": hyper_params.batch_size,
-        "timesteps_per_iteration": train_environment_configs.train_batch_size,
+        "rollout_fragment_length": 10,
+        "timesteps_per_iteration": train_environment_configs.timesteps_per_iteration,
         "worker_side_prioritization": True,
         "min_iter_time_s": 30,
     }
