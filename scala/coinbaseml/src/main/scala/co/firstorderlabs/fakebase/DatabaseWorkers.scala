@@ -5,30 +5,36 @@ import java.time.{Duration, Instant}
 import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
 import java.util.logging.Logger
 
-import cats.effect.IO
+import cats.effect.{Blocker, IO}
 import co.firstorderlabs.fakebase.DatabaseWorkers.logger
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume, productId}
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events.Event
 import co.firstorderlabs.fakebase.types.Types._
+import doobie.hikari.HikariTransactor
 import doobie.implicits._
 import doobie.implicits.legacy.instant.JavaTimeInstantMeta
-import doobie.{Meta, Query0, Transactor}
+import doobie.util.ExecutionContexts
+import doobie.{Meta, Query0}
 
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 
-case class QueryResult(buyLimitOrders: List[BuyLimitOrder],
-                       buyMarketOrders: List[BuyMarketOrder],
-                       cancellations: List[Cancellation],
-                       sellLimitOrders: List[SellLimitOrder],
-                       sellMarketOrder: List[SellMarketOrder],
-                       timeInterval: TimeInterval)
+case class QueryResult(
+    buyLimitOrders: List[BuyLimitOrder],
+    buyMarketOrders: List[BuyMarketOrder],
+    cancellations: List[Cancellation],
+    sellLimitOrders: List[SellLimitOrder],
+    sellMarketOrder: List[SellMarketOrder],
+    timeInterval: TimeInterval
+)
 
-final case class BoundedTrieMap[K, V](maxSize: Int,
-                                      trieMap: Option[TrieMap[K, V]] = None) {
+final case class BoundedTrieMap[K, V](
+    maxSize: Int,
+    trieMap: Option[TrieMap[K, V]] = None
+) {
   val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
 
   def addAll(xs: IterableOnce[(K, V)]): Unit = {
@@ -74,21 +80,27 @@ final case class BoundedTrieMap[K, V](maxSize: Int,
 class DatabaseWorkers extends Thread {
   private var paused = false
 
-  def pauseWorker: Unit = synchronized {
-    paused = true
-  }
+  def pauseWorker: Unit =
+    synchronized {
+      paused = true
+    }
 
-  def unpauseWorker: Unit = synchronized {
-    paused = false
-    notify
-  }
+  def unpauseWorker: Unit =
+    synchronized {
+      paused = false
+      notify
+    }
 
   @tailrec
   final def isPaused: Boolean = {
     Thread.sleep(10)
     logger.fine("in recursive loop")
     val threadState = synchronized { getState }
-    if (threadState.compareTo(Thread.State.WAITING) == 0 || threadState.compareTo(Thread.State.TIMED_WAITING) == 0) {
+    if (
+      threadState.compareTo(Thread.State.WAITING) == 0 || threadState.compareTo(
+        Thread.State.TIMED_WAITING
+      ) == 0
+    ) {
       true
     } else {
       isPaused
@@ -124,12 +136,12 @@ class LinkedBlockingQueue[A] extends LinkedBlockingQueueBase[A] {
 }
 
 case class DatabaseWorkersSnapshot(
-  timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
+    timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
 ) extends Snapshot
 
 object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
-  // This val def is not strictly neccsary, but Doobie needs JavaTimeInstantMeta
-  // in scope to query timestamp types from the databse, and Intellij autoimport
+  // This val def is not strictly necessary, but Doobie needs JavaTimeInstantMeta
+  // in scope to query timestamp types from the database, and Intellij autoimport
   // feature will delete the import if below is not defined
   private val javaTimeInstantMeta = JavaTimeInstantMeta
 
@@ -144,44 +156,65 @@ object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
     Meta[String].timap(value => OrderId(value))(value => value.orderId)
   implicit val orderRequestIdConverter: Meta[OrderRequestId] = Meta[String]
     .timap(value => OrderRequestId(value))(value => value.orderRequestId)
-  implicit val orderSideConverter: Meta[OrderSide] = Meta[String].timap(
-    value => OrderSide.fromName(value).get
-  )(value => value.name)
-  implicit val orderStatusConverter: Meta[OrderStatus] = Meta[String].timap(
-    value => OrderStatus.fromName(value).get
-  )(value => value.name)
-  implicit val productIdConverter: Meta[ProductId] = Meta[String].timap(
-    value => ProductId.fromString(value)
-  )(value => value.toString)
+  implicit val orderSideConverter: Meta[OrderSide] =
+    Meta[String].timap(value => OrderSide.fromName(value).get)(value =>
+      value.name
+    )
+  implicit val orderStatusConverter: Meta[OrderStatus] =
+    Meta[String].timap(value => OrderStatus.fromName(value).get)(value =>
+      value.name
+    )
+  implicit val productIdConverter: Meta[ProductId] =
+    Meta[String].timap(value => ProductId.fromString(value))(value =>
+      value.toString
+    )
   implicit val productPriceConverter: Meta[ProductPrice] = Meta[BigDecimal]
     .timap(value => new ProductPrice(Left(value)))(value => value.amount)
   implicit val productVolumeConverter: Meta[ProductVolume] = Meta[BigDecimal]
     .timap(value => new ProductVolume(Left(value)))(value => value.amount)
-  implicit val quoteVolumeConverter: Meta[QuoteVolume] = Meta[BigDecimal].timap(
-    value => new QuoteVolume(Left(value))
-  )(value => value.amount)
-  implicit val rejectReasonConverter: Meta[RejectReason] = Meta[Int].timap(
-    value => RejectReason.fromValue(value)
-  )(value => value.value)
+  implicit val quoteVolumeConverter: Meta[QuoteVolume] =
+    Meta[BigDecimal].timap(value => new QuoteVolume(Left(value)))(value =>
+      value.amount
+    )
+  implicit val rejectReasonConverter: Meta[RejectReason] =
+    Meta[Int].timap(value => RejectReason.fromValue(value))(value =>
+      value.value
+    )
 
   implicit val buyLimitOrderRequestConverter: Meta[BuyLimitOrderRequest] =
     Meta[String].timap(_ => new BuyLimitOrderRequest)(_ => "")
   implicit val buyMarketOrderRequestConverter: Meta[BuyMarketOrderRequest] =
     Meta[String].timap(_ => new BuyMarketOrderRequest())(_ => "")
 
-  implicit val contextShift = IO.contextShift(ExecutionContext.global)
   private val logger = Logger.getLogger(DatabaseWorkers.toString)
   private val queryResultMap =
     new BoundedTrieMap[TimeInterval, QueryResult](Configs.maxResultsQueueSize)
-  private val transactor = Transactor.fromDriverManager[IO](
-    "org.postgresql.Driver",
-    "jdbc:postgresql://" + Configs.postgresDbHost + "/" + Configs.postgresTable,
-    Configs.postgresUsername,
-    Configs.postgresPassword,
-  )
+  implicit val contextShift = IO.contextShift(ExecutionContext.global)
+  val transactor = {
+    for {
+      executionContext <-
+        ExecutionContexts.fixedThreadPool[IO](Configs.numDatabaseWorkers)
+      blocker <- Blocker[IO]
+      transactor <- HikariTransactor.newHikariTransactor[IO](
+        "org.postgresql.Driver",
+        "jdbc:postgresql://" + Configs.postgresDbHost + "/" + Configs.postgresTable,
+        Configs.postgresUsername,
+        Configs.postgresPassword,
+        executionContext,
+        blocker
+      )
+    } yield transactor
+  }
+  //  private val transactor = Transactor.fromDriverManager[IO](
+//    "org.postgresql.Driver",
+//    "jdbc:postgresql://" + Configs.postgresDbHost + "/" + Configs.postgresTable,
+//    Configs.postgresUsername,
+//    Configs.postgresPassword,
+//  )
   private val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
-  private val workers = for (_ <- (1 to Configs.numDatabaseWorkers))
-    yield new DatabaseWorkers
+  private val workers =
+    for (_ <- (1 to Configs.numDatabaseWorkers))
+      yield new DatabaseWorkers
   workers.foreach(w => w.start)
 
   override def createSnapshot: DatabaseWorkersSnapshot = {
@@ -236,9 +269,10 @@ object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
     if (Configs.testMode) {
       List[A]()
     } else {
-      query.stream.compile.toList
-        .transact(transactor)
-        .unsafeRunSync
+      transactor.use { xa =>
+        query.stream.compile.toList
+          .transact(xa)
+      }.unsafeRunSync
     }
   }
 
@@ -269,10 +303,10 @@ object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
 
   @tailrec
   private def populateTimeIntervalQueue(
-    startTime: Instant,
-    endTime: Instant,
-    timeDelta: Duration,
-    timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
+      startTime: Instant,
+      endTime: Instant,
+      timeDelta: Duration,
+      timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
   ): Unit = {
     if (endTime.isAfter(startTime)) {
       val intervalEndTime = startTime.plus(timeDelta)
@@ -287,8 +321,8 @@ object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
   }
 
   def queryCancellations(
-    productId: ProductId,
-    timeInterval: TimeInterval
+      productId: ProductId,
+      timeInterval: TimeInterval
   ): Query0[Cancellation] = {
     sql"""SELECT
             order_id,
@@ -305,8 +339,8 @@ object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
   }
 
   private def queryBuyLimitOrders(
-    productId: ProductId,
-    timeInterval: TimeInterval
+      productId: ProductId,
+      timeInterval: TimeInterval
   ): Query0[BuyLimitOrder] = {
     sql"""SELECT
             order_id,
@@ -332,8 +366,8 @@ object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
   }
 
   private def queryBuyMarketOrders(
-    productId: ProductId,
-    timeInterval: TimeInterval
+      productId: ProductId,
+      timeInterval: TimeInterval
   ): Query0[BuyMarketOrder] = {
     sql"""SELECT
             funds,
@@ -357,8 +391,8 @@ object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
   }
 
   private def querySellLimitOrders(
-    productId: ProductId,
-    timeInterval: TimeInterval
+      productId: ProductId,
+      timeInterval: TimeInterval
   ): Query0[SellLimitOrder] = {
     sql"""SELECT
             order_id,
@@ -384,8 +418,8 @@ object DatabaseWorkers extends Snapshotable[DatabaseWorkersSnapshot] {
   }
 
   private def querySellMarketOrders(
-    productId: ProductId,
-    timeInterval: TimeInterval
+      productId: ProductId,
+      timeInterval: TimeInterval
   ): Query0[SellMarketOrder] = {
     sql"""SELECT
             order_id,

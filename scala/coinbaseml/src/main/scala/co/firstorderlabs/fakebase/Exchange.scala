@@ -239,6 +239,8 @@ object Exchange
       s"Stepped to ${getSimulationMetadata.currentTimeInterval}"
     )
     logger.fine(
+
+
       s"There are ${DatabaseWorkers.getResultMapSize.toString} entries in the results map queue"
     )
 

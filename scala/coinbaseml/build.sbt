@@ -23,9 +23,9 @@ assemblyMergeStrategy in assembly := {
 
 resolvers in Global ++= Seq(
   "Sbt plugins"                   at "https://dl.bintray.com/sbt/sbt-plugin-releases",
-  "Maven Central Server"          at "http://repo1.maven.org/maven2",
-  "TypeSafe Repository Releases"  at "http://repo.typesafe.com/typesafe/releases/",
-  "TypeSafe Repository Snapshots" at "http://repo.typesafe.com/typesafe/snapshots/"
+  "Maven Central Server"          at "https://repo1.maven.org/maven2",
+  "TypeSafe Repository Releases"  at "https://repo.typesafe.com/typesafe/releases/",
+  "TypeSafe Repository Snapshots" at "https://repo.typesafe.com/typesafe/snapshots/"
 )
 
 val apacheArrowVersion = "1.0.1"
@@ -47,6 +47,7 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.tpolecat" %% "doobie-core" % doobieVersion,
+  "org.tpolecat" %% "doobie-hikari" % doobieVersion,
   "org.tpolecat" %% "doobie-postgres"  % doobieVersion,
 )
 
