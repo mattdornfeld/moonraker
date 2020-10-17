@@ -5,6 +5,7 @@ import java.time.Instant
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.fakebase.protos.fakebase._
+import co.firstorderlabs.fakebase.utils.OrderUtils
 
 object TestUtils {
   def generateOrdersForRangeOfPrices(priceDelta: ProductPrice,

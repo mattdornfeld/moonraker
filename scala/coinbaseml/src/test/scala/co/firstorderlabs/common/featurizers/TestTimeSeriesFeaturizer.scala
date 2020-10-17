@@ -1,6 +1,6 @@
 package co.firstorderlabs.common.featurizers
 
-import co.firstorderlabs.common.utils.TestUtils.{mean, std}
+import co.firstorderlabs.common.utils.TestUtils.{SeqUtils, mean, std}
 import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
@@ -12,23 +12,6 @@ import org.scalactic.TolerantNumerics
 import org.scalatest.funspec.AnyFunSpec
 
 class TestTimeSeriesFeaturizer extends AnyFunSpec {
-  implicit class SeqUtils[A](seq: Seq[A]) {
-    def containsOnly(value: A): Boolean = {
-      seq.forall(_ == value)
-    }
-
-    def dropIndices(indices: Int*): Seq[A] = {
-      seq.zipWithIndex
-        .filter(item => !indices.contains(item._2))
-        .map(_._1)
-    }
-
-    def dropSlice(left: Int, right: Int): Seq[A] = {
-      seq.zipWithIndex
-        .filter(item => item._2 < left || item._2 > right - 1)
-        .map(_._1)
-    }
-  }
   Configs.testMode = true
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(1e-10)
   val prices =

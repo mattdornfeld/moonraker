@@ -1,7 +1,8 @@
-package co.firstorderlabs.fakebase
+package co.firstorderlabs.fakebase.utils
 
 import java.util.UUID
 
+import co.firstorderlabs.fakebase.Exchange
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events._
 import co.firstorderlabs.fakebase.types.Types.OrderId

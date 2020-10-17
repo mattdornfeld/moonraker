@@ -7,19 +7,13 @@ import java.util.logging.Logger
 import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.common.{Environment, InfoAggregator}
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Events.{
-  Event,
-  LimitOrderEvent,
-  OrderEvent
-}
+import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
 import co.firstorderlabs.fakebase.types.Exceptions
 import co.firstorderlabs.fakebase.types.Exceptions.SimulationNotStarted
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
+import co.firstorderlabs.fakebase.utils.OrderUtils
 import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future

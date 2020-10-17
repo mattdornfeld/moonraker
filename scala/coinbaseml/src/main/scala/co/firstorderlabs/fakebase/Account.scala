@@ -4,45 +4,13 @@ import java.util.UUID
 
 import co.firstorderlabs.common.utils.Utils.getResultOptional
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.currency.Volume.Volume
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  AccountInfo,
-  AccountServiceGrpc,
-  BuyLimitOrder,
-  BuyLimitOrderRequest,
-  BuyMarketOrder,
-  BuyMarketOrderRequest,
-  Cancellation,
-  CancellationRequest,
-  DoneReason,
-  Match,
-  MatchEvents,
-  Order,
-  OrderSide,
-  OrderStatus,
-  Orders,
-  RejectReason,
-  SellLimitOrder,
-  SellLimitOrderRequest,
-  SellMarketOrder,
-  SellMarketOrderRequest,
-  Wallets => WalletsProto
-}
+import co.firstorderlabs.fakebase.protos.fakebase.{AccountInfo, AccountServiceGrpc, BuyLimitOrder, BuyLimitOrderRequest, BuyMarketOrder, BuyMarketOrderRequest, Cancellation, CancellationRequest, DoneReason, Match, MatchEvents, Order, OrderSide, OrderStatus, Orders, RejectReason, SellLimitOrder, SellLimitOrderRequest, SellMarketOrder, SellMarketOrderRequest, Wallets => WalletsProto}
 import co.firstorderlabs.fakebase.types.Events._
-import co.firstorderlabs.fakebase.types.Exceptions.{
-  InvalidOrderStatus,
-  InvalidOrderType,
-  OrderNotFound
-}
-import co.firstorderlabs.fakebase.types.Types.{
-  OrderId,
-  OrderRequestId,
-  TimeInterval
-}
+import co.firstorderlabs.fakebase.types.Exceptions.{InvalidOrderStatus, InvalidOrderType, OrderNotFound}
+import co.firstorderlabs.fakebase.types.Types.{OrderId, OrderRequestId, TimeInterval}
+import co.firstorderlabs.fakebase.utils.OrderUtils
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 

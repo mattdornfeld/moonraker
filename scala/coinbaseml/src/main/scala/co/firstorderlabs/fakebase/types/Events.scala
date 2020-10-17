@@ -2,7 +2,7 @@ package co.firstorderlabs.fakebase.types
 
 import java.time.{Duration, Instant}
 
-import co.firstorderlabs.fakebase.{Constants, Exchange}
+import co.firstorderlabs.fakebase.{Constants, Exchange, OrderBookKey}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
   ProductVolume,
@@ -151,13 +151,32 @@ object Events {
 
   }
 
-  trait LimitOrderEvent extends OrderEvent with SpecifiesPrice with SpecifiesSize {
+  trait LimitOrderEvent
+      extends OrderEvent
+      with SpecifiesPrice
+      with SpecifiesSize {
     val timeToLive: Option[Duration]
     var degeneracy = 0
 
     def copyLimitOrderEventVars(that: LimitOrderEvent): Unit = {
       degeneracy = that.degeneracy
     }
+
+    def getOrderBookKey: OrderBookKey =
+      this.side match {
+        case OrderSide.buy =>
+          OrderBookKey(
+            this.price,
+            Duration.between(Instant.MAX, this.time),
+            this.degeneracy
+          )
+        case OrderSide.sell =>
+          OrderBookKey(
+            this.price,
+            Duration.between(this.time, Instant.MIN),
+            this.degeneracy
+          )
+      }
 
     def incrementDegeneracy: Unit = {
       degeneracy += 1
@@ -167,10 +186,7 @@ object Events {
       val timeOfExpiration = time
         .plus(timeToLive.getOrElse(Duration.ZERO))
 
-      Exchange
-        .getSimulationMetadata
-        .currentTimeInterval
-        .startTime
+      Exchange.getSimulationMetadata.currentTimeInterval.startTime
         .plus(Exchange.getSimulationMetadata.timeDelta)
         .compareTo(timeOfExpiration) >= 0
     }

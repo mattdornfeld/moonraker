@@ -5,13 +5,40 @@ import co.firstorderlabs.fakebase.TestData.OrdersData
 import co.firstorderlabs.fakebase.TestData.RequestsData.buyMarketOrderRequest
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume
-import co.firstorderlabs.fakebase.protos.fakebase.StepRequest
+import co.firstorderlabs.fakebase.protos.fakebase.{OrderSide, StepRequest}
 import org.scalactic.TolerantNumerics
 
 import scala.math.pow
 
 object TestUtils {
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(1e-10)
+
+  implicit class OrderSideUtils(orderside: OrderSide) {
+    def getOppositeSide: OrderSide = {
+      orderside match {
+        case OrderSide.buy => OrderSide.sell
+        case OrderSide.sell => OrderSide.buy
+      }
+    }
+  }
+
+  implicit class SeqUtils[A](seq: Seq[A]) {
+    def containsOnly(value: A): Boolean = {
+      seq.forall(_ == value)
+    }
+
+    def dropIndices(indices: Int*): Seq[A] = {
+      seq.zipWithIndex
+        .filter(item => !indices.contains(item._2))
+        .map(_._1)
+    }
+
+    def dropSlice(left: Int, right: Int): Seq[A] = {
+      seq.zipWithIndex
+        .filter(item => item._2 < left || item._2 > right - 1)
+        .map(_._1)
+    }
+  }
 
   def advanceExchange: Unit = {
     Exchange step StepRequest(
