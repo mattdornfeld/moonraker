@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 import "google/protobuf/duration.proto";
-import "google/protobuf/empty.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {

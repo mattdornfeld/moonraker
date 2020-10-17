@@ -11,7 +11,8 @@ import co.firstorderlabs.common.rewards.{LogReturnRewardStrategy, ReturnRewardSt
 import co.firstorderlabs.common.types.Exceptions.{UnrecognizedActionizer, UnrecognizedRewardStrategy}
 import co.firstorderlabs.common.utils.Utils.getResult
 import co.firstorderlabs.fakebase.protos.fakebase.{Order, OrderMessage}
-import co.firstorderlabs.fakebase.{OrderUtils, Snapshot, Snapshotable}
+import co.firstorderlabs.fakebase.utils.OrderUtils
+import co.firstorderlabs.fakebase.{Snapshot, Snapshotable}
 import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future

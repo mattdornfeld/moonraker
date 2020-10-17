@@ -5,7 +5,8 @@ import java.time.Instant
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.{Exchange, OrderUtils, TestUtils}
+import co.firstorderlabs.fakebase.utils.OrderUtils
+import co.firstorderlabs.fakebase.{Exchange, TestUtils}
 
 object OrdersData {
   val priceDelta = new ProductPrice(Right("1.00"))

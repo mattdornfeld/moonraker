@@ -2,7 +2,7 @@ package co.firstorderlabs.fakebase.currency
 
 import java.math.{BigDecimal, RoundingMode}
 
-abstract class PreciseNumber[T <: PreciseNumber[T]](scale: Int, value: Either[BigDecimal, String]) extends Ordered[PreciseNumber[T]]{
+abstract class PreciseNumber[T <: PreciseNumber[T]](scale: Int, value: Either[BigDecimal, String]) extends Ordered[PreciseNumber[T]] {
   protected val _scale = scale
   val amount = value match {
     case Left(value) => value.setScale(scale, RoundingMode.HALF_UP)

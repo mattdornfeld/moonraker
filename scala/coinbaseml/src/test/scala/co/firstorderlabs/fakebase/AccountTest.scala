@@ -10,6 +10,7 @@ import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume
 import co.firstorderlabs.fakebase.protos.fakebase.{Wallets => _, _}
 import co.firstorderlabs.fakebase.types.Events._
+import co.firstorderlabs.fakebase.utils.OrderUtils
 import org.scalatest.funspec.AnyFunSpec
 
 class AccountTest extends AnyFunSpec {

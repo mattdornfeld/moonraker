@@ -4,14 +4,12 @@ import java.math.{BigDecimal, RoundingMode}
 import java.util.UUID
 
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase._
 import co.firstorderlabs.fakebase.types.Events._
 import co.firstorderlabs.fakebase.types.Exceptions.SelfTrade
 import co.firstorderlabs.fakebase.types.Types._
+import co.firstorderlabs.fakebase.utils.OrderUtils
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -255,17 +253,19 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     filledVolume
   }
 
-  private def getBestMakerOrder(order: OrderEvent): Option[LimitOrderEvent] = {
-    order match {
-      case _: BuyOrderEvent  => orderBooks(OrderSide.sell).minOrder
-      case _: SellOrderEvent => orderBooks(OrderSide.buy).maxOrder
+  def getBestMakerOrder(orderSide: OrderSide): Option[LimitOrderEvent] =
+    if (orderSide.isbuy) {
+      orderBooks(OrderSide.sell).minOrder
+    } else if (orderSide.issell) {
+      orderBooks(OrderSide.buy).maxOrder
+    } else {
+      throw new IllegalStateException
     }
-  }
 
   @tailrec
   private def processBuyMarketOrder(order: BuyMarketOrder): Unit = {
     if (order.remainingFunds > QuoteVolume.zeroVolume) {
-      val makerOrder = getBestMakerOrder(order)
+      val makerOrder = getBestMakerOrder(order.side)
 
       makerOrder match {
         case None => {
@@ -297,7 +297,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   @tailrec
   private def processSellMarketOrder(order: SellMarketOrder): Unit = {
     if (order.remainingSize > ProductVolume.zeroVolume) {
-      val makerOrder = getBestMakerOrder(order)
+      val makerOrder = getBestMakerOrder(order.side)
 
       makerOrder match {
         case None => {
@@ -363,7 +363,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     }
 
     if (order.remainingSize > ProductVolume.zeroVolume) {
-      val makerOrder = getBestMakerOrder(order)
+      val makerOrder = getBestMakerOrder(order.side)
 
       makerOrder match {
         case None => {
@@ -383,7 +383,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
           createMatch(filledVolume, makerOrder, order)
 
           if (makerOrder.remainingSize.isZero) {
-            orderBooks(makerOrder.side).removeByOrderId(makerOrder.orderId)
+            orderBooks(makerOrder.side).removeByKey(makerOrder.getOrderBookKey)
           }
 
           processLimitOrder(order)
