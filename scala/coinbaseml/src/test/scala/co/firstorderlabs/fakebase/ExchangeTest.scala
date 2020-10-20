@@ -4,11 +4,13 @@ import java.time.Duration
 
 import co.firstorderlabs.common.protos.{ObservationRequest, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.utils
+import co.firstorderlabs.fakebase.TestData.OrdersData.lowerOrder
 import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.fakebase.protos.fakebase.{BuyLimitOrderRequest, CancellationRequest, OrderSide, SellLimitOrderRequest, SimulationInfoRequest, StepRequest}
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
+import co.firstorderlabs.fakebase.utils.OrderUtils
 import org.scalatest.funspec.AnyFunSpec
 
 class ExchangeTest extends AnyFunSpec {
@@ -266,9 +268,36 @@ class ExchangeTest extends AnyFunSpec {
 
       val rewardRequest = Some(RewardRequest(RewardStrategy.LogReturnRewardStrategy))
       val observationRequest = Some(ObservationRequest(orderBooksRequest.orderBookDepth, false, rewardRequest))
-      val simulationInfoRequest = SimulationInfoRequest(observationRequest=observationRequest)
+      val simulationInfoRequest = SimulationInfoRequest(observationRequest = observationRequest)
       val simulationInfo = Exchange.getSimulationInfo(Some(simulationInfoRequest))
       assert(simulationInfo.observation.isDefined)
+    }
+
+    it("This test is to ensure that the order book is cloned and restored properly during a checkpoint.") {
+      Exchange.start(simulationStartRequestWarmup)
+      Exchange.step(StepRequest(insertOrders = List(lowerOrder)))
+      Exchange.checkpoint(Constants.emptyProto)
+      Exchange.step(StepRequest(insertCancellations = List(OrderUtils.cancellationFromOrder(lowerOrder))))
+
+      // Assert order is not on order book
+      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderId(lowerOrder.orderId).isEmpty)
+      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderBookKey(lowerOrder.orderBookKey).isEmpty)
+
+      Exchange.reset(new SimulationInfoRequest)
+
+      // Assert order has been re-added to order book
+      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderId(lowerOrder.orderId).nonEmpty)
+      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderBookKey(lowerOrder.orderBookKey).nonEmpty)
+
+      Exchange.step(StepRequest(insertCancellations = List(OrderUtils.cancellationFromOrder(lowerOrder))))
+
+      // Assert order successfully re-removed from order book
+      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderId(lowerOrder.orderId).isEmpty)
+      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderBookKey(lowerOrder.orderBookKey).isEmpty)
+
+      Exchange.reset(new SimulationInfoRequest)
+
+      Exchange.step(StepRequest(insertCancellations = List(OrderUtils.cancellationFromOrder(lowerOrder))))
     }
   }
 }

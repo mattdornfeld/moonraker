@@ -31,8 +31,8 @@ class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
 
     (_head, _tail) match {
       case (Some(head), Some(tail)) => {
-        node.get.setParent(Some(tail))
-        tail.setChild(node)
+        node.get.parent = Some(tail)
+        tail.child = node
         _tail = node
       }
       case (None, None) => {
@@ -65,7 +65,7 @@ class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
     * @return
     */
   def get(key: K): Option[V] =
-    index.get(key).map(_.getValue)
+    index.get(key).map(_.value)
 
   /**
     * Gets head Node of list. Returns None if list empty.
@@ -84,11 +84,13 @@ class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
     * @return
     */
   def iterator: Iterator[(K, V)] = {
-    var currentNode = head
-    val _iterator = for (_ <- 1 to size) yield {
-      val previousNode = currentNode.get
-      currentNode = currentNode.get.getChild
-      (previousNode.getKey, previousNode.getValue)
+    var nextNode = head.map(_.clone)
+    val _iterator = for (_ <- (1 to size).to(LazyList)) yield {
+      val currentNode = nextNode.get
+      nextNode = currentNode.child.map(_.clone)
+      currentNode.child = nextNode
+      nextNode.map(_.parent = Some(currentNode))
+      (currentNode.key, currentNode.value)
     }
     _iterator.iterator
   }
@@ -109,8 +111,8 @@ class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
     val node = index.remove(key)
     node match {
       case Some(node) => {
-        if (_head.get equalTo node) { _head = node.getChild }
-        if (_tail.get equalTo node) { _tail = node.getParent }
+        if (_head.get equalTo node) { _head = node.child }
+        if (_tail.get equalTo node) { _tail = node.parent }
         Some(node.remove)
       }
       case None => None
@@ -132,74 +134,49 @@ class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
     * @tparam K
     * @tparam V
     */
-  class Node[K, V](
+  case class Node[K, V](
       key: K,
       value: V,
-      parent: Option[Node[K, V]] = None,
-      child: Option[Node[K, V]] = None
+      var parent: Option[Node[K, V]] = None,
+      var child: Option[Node[K, V]] = None
   ) {
-    private val _key = key
-    private val _value = value
-    private var _parent = parent
-    private var _child = child
-
-    def equalTo(that: Node[K, V]): Boolean =
-      (_key == that.getKey
-        && _value == that.getValue
-        && _parent == that.getParent
-        && _child == that.getChild)
 
     /**
-      * Returns child Node
+      *
       * @return
       */
-    def getChild: Option[Node[K, V]] = _child
+    override def clone(): Node[K, V] = Node(key, value, parent, child)
+
+    /**
+      *
+      * @param that
+      * @return
+      */
+    def equalTo(that: Node[K, V]): Boolean = this == that
 
     /**
       * Returns (key, value) tuple
       * @return
       */
-    def getItem: (K, V) = (_key, _value)
-
-    /**
-      * Returns key
-      * @return
-      */
-    def getKey: K = _key
-
-    /**
-      * Returns parent Node
-      * @return
-      */
-    def getParent: Option[Node[K, V]] = _parent
-
-    /**
-      * Returns value contained by Node
-      * @return
-      */
-    def getValue: V = _value
+    def item: (K, V) = (key, value)
 
     /**
       * Removes node from IndexedLinkList
       * @return
       */
     def remove: Node[K, V] = {
-      (_child, _parent) match {
-        case (Some(_child), Some(_parent)) => {
-          _child.setParent(Some(_parent))
-          _parent.setChild(Some(_child))
+      (child, parent) match {
+        case (Some(child), Some(parent)) => {
+          child.parent = Some(parent)
+          parent.child = Some(child)
         }
-        case (Some(_child), None)  => _child.setParent(None)
-        case (None, Some(_parent)) => _parent.setChild(None)
-        case (None, None)          =>
+        case (Some(child), None) => child.parent = None
+        case (None, Some(parent)) => parent.child = None
+        case (None, None) =>
       }
 
       this
     }
-
-    def setChild(node: Option[Node[K, V]]): Unit = _child = node
-
-    def setParent(node: Option[Node[K, V]]): Unit = _parent = node
 
     override def toString: String = s"Node<${value}>"
   }

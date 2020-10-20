@@ -49,7 +49,11 @@ class Environment(Env):  # pylint: disable=W0223
         # Ray does something weird where it creates a local copy of the environment with
         # config.worker_index=0 but it doesn't seem to actually use it. This block of code
         # takes care of that case.
-        if config.worker_index == 0 and not self.is_test_environment:
+        if (
+            config.worker_index == 0
+            and not self.is_test_environment
+            and self.config.num_actors != 0
+        ):
             self._start_dt = None
             self._end_dt = None
             self.exchange = None

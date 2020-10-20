@@ -34,6 +34,7 @@ GPU_REQUIRES = [
 INSTALL_REQUIRES = [
     "GitPython>=2.1.10,<3.0.0",
     "dnspython>=1.16.0, <2.0.0",
+    "flask>=1.1.2, <2.0.0",
     "funcy>=1.11.0,<2.0.0",
     "google-cloud-storage>=1.15.0,<2.0.0",
     "incense>=0.0.10",

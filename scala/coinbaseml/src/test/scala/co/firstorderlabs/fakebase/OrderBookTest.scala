@@ -40,7 +40,7 @@ class PriceGlobTest extends AnyFunSpec {
 
     it("Orders should be added and removed using the put and remove methods") {
       val priceGlob = PriceGlob(expectedPrice)
-      val orderBookKey = lowerOrder.getOrderBookKey
+      val orderBookKey = lowerOrder.orderBookKey
       priceGlob.put(orderBookKey, lowerOrder)
       assert(lowerOrder equalTo priceGlob.get(orderBookKey).get)
       priceGlob.remove(orderBookKey)
@@ -51,20 +51,20 @@ class PriceGlobTest extends AnyFunSpec {
       "Trying to insert the same order twice throws a DuplicateKey exception"
     ) {
       val priceGlob = PriceGlob(expectedPrice)
-      val orderBookKey = lowerOrder.getOrderBookKey
+      val orderBookKey = lowerOrder.orderBookKey
       priceGlob.put(orderBookKey, lowerOrder)
       assertThrows[DuplicateKey] { priceGlob.put(orderBookKey, lowerOrder) }
     }
 
     it("The oldest order is the first one added to the PriceGlob") {
       val priceGlob = PriceGlob(expectedPrice)
-      testOrders.foreach(o => priceGlob.put(o.getOrderBookKey, o))
+      testOrders.foreach(o => priceGlob.put(o.orderBookKey, o))
       assert(priceGlob.oldestOrder.get equalTo testOrders(0))
     }
 
     it("The PriceGlob can create an iterator which contains all orders") {
       val priceGlob = PriceGlob(expectedPrice)
-      testOrders.foreach(o => priceGlob.put(o.getOrderBookKey, o))
+      testOrders.foreach(o => priceGlob.put(o.orderBookKey, o))
       assert(
         priceGlob.iterator
           .zip(testOrders)
@@ -77,9 +77,9 @@ class PriceGlobTest extends AnyFunSpec {
       "PriceGlob should support random removals of elements by their index key"
     ) {
       val priceGlob = PriceGlob(expectedPrice)
-      testOrders.foreach(o => priceGlob.put(o.getOrderBookKey, o))
+      testOrders.foreach(o => priceGlob.put(o.orderBookKey, o))
       val middleOrder = testOrders(1)
-      priceGlob.remove(middleOrder.getOrderBookKey)
+      priceGlob.remove(middleOrder.orderBookKey)
       assert(
         priceGlob.iterator
           .zip(testOrders.dropIndices(1))
@@ -90,14 +90,14 @@ class PriceGlobTest extends AnyFunSpec {
 
     it("The aggregateVolume method should sum the volume in the PriceGlob") {
       val priceGlob = PriceGlob(expectedPrice)
-      testOrders.foreach(o => priceGlob.put(o.getOrderBookKey, o))
+      testOrders.foreach(o => priceGlob.put(o.orderBookKey, o))
       val expectedVolume = testOrders.map(_.size).reduce(_ + _)
       assert(expectedVolume equalTo priceGlob.aggregateVolume)
     }
 
     it("A cloned PriceGlob should be equal to the original.") {
       val priceGlob = PriceGlob(expectedPrice)
-      testOrders.foreach(o => priceGlob.put(o.getOrderBookKey, o))
+      testOrders.foreach(o => priceGlob.put(o.orderBookKey, o))
       priceGlob equalTo priceGlob.clone
     }
   }
