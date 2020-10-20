@@ -34,7 +34,6 @@ class CheckpointerTest extends AnyFunSpec {
       val expectedCheckpointSnapshotBuffer = advanceExchange
       Exchange.reset(SimulationInfoRequest())
 
-      assert(Checkpointer.checkpointSnapshot.matchingEngineSnapshot.buyOrderBookSnapshot.priceTreeIndex == MatchingEngine.createSnapshot.buyOrderBookSnapshot.priceTreeIndex)
       assert(Checkpointer.checkpointSnapshot == SnapshotBuffer.createSnapshot)
       assert(
         expectedCheckpointSnapshotBuffer == SnapshotBuffer.snapshotBuffer.toSeq

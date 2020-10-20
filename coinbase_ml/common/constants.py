@@ -21,6 +21,7 @@ PRODUCT_ID = ProductId[ProductVolume, QuoteVolume](PRODUCT_CURRENCY, QUOTE_CURRE
 SIZE_NORMALIZER = 1.0
 FUNDS_NORMALIZERS: Dict[Currency, float] = {Currency.BTC: 1e1, Currency.USD: 100e3}
 VERBOSE = False
+SACRED_LOGGER_PORT = 60994
 
 # gcp configs
 GCP_PROJECT_NAME = "moonraker"

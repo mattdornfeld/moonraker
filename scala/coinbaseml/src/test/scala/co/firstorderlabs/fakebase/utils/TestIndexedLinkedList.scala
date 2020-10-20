@@ -30,18 +30,18 @@ class TestIndexedLinkedList extends AnyFunSpec {
       val indexedLinkedList = new IndexedLinkedList[Int, Int]
       indexedLinkedList.addAll(keyValues)
 
-      assert(indexedLinkedList.head.get.getItem == expectedHead)
-      assert(indexedLinkedList.tail.get.getItem == expectedTail)
+      assert(indexedLinkedList.head.get.item == expectedHead)
+      assert(indexedLinkedList.tail.get.item == expectedTail)
       assert(indexedLinkedList.size == 3)
 
       indexedLinkedList.remove(expectedHead._1)
-      assert(indexedLinkedList.head.get.getItem == expectedMiddle)
-      assert(indexedLinkedList.tail.get.getItem == expectedTail)
+      assert(indexedLinkedList.head.get.item == expectedMiddle)
+      assert(indexedLinkedList.tail.get.item == expectedTail)
       assert(indexedLinkedList.size == 2)
 
       indexedLinkedList.remove(expectedMiddle._1)
-      assert(indexedLinkedList.head.get.getItem == expectedTail)
-      assert(indexedLinkedList.tail.get.getItem == expectedTail)
+      assert(indexedLinkedList.head.get.item == expectedTail)
+      assert(indexedLinkedList.tail.get.item == expectedTail)
       assert(indexedLinkedList.size == 1)
 
       indexedLinkedList.remove(expectedTail._1)
@@ -57,18 +57,18 @@ class TestIndexedLinkedList extends AnyFunSpec {
       val indexedLinkedList = new IndexedLinkedList[Int, Int]
       indexedLinkedList.addAll(keyValues)
 
-      assert(indexedLinkedList.head.get.getItem == expectedHead)
-      assert(indexedLinkedList.tail.get.getItem == expectedTail)
+      assert(indexedLinkedList.head.get.item == expectedHead)
+      assert(indexedLinkedList.tail.get.item == expectedTail)
       assert(indexedLinkedList.size == 3)
 
       indexedLinkedList.remove(expectedTail._1)
-      assert(indexedLinkedList.head.get.getItem == expectedHead)
-      assert(indexedLinkedList.tail.get.getItem == expectedMiddle)
+      assert(indexedLinkedList.head.get.item == expectedHead)
+      assert(indexedLinkedList.tail.get.item == expectedMiddle)
       assert(indexedLinkedList.size == 2)
 
       indexedLinkedList.remove(expectedMiddle._1)
-      assert(indexedLinkedList.head.get.getItem == expectedHead)
-      assert(indexedLinkedList.tail.get.getItem == expectedHead)
+      assert(indexedLinkedList.head.get.item == expectedHead)
+      assert(indexedLinkedList.tail.get.item == expectedHead)
       assert(indexedLinkedList.size == 1)
 
       indexedLinkedList.remove(expectedHead._1)
@@ -83,13 +83,13 @@ class TestIndexedLinkedList extends AnyFunSpec {
       val indexedLinkedList = new IndexedLinkedList[Int, Int]
       indexedLinkedList.addAll(keyValues)
 
-      assert(indexedLinkedList.head.get.getItem == expectedHead)
-      assert(indexedLinkedList.tail.get.getItem == expectedTail)
+      assert(indexedLinkedList.head.get.item == expectedHead)
+      assert(indexedLinkedList.tail.get.item == expectedTail)
       assert(indexedLinkedList.size == 3)
 
       indexedLinkedList.remove(expectedMiddle._1)
-      assert(indexedLinkedList.head.get.getItem == expectedHead)
-      assert(indexedLinkedList.tail.get.getItem == expectedTail)
+      assert(indexedLinkedList.head.get.item == expectedHead)
+      assert(indexedLinkedList.tail.get.item == expectedTail)
       assert(indexedLinkedList.size == 2)
     }
 

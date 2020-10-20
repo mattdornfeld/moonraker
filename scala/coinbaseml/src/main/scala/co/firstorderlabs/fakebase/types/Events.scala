@@ -162,7 +162,7 @@ object Events {
       degeneracy = that.degeneracy
     }
 
-    def getOrderBookKey: OrderBookKey =
+    def orderBookKey: OrderBookKey =
       this.side match {
         case OrderSide.buy =>
           OrderBookKey(

@@ -5,13 +5,13 @@ from pathlib import Path
 from shutil import rmtree
 from typing import Any, Dict, List
 
-from sacred.run import Run
 
 import ray
 from ray import tune
 from ray.tune.checkpoint_manager import Checkpoint
 from ray.tune.trial import Trial
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
+from sacred.run import Run
 
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common import models
@@ -21,6 +21,7 @@ from coinbase_ml.train import constants as c
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
 from coinbase_ml.train.trainers import get_trainer_and_config
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs, HyperParameters
+from coinbase_ml.train.utils.sacred_logger import SacredLogger
 
 
 LOGGER = logging.getLogger(__name__)
@@ -79,6 +80,9 @@ def main(
         train_environment_configs=EnvironmentConfigs(**train_environment_configs),
         trainer_name=trainer_name,
     )
+
+    sacred_logger = SacredLogger()
+    sacred_logger.start()
 
     experiment_analysis = tune.run(
         checkpoint_freq=1,
