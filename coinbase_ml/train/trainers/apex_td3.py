@@ -27,6 +27,7 @@ def build_common_configs(
         "evaluation_config": {
             "env_config": test_environment_configs.__dict__,
             "timesteps_per_iteration": test_environment_configs.timesteps_per_iteration,
+            "worker_side_prioritization": False,
         },
         "evaluation_interval": 1,
         "evaluation_num_episodes": test_environment_configs.num_episodes,

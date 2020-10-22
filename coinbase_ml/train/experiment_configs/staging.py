@@ -35,7 +35,7 @@ def staging():
 
     latest_train_end_dt = "2019-10-18 00:00:00.00"
     latest_train_start_dt = "2019-10-17 0:00:00.00"
-    num_actors = 6
+    num_actors = 4
     train_time_intervals = num_actors * [
         TimeInterval(
             end_dt=parser.parse(latest_train_end_dt),
@@ -54,7 +54,7 @@ def staging():
         gradient_clip=0.1,
         learning_rate=0.001,
         num_epochs_per_iteration=10,
-        num_iterations=20,
+        num_iterations=10,
         output_tower_depth=1,
         output_tower_num_units=100,
         time_series_tower_attention_dim=100,
