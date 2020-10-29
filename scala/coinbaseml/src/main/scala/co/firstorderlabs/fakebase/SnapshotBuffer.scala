@@ -4,6 +4,7 @@ import java.time.Duration
 
 import co.firstorderlabs.common.{Environment, FeaturizerSnapshot}
 import co.firstorderlabs.common.utils.BufferUtils.FiniteQueue
+import co.firstorderlabs.fakebase.sql.DatabaseReaderSnapshot
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 
 /** Provides functionality for creating snapshots of the simulation state in a given
@@ -38,7 +39,7 @@ trait Snapshotable[A <: Snapshot] {
   * @param timeInterval
   */
 case class SimulationSnapshot(accountSnapshot: AccountSnapshot,
-                              databaseWorkersSnapshot: DatabaseWorkersSnapshot,
+                              databaseWorkersSnapshot: DatabaseReaderSnapshot,
                               exchangeSnapshot: ExchangeSnapshot,
                               matchingEngineSnapshot: MatchingEngineSnapshot,
                               featurizerSnapshot: FeaturizerSnapshot,
@@ -86,7 +87,7 @@ object SnapshotBuffer {
 
   def createSnapshot: SimulationSnapshot = SimulationSnapshot(
     Account.createSnapshot,
-    DatabaseWorkers.createSnapshot,
+    Exchange.getSimulationMetadata.databaseReader.createSnapshot,
     Exchange.createSnapshot,
     MatchingEngine.createSnapshot,
     Environment.createSnapshot,

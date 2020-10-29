@@ -28,9 +28,26 @@ object Types {
       TimeInterval(startDt, endDt)
     }
 
+    def chunkByTimeDelta(timeDelta: Duration): List[TimeInterval] = {
+      val numChunks = Duration.between(startTime, endTime).dividedBy(timeDelta).toInt
+      (for (offset <- 0 to numChunks - 1)
+        yield getTimeIntervalOffsetFromStart(offset, timeDelta)).toList
+    }
+
     def contains(instant: Instant): Boolean =
       (instant.compareTo(startTime) >= 0
         && instant.compareTo(endTime) < 0)
+
+    def getSubInterval(instant: Instant, timeDelta: Duration): TimeInterval = {
+      val offset = Duration.between(startTime, instant).dividedBy(timeDelta).toInt
+      getTimeIntervalOffsetFromStart(offset, timeDelta)
+    }
+
+    private def getTimeIntervalOffsetFromStart(offset: Int, timeDelta: Duration): TimeInterval =
+      TimeInterval(
+          startTime.plus(timeDelta.multipliedBy(offset)),
+          startTime.plus(timeDelta.multipliedBy(offset + 1))
+        )
   }
 
   object OrderId {

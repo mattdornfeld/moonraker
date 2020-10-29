@@ -40,6 +40,11 @@ enum Currency {
     BTC = 2;
 }
 
+enum DatabaseBackend {
+    Postgres = 0;
+    BigQuery = 1;
+}
+
 enum OrderType {
     limit = 0;
     market = 1;
@@ -166,6 +171,7 @@ message SimulationStartRequest {
     ObservationRequest observationRequest = 9;
     bool enableProgressBar = 10;
     SimulationType simulationType = 11;
+    DatabaseBackend databaseBackend = 12;
 }
 
 message StepRequest {

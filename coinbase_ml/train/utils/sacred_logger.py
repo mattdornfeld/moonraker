@@ -22,7 +22,7 @@ def log_to_sacred() -> str:
     result = json.loads(request.get_json())
     log_metrics_to_sacred(SACRED_EXPERIMENT, result["custom_metrics"], prefix="train")
     log_metrics_to_sacred(
-        SACRED_EXPERIMENT, result["info"]["learner"]["default_policy"], prefix="train",
+        SACRED_EXPERIMENT, result["info"]["learner"]["default_policy"], prefix="train"
     )
     log_metrics_to_sacred(
         SACRED_EXPERIMENT, result["evaluation_custom_metrics"], prefix="evaluation"

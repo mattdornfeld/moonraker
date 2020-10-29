@@ -32,7 +32,7 @@ def start_fakebase_server(port: int, test_mode: bool) -> Popen:
     when parent process exits.
     """
     process = Popen(
-        ["java", "-jar", c.FAKBASE_SERVER_JAR.as_posix(), str(port), str(test_mode),]
+        ["java", "-jar", c.FAKBASE_SERVER_JAR.as_posix(), str(port), str(test_mode)]
     )
 
     register(lambda process: process.terminate(), process)

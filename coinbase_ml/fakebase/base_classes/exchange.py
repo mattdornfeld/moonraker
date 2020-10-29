@@ -85,7 +85,7 @@ class ExchangeBase(Generic[Account]):
             bool: Description
         """
 
-        return self.interval_end_dt >= self.end_dt
+        return self.interval_end_dt + self.time_delta >= self.end_dt
 
     @property
     def interval_end_dt(self) -> datetime:

@@ -44,11 +44,7 @@ class Callbacks(DefaultCallbacks):
         episode_values: DefaultDict[str, List[float]] = DefaultDict(list)
         for episode in EVALUATION_EPISODES:
             # pylint: disable=invalid-sequence-index
-            episode_values[
-                "episode_reward"
-            ].append(
-                episode.total_reward
-            )
+            episode_values["episode_reward"].append(episode.total_reward)
             # pylint: enable=invalid-sequence-index
             for key, value in episode.last_info_for().items():
                 episode_values[key].append(value)
