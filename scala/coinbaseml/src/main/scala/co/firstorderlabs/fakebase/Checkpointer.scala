@@ -1,6 +1,7 @@
 package co.firstorderlabs.fakebase
 
 import co.firstorderlabs.common.{Environment, InfoAggregator}
+import co.firstorderlabs.fakebase.sql.DatabaseReaderBase
 import co.firstorderlabs.fakebase.types.Exceptions.CheckpointNotFound
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 
@@ -28,7 +29,7 @@ object Checkpointer {
 
   def clear: Unit = {
     Account.clear
-    DatabaseWorkers.clear
+    DatabaseReaderBase.clearAllReaders
     Exchange.clear
     InfoAggregator.clear
     MatchingEngine.clear
@@ -39,7 +40,7 @@ object Checkpointer {
 
   def isCleared: Boolean = {
     (Account.isCleared
-    && DatabaseWorkers.isCleared
+    && DatabaseReaderBase.areReadersCleared
     && Exchange.isCleared
     && InfoAggregator.isCleared
     && MatchingEngine.isCleared
@@ -50,7 +51,7 @@ object Checkpointer {
   def restoreFromCheckpoint: Unit = {
     SnapshotBuffer.restoreFromCheckpoint(checkpointSnapshotBuffer)
     Account.restore(checkpointSnapshot.accountSnapshot)
-    DatabaseWorkers.restore(checkpointSnapshot.databaseWorkersSnapshot)
+    Exchange.getSimulationMetadata.databaseReader.restore(checkpointSnapshot.databaseWorkersSnapshot)
     Exchange.restore(checkpointSnapshot.exchangeSnapshot)
     MatchingEngine.restore(checkpointSnapshot.matchingEngineSnapshot)
     Environment.restore(checkpointSnapshot.featurizerSnapshot)

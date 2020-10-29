@@ -3,14 +3,10 @@ package co.firstorderlabs.common.featurizers
 import co.firstorderlabs.common.utils.TestUtils.doubleEquality
 import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.fakebase.TestData.RequestsData._
-import co.firstorderlabs.fakebase._
+import co.firstorderlabs.fakebase.{TestUtils, _}
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Price.BtcUsdPrice.ProductVolume
-import co.firstorderlabs.fakebase.protos.fakebase.{
-  Order,
-  OrderSide,
-  StepRequest
-}
+import co.firstorderlabs.fakebase.protos.fakebase.{Order, OrderSide, StepRequest}
 import org.scalatest.funspec.AnyFunSpec
 
 class TestOrderBookFeaturizer extends AnyFunSpec {

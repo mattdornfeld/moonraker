@@ -77,7 +77,7 @@ class TestExchangeUnit:
         Returns:
             None: [description]
         """
-        for _ in range(5):
+        for _ in range(4):
             exchange.step()
 
         assert exchange.finished is True

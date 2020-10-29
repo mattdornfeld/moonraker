@@ -36,7 +36,7 @@ def build_common_configs(
             "custom_model_config": {"hyper_params": hyper_params},
             "custom_model": "CustomModel0",
         },
-        "num_cpus_for_driver": 4,
+        "num_cpus_for_driver": 2,
         "num_cpus_per_worker": 2,
         "num_gpus": c.NUM_GPUS,
         "num_workers": train_environment_configs.num_actors,

@@ -7,11 +7,29 @@ import java.util.logging.Logger
 import co.firstorderlabs.common.protos.ObservationRequest
 import co.firstorderlabs.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.common.{Environment, InfoAggregator}
-import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
+import co.firstorderlabs.fakebase.protos.fakebase.DatabaseBackend.{
+  BigQuery,
+  Postgres
+}
 import co.firstorderlabs.fakebase.protos.fakebase._
-import co.firstorderlabs.fakebase.types.Events.{Event, LimitOrderEvent, OrderEvent}
-import co.firstorderlabs.fakebase.types.Exceptions
-import co.firstorderlabs.fakebase.types.Exceptions.SimulationNotStarted
+import co.firstorderlabs.fakebase.sql.{
+  BigQueryReader,
+  DatabaseReaderBase,
+  PostgresReader
+}
+import co.firstorderlabs.fakebase.types.Events.{
+  Event,
+  LimitOrderEvent,
+  OrderEvent
+}
+import co.firstorderlabs.fakebase.types.Exceptions.{
+  SimulationNotStarted,
+  SnapshotBufferNotFull
+}
 import co.firstorderlabs.fakebase.types.Types.TimeInterval
 import co.firstorderlabs.fakebase.utils.OrderUtils
 import com.google.protobuf.empty.Empty
@@ -30,7 +48,8 @@ case class SimulationMetadata(
     simulationId: String,
     observationRequest: ObservationRequest,
     enableProgressBar: Boolean,
-    simulationType: SimulationType
+    simulationType: SimulationType,
+    databaseReader: DatabaseReaderBase
 ) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
@@ -70,7 +89,7 @@ case class SimulationMetadata(
     }
 
   def simulationIsOver: Boolean =
-    currentTimeInterval.startTime isAfter endTime
+    currentTimeInterval.endTime isAfter endTime
 }
 
 object Exchange
@@ -124,9 +143,10 @@ object Exchange
     }
   }
 
+  @throws[SnapshotBufferNotFull]
   override def checkpoint(request: Empty): Future[Empty] = {
     if (SnapshotBuffer.size < SnapshotBuffer.maxSize) {
-      throw Exceptions.SnapshotBufferNotFull(
+      throw SnapshotBufferNotFull(
         "Cannot checkpoint simulation as SnapshotBuffer is not yet full. " +
           s"It has ${SnapshotBuffer.size} and requires ${SnapshotBuffer.maxSize} elements. You must call step " +
           s"${SnapshotBuffer.maxSize - SnapshotBuffer.size} more times."
@@ -177,6 +197,7 @@ object Exchange
     Future successful getSimulationInfo(Some(simulationInfoRequest))
   }
 
+  @throws[IllegalArgumentException]
   override def start(
       simulationStartRequest: SimulationStartRequest
   ): Future[SimulationInfo] = {
@@ -185,6 +206,15 @@ object Exchange
       "snapshotBufferSize must be greater than 0"
     )
     if (simulationInProgress) stop(Constants.emptyProto)
+
+    val databaseReader = simulationStartRequest.databaseBackend match {
+      case Postgres => PostgresReader
+      case BigQuery => BigQueryReader
+      case _ =>
+        throw new IllegalArgumentException(
+          s"${simulationStartRequest.databaseBackend} is not a valid instance of DatabaseBackend"
+        )
+    }
 
     simulationMetadata = Some(
       SimulationMetadata(
@@ -197,13 +227,14 @@ object Exchange
         randomUUID.toString,
         simulationStartRequest.observationRequest.get,
         simulationStartRequest.enableProgressBar,
-        simulationStartRequest.simulationType
+        simulationStartRequest.simulationType,
+        databaseReader
       )
     )
 
     logger.info(s"starting simulation for parameters ${getSimulationMetadata}")
 
-    DatabaseWorkers.start(
+    getSimulationMetadata.databaseReader.start(
       getSimulationMetadata.startTime,
       getSimulationMetadata.endTime,
       getSimulationMetadata.timeDelta
@@ -239,16 +270,14 @@ object Exchange
       s"Stepped to ${getSimulationMetadata.currentTimeInterval}"
     )
     logger.fine(
-
-
-      s"There are ${DatabaseWorkers.getResultMapSize.toString} entries in the results map queue"
+      s"There are ${Exchange.getSimulationMetadata.databaseReader.getResultMapSize.toString} entries in the results map queue"
     )
 
     InfoAggregator.preStep
     Account.step
 
-    val queryResult =
-      DatabaseWorkers.getQueryResult(getSimulationMetadata.currentTimeInterval)
+    val queryResult = Exchange.getSimulationMetadata.databaseReader
+      .getQueryResult(getSimulationMetadata.currentTimeInterval)
 
     receivedEvents = (Account.getReceivedOrders.toList
       ++ Account.getReceivedCancellations.toList

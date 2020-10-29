@@ -63,5 +63,4 @@ def log_metrics_to_sacred(
     for metric_name, metric in metrics.items():
         if isinstance(metric, (int, float)):
             _metric_name = f"{prefix}_{metric_name}" if prefix else metric_name
-            print(_metric_name)
             experiment.log_scalar(_metric_name, 0.0 if isnan(metric) else metric)

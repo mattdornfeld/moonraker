@@ -5,6 +5,7 @@ import co.firstorderlabs.fakebase.TestData.RequestsData._
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice
 import co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.fakebase.protos.fakebase.{SimulationInfoRequest, StepRequest}
+import co.firstorderlabs.fakebase.sql.PostgresReader
 import org.scalatest.funspec.AnyFunSpec
 
 class CheckpointerTest extends AnyFunSpec {
@@ -47,7 +48,7 @@ class CheckpointerTest extends AnyFunSpec {
       advanceExchange
       Exchange.stop(Constants.emptyProto)
       assert(Checkpointer.isCleared)
-      assert(DatabaseWorkers.isPaused)
+      assert(PostgresReader.waitUntilPaused)
     }
   }
   def advanceExchange: Seq[SimulationSnapshot] = {

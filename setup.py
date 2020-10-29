@@ -26,10 +26,7 @@ FAKEBASE_REQUIRES = [
     f"cbpro @ {DEPENDENCY_LINKS['cbpro']}",
 ]
 
-GPU_REQUIRES = [
-    "gputil>=1.4.0,<2.0.0",
-    "tensorflow-gpu==2.0.0",
-]
+GPU_REQUIRES = ["gputil>=1.4.0,<2.0.0", "tensorflow-gpu==2.0.0"]
 
 INSTALL_REQUIRES = [
     "GitPython>=2.1.10,<3.0.0",
