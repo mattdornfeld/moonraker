@@ -10,7 +10,7 @@ import "scalapb/scalapb.proto";
 option (scalapb.options) = {
   scope: FILE
   preserve_unknown_fields: false
-  package_name: "co.firstorderlabs.fakebase.protos"
+  package_name: "co.firstorderlabs.common.protos"
 };
 
 service AccountService {
@@ -61,45 +61,45 @@ message AccountInfo {
 }
 
 message BuyLimitOrderRequest {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.BuyOrderRequest";
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.LimitOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.BuyOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.LimitOrderRequest";
 
-    string price = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice"];
-    string productId = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
-    string size = 3 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
+    string price = 1 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice"];
+    string productId = 2 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string size = 3 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     bool postOnly = 4;
     google.protobuf.Duration timeToLive = 5 [(scalapb.field).type = "java.time.Duration"];
 }
 
 message BuyMarketOrderRequest {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.BuyOrderRequest";
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.MarketOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.BuyOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.MarketOrderRequest";
 
-    string funds = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume"];
-    string productId = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
+    string funds = 1 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.QuoteVolume"];
+    string productId = 2 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
 }
 
 message CancellationRequest {
-    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.OrderId"];
+    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId"];
 }
 
 message SellLimitOrderRequest {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.LimitOrderRequest";
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.SellOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.LimitOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SellOrderRequest";
 
-    string price = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice"];
-    string productId = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
-    string size = 3 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
+    string price = 1 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice"];
+    string productId = 2 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string size = 3 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     bool postOnly = 4;
     google.protobuf.Duration timeToLive = 5 [(scalapb.field).type = "java.time.Duration"];
 }
 
 message SellMarketOrderRequest {
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.MarketOrderRequest";
-    option (scalapb.message).extends = "co.firstorderlabs.fakebase.types.Events.SellOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.MarketOrderRequest";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SellOrderRequest";
 
-    string productId = 1 [(scalapb.field).type = "co.firstorderlabs.fakebase.types.Types.ProductId"];
-    string size = 2 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
+    string productId = 1 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string size = 2 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
 }
 
 message WalletProto {
@@ -144,10 +144,10 @@ message OrderBooksRequest {
 }
 
 message OrderBooks {
-    map<string, string> buyOrderBook = 1 [(scalapb.field).key_type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice",
-                                          (scalapb.field).value_type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
-    map<string, string> sellOrderBook = 2 [(scalapb.field).key_type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice",
-                                           (scalapb.field).value_type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
+    map<string, string> buyOrderBook = 1 [(scalapb.field).key_type = "co.firstorderlabs.common.currency.Configs.ProductPrice",
+                                          (scalapb.field).value_type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
+    map<string, string> sellOrderBook = 2 [(scalapb.field).key_type = "co.firstorderlabs.common.currency.Configs.ProductPrice",
+                                           (scalapb.field).value_type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
 }
 
 message SimulationInfo {
@@ -164,8 +164,8 @@ message SimulationStartRequest {
     string endTime = 2 [(scalapb.field).type = "java.time.Instant"];
     google.protobuf.Duration timeDelta = 3 [(scalapb.field).type = "java.time.Duration"];
     int32 numWarmUpSteps = 4;
-    string initialProductFunds = 5 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.ProductVolume"];
-    string initialQuoteFunds = 6 [(scalapb.field).type = "co.firstorderlabs.fakebase.currency.Configs.ProductPrice.QuoteVolume"];
+    string initialProductFunds = 5 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
+    string initialQuoteFunds = 6 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.QuoteVolume"];
     SimulationInfoRequest simulationInfoRequest = 7;
     int32 snapshotBufferSize = 8;
     ObservationRequest observationRequest = 9;

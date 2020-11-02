@@ -8,7 +8,7 @@ import "scalapb/scalapb.proto";
 option (scalapb.options) = {
   scope: FILE
   preserve_unknown_fields: false
-  package_name: "co.firstorderlabs.common.protos"
+  package_name: "co.firstorderlabs.coinbaseml.common.protos"
   flat_package: true
 };
 
@@ -49,7 +49,7 @@ message ActionRequest {
 }
 
 message InfoDict {
-    option (scalapb.message).type = "co.firstorderlabs.common.InfoDict";
+    option (scalapb.message).type = "co.firstorderlabs.coinbaseml.common.InfoDict";
     map<string, double> infoDict = 1;
 }
 
@@ -60,7 +60,7 @@ message ObservationRequest {
 }
 
 message Features {
-    option (scalapb.message).extends = "co.firstorderlabs.common.types.FeaturesBase";
+    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.common.types.FeaturesBase";
     repeated double account = 1;
     repeated double orderBook = 2;
     repeated double timeSeries = 3;
