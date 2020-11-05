@@ -4,8 +4,8 @@ import co.firstorderlabs.coinbaseml.common.protos.{InfoDictKey, InfoDict => Info
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.{Account, Constants, Exchange, SnapshotBuffer}
-import co.firstorderlabs.common.protos.fakebase.Match
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.OrderEvent
+import co.firstorderlabs.common.protos.events.Match
+import co.firstorderlabs.common.types.Events.OrderEvent
 
 import scala.collection.mutable
 

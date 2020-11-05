@@ -4,11 +4,12 @@ import java.time.Duration
 
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResultOptional
 import co.firstorderlabs.coinbaseml.fakebase.Account
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest, SellLimitOrderRequest, SellMarketOrderRequest}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrder, BuyLimitOrderRequest, BuyMarketOrderRequest, Order, OrderSide, SellLimitOrder, SellLimitOrderRequest, SellMarketOrderRequest}
-import co.firstorderlabs.coinbaseml.fakebase.types.Events
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.OrderEvent
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, Order, OrderSide, SellLimitOrder}
+import co.firstorderlabs.common.types.Events
+import co.firstorderlabs.common.types.Events.OrderEvent
 import scalapb.GeneratedMessage
 import scalapb.lenses.Updatable
 

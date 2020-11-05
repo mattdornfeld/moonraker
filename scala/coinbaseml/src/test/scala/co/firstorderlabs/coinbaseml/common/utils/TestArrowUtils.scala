@@ -5,9 +5,9 @@ import java.time.{Duration, Instant}
 import co.firstorderlabs.coinbaseml.common.Environment
 import co.firstorderlabs.coinbaseml.common.types.FeaturesBase
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.observationRequest
-import co.firstorderlabs.common.currency.Price.BtcUsdPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.fakebase.SimulationStartRequest
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.SimulationStartRequest
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange}
+import co.firstorderlabs.common.currency.Price.BtcUsdPrice.{ProductVolume, QuoteVolume}
 import org.scalatest.funspec.AnyFunSpec
 
 class TestArrowUtils extends AnyFunSpec{

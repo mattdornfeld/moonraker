@@ -5,16 +5,12 @@ import java.time.Duration
 import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
 
 import co.firstorderlabs.coinbaseml.fakebase.Snapshot
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.QuoteVolume
-import co.firstorderlabs.common.protos.fakebase._
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.{
-  OrderId,
-  OrderRequestId,
-  ProductId,
-  TimeInterval
-}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, MatchEvents, OrderSide, OrderStatus, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, ProductId, TimeInterval}
 import doobie.implicits.legacy.instant.JavaTimeInstantMeta
 import doobie.util.meta.Meta
 

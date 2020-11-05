@@ -40,7 +40,7 @@ class DoneReason(Enum):
     """
 
     not_done = "not_done"
-    cancelled = "cancelled"
+    canceled = "canceled"
     filled = "filled"
 
     @staticmethod
@@ -59,7 +59,7 @@ class DoneReason(Enum):
 
 _DONE_REASON_PROTO_MAPPING = {
     DoneReasonProto.notDone: DoneReason.not_done,
-    DoneReasonProto.cancelled: DoneReason.cancelled,
+    DoneReasonProto.canceled: DoneReason.canceled,
     DoneReasonProto.filled: DoneReason.filled,
 }
 

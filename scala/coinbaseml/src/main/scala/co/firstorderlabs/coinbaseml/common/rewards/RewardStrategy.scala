@@ -2,11 +2,11 @@ package co.firstorderlabs.coinbaseml.common.rewards
 
 import java.util.logging.Logger
 
+import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.fakebase.OrderSide
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.TimeInterval
-import co.firstorderlabs.coinbaseml.fakebase._
+import co.firstorderlabs.common.protos.events.OrderSide
+import co.firstorderlabs.common.types.Types.TimeInterval
 
 /** RewardStrategy is a base trait for all reward strategies
   */

@@ -1,8 +1,8 @@
-package co.firstorderlabs.coinbaseml.fakebase.types
+package co.firstorderlabs.common.types
 
 import java.time.{Duration, Instant}
 
-import co.firstorderlabs.common.protos.fakebase.Currency
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.Currency
 import scalapb.TypeMapper
 
 object Types {

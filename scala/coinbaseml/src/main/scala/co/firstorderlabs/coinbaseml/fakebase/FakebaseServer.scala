@@ -2,10 +2,7 @@ package co.firstorderlabs.coinbaseml.fakebase
 
 import java.util.logging.Logger
 
-import co.firstorderlabs.common.protos.fakebase.{
-  AccountServiceGrpc,
-  ExchangeServiceGrpc
-}
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{AccountServiceGrpc, ExchangeServiceGrpc}
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
 

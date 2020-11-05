@@ -2,7 +2,8 @@ package co.firstorderlabs.coinbaseml.fakebase
 
 import java.math.BigDecimal
 
-import co.firstorderlabs.common.protos.fakebase.{Liquidity, StepRequest}
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.StepRequest
+import co.firstorderlabs.common.protos.events.Liquidity
 import com.google.protobuf.empty.Empty
 
 object Constants {

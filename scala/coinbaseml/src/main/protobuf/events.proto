@@ -7,12 +7,12 @@ option (scalapb.options) = {
   flat_package: true
   scope: FILE
   preserve_unknown_fields: false
-  package_name: "co.firstorderlabs.common.protos.fakebase"
+  package_name: "co.firstorderlabs.common.protos.events"
 };
 
 enum DoneReason {
     notDone = 0;
-    cancelled = 1;
+    canceled = 1;
     filled = 2;
 }
 
@@ -48,19 +48,19 @@ enum RejectReason {
 }
 
 message BuyLimitOrder {
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.BuyOrderEvent";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.LimitOrderEvent";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SpecifiesSize";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.BuyOrderEvent";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.LimitOrderEvent";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.SpecifiesSize";
 
-    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId"];
+    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderId"];
     OrderStatus orderStatus = 2;
     string price = 3 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice"];
-    string productId = 4 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string productId = 4 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.ProductId"];
     OrderSide side = 5;
     string size = 6 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     string time = 7 [(scalapb.field).type = "java.time.Instant"];
     RejectReason rejectReason = 8;
-    string requestId = 9 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderRequestId"];
+    string requestId = 9 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderRequestId"];
     string doneAt = 10 [(scalapb.field).type = "java.time.Instant"];
     DoneReason doneReason = 11;
     MatchEvents matchEvents = 12;
@@ -68,30 +68,28 @@ message BuyLimitOrder {
 }
 
 message BuyMarketOrder {
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.BuyOrderEvent";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.MarketOrderEvent";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SpecifiesFunds";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.BuyMarketOrderEvent";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.SpecifiesFunds";
 
     string funds = 1 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.QuoteVolume"];
-    string orderId = 2 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId"];
+    string orderId = 2 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderId"];
     OrderStatus orderStatus = 3;
-    string productId = 4 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string productId = 4 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.ProductId"];
     OrderSide side = 5;
     string time = 6 [(scalapb.field).type = "java.time.Instant"];
     RejectReason rejectReason = 7;
-    string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderRequestId"];
+    string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderRequestId"];
     string doneAt = 9 [(scalapb.field).type = "java.time.Instant"];
     DoneReason doneReason = 10;
     MatchEvents matchEvents = 12;
 }
 
 message Cancellation {
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.Event";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SpecifiesPrice";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.CancellationEvent";
 
-    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId"];
+    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderId"];
     string price = 2 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice"];
-    string productId = 3 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string productId = 3 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.ProductId"];
     OrderSide side = 4;
     string remainingSize = 6 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     string time = 7 [(scalapb.field).type = "java.time.Instant"];
@@ -111,17 +109,17 @@ message Orders {
 }
 
 message Match {
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.MatchEvent";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.MatchEvent";
 
     Liquidity liquidity = 1;
-    string makerOrderId = 2 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId"];
+    string makerOrderId = 2 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderId"];
     string price = 3 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice"];
-    string productId = 4 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string productId = 4 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.ProductId"];
     OrderSide side = 5;
     string size = 6 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
-    string takerOrderId = 7 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId"];
+    string takerOrderId = 7 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderId"];
     string time = 8 [(scalapb.field).type = "java.time.Instant"];
-    int64 tradeId = 9 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.TradeId"];
+    int64 tradeId = 9 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.TradeId"];
     Order makerOrder = 10;
     Order takerOrder = 11;
 }
@@ -131,19 +129,19 @@ message MatchEvents {
 }
 
 message SellLimitOrder {
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SellOrderEvent";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.LimitOrderEvent";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SpecifiesSize";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.SellOrderEvent";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.LimitOrderEvent";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.SpecifiesSize";
 
-    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId"];
+    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderId"];
     OrderStatus orderStatus = 2;
     string price = 3 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice"];
-    string productId = 4 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string productId = 4 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.ProductId"];
     OrderSide side = 5;
     string size = 6 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     string time = 7 [(scalapb.field).type = "java.time.Instant"];
     RejectReason rejectReason = 8;
-    string requestId = 9 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderRequestId"];
+    string requestId = 9 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderRequestId"];
     string doneAt = 10 [(scalapb.field).type = "java.time.Instant"];
     DoneReason doneReason = 11;
     MatchEvents matchEvents = 12;
@@ -151,18 +149,17 @@ message SellLimitOrder {
 }
 
 message SellMarketOrder {
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SellOrderEvent";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.MarketOrderEvent";
-    option (scalapb.message).extends = "co.firstorderlabs.coinbaseml.fakebase.types.Events.SpecifiesSize";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.SellMarketOrderEvent";
+    option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.SpecifiesSize";
 
-    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId"];
+    string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderId"];
     OrderStatus orderStatus = 2;
-    string productId = 3 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId"];
+    string productId = 3 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.ProductId"];
     OrderSide side = 4;
     string size = 5 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     string time = 6 [(scalapb.field).type = "java.time.Instant"];
     RejectReason rejectReason = 7;
-    string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderRequestId"];
+    string requestId = 8 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderRequestId"];
     string doneAt = 9 [(scalapb.field).type = "java.time.Instant"];
     DoneReason doneReason = 10;
     MatchEvents matchEvents = 12;

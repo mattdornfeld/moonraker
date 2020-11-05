@@ -3,9 +3,9 @@ package co.firstorderlabs.coinbaseml.fakebase.utils
 import java.util.UUID
 
 import co.firstorderlabs.coinbaseml.fakebase.Exchange
-import co.firstorderlabs.common.protos.fakebase._
-import co.firstorderlabs.coinbaseml.fakebase.types.Events._
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, Match, Order, OrderMessage, OrderSide, OrderStatus, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.types.Events._
+import co.firstorderlabs.common.types.Types.OrderId
 
 object OrderUtils {
   def addMatchesToOrder[A <: OrderEvent](order: A, matchEvents: Seq[Match]): A = {

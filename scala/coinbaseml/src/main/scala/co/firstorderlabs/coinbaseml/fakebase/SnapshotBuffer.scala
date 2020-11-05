@@ -5,7 +5,7 @@ import java.time.Duration
 import co.firstorderlabs.coinbaseml.common.{Environment, FeaturizerSnapshot}
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.fakebase.sql.DatabaseReaderSnapshot
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.TimeInterval
+import co.firstorderlabs.common.types.Types.TimeInterval
 
 /** Provides functionality for creating snapshots of the simulation state in a given
   *  TimeInterval. This functionality is used by Checkpointer to create checkpoints of

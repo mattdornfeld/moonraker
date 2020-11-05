@@ -2,15 +2,17 @@ package co.firstorderlabs.coinbaseml.fakebase
 
 import java.time.Duration
 
+import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
-import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{Wallets => _, _}
+import co.firstorderlabs.coinbaseml.fakebase.types.Events.{BuyOrderRequest, SellOrderRequest}
+import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.QuoteVolume
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.ProductVolume
-import co.firstorderlabs.common.protos.fakebase.{Wallets => _, _}
-import co.firstorderlabs.coinbaseml.fakebase.types.Events._
-import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
+import co.firstorderlabs.common.protos.events._
+import co.firstorderlabs.common.types.Events._
 import org.scalatest.funspec.AnyFunSpec
 
 class AccountTest extends AnyFunSpec {
@@ -92,7 +94,7 @@ class AccountTest extends AnyFunSpec {
         Exchange.step(Constants.emptyStepRequest)
 
         assert(Account.placedOrders(order.orderId).orderStatus.isdone)
-        assert(Account.placedOrders(order.orderId).doneReason.iscancelled)
+        assert(Account.placedOrders(order.orderId).doneReason.iscanceled)
         assert(
           Exchange
             .getOrderBook(order.side)
@@ -530,7 +532,7 @@ class AccountTest extends AnyFunSpec {
           matchEvents.map(m => m.price).last
 
         assert(cancelledOrder.orderStatus.isdone)
-        assert(cancelledOrder.doneReason.iscancelled)
+        assert(cancelledOrder.doneReason.iscanceled)
         assert(
           SlippageProtection
             .getPriceSlippagePoints(firstMatchPrice, lastMatchPrice)
@@ -676,7 +678,7 @@ class AccountTest extends AnyFunSpec {
           val cancelledOrder = Account.placedOrders.get(order.orderId).get
 
           assert(cancelledOrder.orderStatus.isdone)
-          assert(cancelledOrder.doneReason.iscancelled)
+          assert(cancelledOrder.doneReason.iscanceled)
           assert(
             Exchange
               .getOrderBook(cancelledOrder.side)
@@ -748,7 +750,7 @@ class AccountTest extends AnyFunSpec {
         Exchange.step(Constants.emptyStepRequest)
 
         assert(Account.placedOrders(takerOrder.orderId).orderStatus.isdone)
-        assert(Account.placedOrders(takerOrder.orderId).doneReason.iscancelled)
+        assert(Account.placedOrders(takerOrder.orderId).doneReason.iscanceled)
         assert(Account.matches(takerOrder.orderId).isEmpty)
         assert(
           Exchange

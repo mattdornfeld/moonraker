@@ -5,7 +5,7 @@ import scala.util.Properties.envOrElse
 object Configs {
   //BigQueryReader configs
   val serviceAccountJsonPath = "/secrets/service-account.json"
-  val datasetId = "cold_storage"
+  val datasetId = envOrElse("BIGQUERY_DATASET_ID", "exchange_events_staging")
   val gcpProjectId = "moonraker"
   val serviceAccountEmail = "moonraker-ci@moonraker.iam.gserviceaccount.com"
 

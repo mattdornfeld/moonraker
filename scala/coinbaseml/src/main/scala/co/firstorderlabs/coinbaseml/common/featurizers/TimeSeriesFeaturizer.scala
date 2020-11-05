@@ -7,18 +7,8 @@ import co.firstorderlabs.coinbaseml.common.protos.ObservationRequest
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase._
-import co.firstorderlabs.common.protos.fakebase.{
-  BuyLimitOrder,
-  Cancellation,
-  Match,
-  SellLimitOrder
-}
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.{
-  Event,
-  OrderEvent,
-  SpecifiesPrice,
-  SpecifiesSize
-}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, Cancellation, Match, SellLimitOrder}
+import co.firstorderlabs.common.types.Events.{Event, OrderEvent, SpecifiesPrice, SpecifiesSize}
 
 case class TimeSeriesFeaturizerSnapshot(
     featureBuffer: List[TimeSeriesFeaturizer.TimeSeriesFeature]

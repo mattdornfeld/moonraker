@@ -5,7 +5,7 @@ import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.Utils.DoubleEquality
 import co.firstorderlabs.coinbaseml.fakebase.Wallets
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.fakebase.Liquidity
+import co.firstorderlabs.common.protos.events.Liquidity
 
 /**
   * Generates actions from an actorOutput vector of length 2. The first element of the vector is interpreted as the

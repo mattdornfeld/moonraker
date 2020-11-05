@@ -2,10 +2,10 @@ package co.firstorderlabs.coinbaseml.fakebase
 
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{SimulationInfoRequest, StepRequest}
+import co.firstorderlabs.coinbaseml.fakebase.sql.PostgresReader
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
-import co.firstorderlabs.common.protos.fakebase.{SimulationInfoRequest, StepRequest}
-import co.firstorderlabs.coinbaseml.fakebase.sql.PostgresReader
 import org.scalatest.funspec.AnyFunSpec
 
 class CheckpointerTest extends AnyFunSpec {

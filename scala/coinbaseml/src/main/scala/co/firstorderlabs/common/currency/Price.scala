@@ -3,7 +3,7 @@ package co.firstorderlabs.common.currency
 import java.math.{BigDecimal, RoundingMode}
 
 import co.firstorderlabs.common.currency.Volume._
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.ProductId
+import co.firstorderlabs.common.types.Types.ProductId
 import scalapb.TypeMapper
 
 /**Contains objects for representing exchange products and prices of those products.

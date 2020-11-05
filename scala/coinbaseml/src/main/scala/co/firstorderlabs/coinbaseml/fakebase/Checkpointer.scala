@@ -3,7 +3,7 @@ package co.firstorderlabs.coinbaseml.fakebase
 import co.firstorderlabs.coinbaseml.common.{Environment, InfoAggregator}
 import co.firstorderlabs.coinbaseml.fakebase.sql.DatabaseReaderBase
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.CheckpointNotFound
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.TimeInterval
+import co.firstorderlabs.common.types.Types.TimeInterval
 
 object Checkpointer {
   private val checkpointSnapshotBuffer =

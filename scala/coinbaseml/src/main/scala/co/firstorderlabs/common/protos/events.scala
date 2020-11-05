@@ -5,7 +5,7 @@ import java.time.{Instant, Duration => JavaDuration}
 import com.google.protobuf.duration.{Duration => ProtoDuration}
 import scalapb.TypeMapper
 
-package object fakebase {
+package object events {
   implicit val durationTypeMapper =
     TypeMapper[ProtoDuration, JavaDuration](
       protoDuration =>

@@ -4,7 +4,7 @@ import java.time.Instant
 
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
-import co.firstorderlabs.common.protos.fakebase._
+import co.firstorderlabs.common.protos.events._
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 
 object TestUtils {

@@ -6,11 +6,12 @@ import co.firstorderlabs.coinbaseml.common.protos.{ObservationRequest, RewardReq
 import co.firstorderlabs.coinbaseml.common.utils
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData.lowerOrder
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{BuyLimitOrderRequest, CancellationRequest, SellLimitOrderRequest, SimulationInfoRequest, StepRequest}
+import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrderRequest, CancellationRequest, OrderSide, SellLimitOrderRequest, SimulationInfoRequest, StepRequest}
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.TimeInterval
-import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
+import co.firstorderlabs.common.protos.events.OrderSide
+import co.firstorderlabs.common.types.Types.TimeInterval
 import org.scalatest.funspec.AnyFunSpec
 
 class ExchangeTest extends AnyFunSpec {
@@ -254,7 +255,7 @@ class ExchangeTest extends AnyFunSpec {
 
           val cancelledOrder = Account.placedOrders.get(order.orderId).get
           assert(cancelledOrder.orderStatus.isdone)
-          assert(cancelledOrder.doneReason.iscancelled)
+          assert(cancelledOrder.doneReason.iscanceled)
           assert(
             Duration
               .between(cancelledOrder.time, cancelledOrder.doneAt)

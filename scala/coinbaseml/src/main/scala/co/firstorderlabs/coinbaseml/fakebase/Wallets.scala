@@ -4,10 +4,11 @@ import java.math.BigDecimal
 import java.util.UUID
 
 import co.firstorderlabs.coinbaseml.fakebase.Wallets.WalletMap
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{Currency, WalletProto, Wallets => WalletsProto}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.currency.Volume.{Volume, VolumeCompanion}
-import co.firstorderlabs.common.protos.fakebase.{Wallets => WalletsProto, _}
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.{SellOrderEvent, _}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Liquidity}
+import co.firstorderlabs.common.types.Events.{SellOrderEvent, _}
 
 import scala.collection.mutable.HashMap
 

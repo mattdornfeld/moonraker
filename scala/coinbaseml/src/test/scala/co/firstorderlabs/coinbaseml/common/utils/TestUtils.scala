@@ -1,11 +1,12 @@
 package co.firstorderlabs.coinbaseml.common.utils
 
-import co.firstorderlabs.coinbaseml.fakebase.{Account, Exchange}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.buyMarketOrderRequest
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.StepRequest
+import co.firstorderlabs.coinbaseml.fakebase.{Account, Exchange}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.ProductVolume
-import co.firstorderlabs.common.protos.fakebase.{OrderSide, StepRequest}
+import co.firstorderlabs.common.protos.events.OrderSide
 import org.scalactic.TolerantNumerics
 
 import scala.math.pow

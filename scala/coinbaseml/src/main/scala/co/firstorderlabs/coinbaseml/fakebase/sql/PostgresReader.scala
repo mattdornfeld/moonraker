@@ -3,14 +3,12 @@ package co.firstorderlabs.coinbaseml.fakebase.sql
 import java.time.{Duration, Instant}
 
 import co.firstorderlabs.coinbaseml.fakebase.Exchange
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.OrderType
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.TimeoutExceeded
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.{
-  ProductId,
-  TimeInterval
-}
-import co.firstorderlabs.common.protos.fakebase._
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, OrderSide, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.types.Types.{ProductId, TimeInterval}
 import doobie.implicits._
 import doobie.util.query.Query0
 import doobie.util.transactor.Strategy
@@ -24,8 +22,7 @@ class PostgresReader extends Thread {
     val threadState = synchronized {
       getState
     }
-//        println(threadState)
-    //    println(shouldWait)
+
     threadState.compareTo(expectedState) == 0
   }
 
@@ -210,11 +207,6 @@ object PostgresReader
   private def startWorkers: Unit = {
     workers.foreach(w => w.startWorker)
   }
-
-  protected def populateQueryResultMap(
-      timeInterval: TimeInterval,
-      timeDelta: Duration
-  ): Unit = {}
 
   private def populateTimeIntervalQueue(
       startTime: Instant,

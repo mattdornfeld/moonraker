@@ -5,9 +5,9 @@ import java.time.Duration
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.LimitOrderEvent
+import co.firstorderlabs.common.types.Events.LimitOrderEvent
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.OrderBookEmpty
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.OrderId
+import co.firstorderlabs.common.types.Types.OrderId
 import co.firstorderlabs.coinbaseml.fakebase.utils.IndexedLinkedList
 
 import scala.annotation.tailrec

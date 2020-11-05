@@ -4,11 +4,11 @@ import co.firstorderlabs.coinbaseml.common.utils.TestUtils.OrderSideUtils
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.simulationStartRequest
+import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.ProductVolume
-import co.firstorderlabs.common.protos.fakebase._
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.{Event, LimitOrderEvent}
-import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
+import co.firstorderlabs.common.protos.events.{DoneReason, OrderSide}
+import co.firstorderlabs.common.types.Events.{Event, LimitOrderEvent}
 import org.scalatest.funspec.AnyFunSpec
 
 class MatchingEngineTest extends AnyFunSpec {

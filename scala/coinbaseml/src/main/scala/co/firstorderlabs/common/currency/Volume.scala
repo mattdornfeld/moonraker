@@ -3,7 +3,8 @@ package co.firstorderlabs.common.currency
 import java.math.{BigDecimal, RoundingMode}
 
 import co.firstorderlabs.coinbaseml.fakebase.Constants
-import co.firstorderlabs.common.protos.fakebase.{Currency, Liquidity}
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.Currency
+import co.firstorderlabs.common.protos.events.Liquidity
 import scalapb.TypeMapper
 
 /**Contains objects for representing currencies and volumes of those currencies.

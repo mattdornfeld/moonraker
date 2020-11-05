@@ -51,7 +51,7 @@ class TestExchangeUnit:
         exchange.step()
 
         assert account.orders[order.order_id].order_status == OrderStatus.done
-        assert account.orders[order.order_id].done_reason == DoneReason.cancelled
+        assert account.orders[order.order_id].done_reason == DoneReason.canceled
 
     @staticmethod
     def test_finished_false(exchange: Exchange) -> None:

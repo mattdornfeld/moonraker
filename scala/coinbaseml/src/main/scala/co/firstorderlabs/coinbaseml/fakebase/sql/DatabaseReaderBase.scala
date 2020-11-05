@@ -4,13 +4,13 @@ import java.time.{Duration, Instant}
 import java.util.logging.Logger
 
 import cats.effect.{Blocker, IO, Resource}
-import co.firstorderlabs.coinbaseml.fakebase.{Configs, Snapshotable}
-import co.firstorderlabs.common.currency.Configs.ProductPrice.productId
-import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrder, BuyMarketOrder, Cancellation, SellLimitOrder, SellMarketOrder}
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.Event
-import co.firstorderlabs.coinbaseml.fakebase.types.Types._
+import co.firstorderlabs.coinbaseml.fakebase.{Configs, Snapshotable}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.productId
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, OrderSide, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.types.Events.Event
+import co.firstorderlabs.common.types.Types._
 import doobie.Query0
 import doobie.hikari.HikariTransactor
 import doobie.implicits._
@@ -69,8 +69,6 @@ abstract class DatabaseReaderBase(
   def getQueryResult(timeInterval: TimeInterval): QueryResult
 
   def getResultMapSize: Int = queryResultMap.size
-
-  protected def populateQueryResultMap(timeInterval: TimeInterval, timeDelta: Duration): Unit
 
   def start(startTime: Instant, endTime: Instant, timeDelta: Duration)
 

@@ -10,9 +10,9 @@ import co.firstorderlabs.coinbaseml.common.protos.{ActionRequest, Actionizer, Fe
 import co.firstorderlabs.coinbaseml.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.{UnrecognizedActionizer, UnrecognizedRewardStrategy}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
-import co.firstorderlabs.common.protos.fakebase.{Order, OrderMessage}
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.coinbaseml.fakebase.{Snapshot, Snapshotable}
+import co.firstorderlabs.common.protos.events.{Order, OrderMessage}
 import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future

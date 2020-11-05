@@ -14,6 +14,7 @@ GRPC_CHANNEL_OPTIONS = [
     ("grpc.max_metadata_size", 100 * 1000 * 1000),
 ]
 FAKBASE_SERVER_JAR = Path(__file__).parent.parent.parent / "coinbaseml.jar"
+FAKEBASE_SERVER_CLASS = "co.firstorderlabs.coinbaseml.fakebase.FakebaseServer"
 FAKBASE_SERVER_DEFAULT_PORT = 9090
 EMPTY_PROTO = Empty()
 

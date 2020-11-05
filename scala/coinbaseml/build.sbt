@@ -8,6 +8,8 @@ lazy val commonSettings = Seq(
   assemblyMergeStrategy in assembly := {
     case "git.properties" => MergeStrategy.first
     case "META-INF/io.netty.versions.properties" => MergeStrategy.first
+    case x if x.contains("netty") => MergeStrategy.first
+    case x if x.endsWith("module-info.class") => MergeStrategy.discard
     case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)
@@ -37,6 +39,11 @@ resolvers ++= Seq(
 libraryDependencies += "org.scalactic" %% "scalactic" % scalaTestVersion
 libraryDependencies += "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
 libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0"
+
+libraryDependencies ++= Seq(
+  "org.knowm.xchange" % "xchange-stream-coinbasepro" % "5.0.3",
+  "com.google.cloud" % "google-cloud-bigquery" % "1.124.1" exclude("com.google.guava", "guava"),
+)
 
 libraryDependencies ++= Seq(
   "org.apache.arrow" % "arrow-algorithm" % apacheArrowVersion,

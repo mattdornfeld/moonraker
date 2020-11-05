@@ -1,6 +1,6 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.Event
+import co.firstorderlabs.common.types.Events.Event
 
 import scala.collection.mutable
 import scala.math.pow

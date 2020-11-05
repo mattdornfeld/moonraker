@@ -3,16 +3,13 @@ package co.firstorderlabs.coinbaseml.fakebase
 import java.math.{BigDecimal, RoundingMode}
 import java.util.UUID
 
-import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
-import co.firstorderlabs.common.protos.fakebase._
-import co.firstorderlabs.coinbaseml.fakebase.types.Events._
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.SelfTrade
-import co.firstorderlabs.coinbaseml.fakebase.types.Types._
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
+import co.firstorderlabs.common.currency.Configs.ProductPrice
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.events.{BuyMarketOrder, Cancellation, DoneReason, Liquidity, Match, OrderSide, OrderStatus, SellMarketOrder}
+import co.firstorderlabs.common.types.Events._
+import co.firstorderlabs.common.types.Types._
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -40,9 +37,9 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
       orderBooks(order.side).removeByOrderId(order.orderId)
 
     if (Account.belongsToAccount(order))
-      Account.closeOrder(order, DoneReason.cancelled)
+      Account.closeOrder(order, DoneReason.canceled)
     else
-      OrderUtils.setOrderStatusToDone(order, DoneReason.cancelled)
+      OrderUtils.setOrderStatusToDone(order, DoneReason.canceled)
   }
 
   override def createSnapshot: MatchingEngineSnapshot =

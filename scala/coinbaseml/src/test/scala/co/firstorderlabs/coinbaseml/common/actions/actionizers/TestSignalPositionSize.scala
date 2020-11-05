@@ -7,9 +7,10 @@ import co.firstorderlabs.coinbaseml.common.protos.{ActionRequest, Actionizer}
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.advanceExchange
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.{observationRequest, simulationStartRequest, simulationStartRequestWarmup}
-import co.firstorderlabs.common.currency.Price.BtcUsdPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.fakebase.{BuyMarketOrder, Liquidity, SellMarketOrder, SimulationStartRequest, StepRequest}
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{SimulationStartRequest, StepRequest}
 import co.firstorderlabs.coinbaseml.fakebase.{Account, Configs, Exchange}
+import co.firstorderlabs.common.currency.Price.BtcUsdPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.events.{BuyMarketOrder, Liquidity, SellMarketOrder}
 import org.scalatest.funspec.AnyFunSpec
 
 class TestSignalPositionSize extends AnyFunSpec {

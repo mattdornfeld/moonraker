@@ -3,14 +3,18 @@ package co.firstorderlabs.coinbaseml.fakebase
 import java.util.UUID
 
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResultOptional
+import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{AccountInfo, AccountServiceGrpc, BuyLimitOrderRequest, BuyMarketOrderRequest, CancellationRequest, SellLimitOrderRequest, SellMarketOrderRequest, Wallets => WalletsProto}
+import co.firstorderlabs.coinbaseml.fakebase.types.Events.{LimitOrderRequest, OrderRequest}
+import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.{InvalidOrderStatus, InvalidOrderType, OrderNotFound}
+import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.currency.Volume.Volume
-import co.firstorderlabs.common.protos.fakebase.{AccountInfo, AccountServiceGrpc, BuyLimitOrder, BuyLimitOrderRequest, BuyMarketOrder, BuyMarketOrderRequest, Cancellation, CancellationRequest, DoneReason, Match, MatchEvents, Order, OrderSide, OrderStatus, Orders, RejectReason, SellLimitOrder, SellLimitOrderRequest, SellMarketOrder, SellMarketOrderRequest, Wallets => WalletsProto}
-import co.firstorderlabs.coinbaseml.fakebase.types.Events._
-import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.{InvalidOrderStatus, InvalidOrderType, OrderNotFound}
-import co.firstorderlabs.coinbaseml.fakebase.types.Types.{OrderId, OrderRequestId, TimeInterval}
-import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
+import co.firstorderlabs.common.protos
+import co.firstorderlabs.common.protos.events
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, Match, MatchEvents, Order, OrderSide, OrderStatus, Orders, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.types.Events._
+import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, TimeInterval}
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 
@@ -142,7 +146,7 @@ object Account
             placedOrders.update(orderId, updatedOrder)
             updatedOrder
           }
-          case order: Order =>
+          case order: OrderEvent =>
             throw InvalidOrderType(
               s"tried to open order of type ${order.getClass}. Can only open orders that have trait LimitOrderEvent"
             )
@@ -274,12 +278,12 @@ object Account
   }
 
   override def getMatches(request: Empty): Future[MatchEvents] = {
-    val matchEvents = MatchEvents(matchesInCurrentTimeInterval.toSeq)
+    val matchEvents = events.MatchEvents(matchesInCurrentTimeInterval.toSeq)
     Future.successful(matchEvents)
   }
 
   override def getOrders(request: Empty): Future[Orders] = {
-    val orders = Orders(
+    val orders = protos.events.Orders(
       placedOrders
         .map(item =>
           (

@@ -6,8 +6,8 @@ import co.firstorderlabs.coinbaseml.common.featurizers.OrderBookFeaturizer.Order
 import co.firstorderlabs.coinbaseml.common.protos.ObservationRequest
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
-import co.firstorderlabs.common.protos.fakebase.OrderSide
 import co.firstorderlabs.coinbaseml.fakebase._
+import co.firstorderlabs.common.protos.events.OrderSide
 
 case class OrderBookFeaturizerSnapshot(featureBuffer: List[OrderBookFeature])
     extends Snapshot
