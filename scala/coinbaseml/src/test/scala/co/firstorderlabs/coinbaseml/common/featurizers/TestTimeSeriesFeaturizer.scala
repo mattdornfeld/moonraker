@@ -4,10 +4,10 @@ import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{SeqUtils, mean, std}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase._
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.StepRequest
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Price.BtcUsdPrice.ProductVolume
+import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.protos.events._
+import co.firstorderlabs.common.protos.fakebase.StepRequest
 import co.firstorderlabs.common.types.Types.OrderId
 import org.scalactic.TolerantNumerics
 import org.scalatest.funspec.AnyFunSpec

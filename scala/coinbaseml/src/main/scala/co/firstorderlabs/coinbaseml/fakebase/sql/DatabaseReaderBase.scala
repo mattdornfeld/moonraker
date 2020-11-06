@@ -8,7 +8,13 @@ import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Snapshotable}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.productId
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, OrderSide, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  BuyMarketOrder,
+  Cancellation,
+  SellLimitOrder,
+  SellMarketOrder
+}
 import co.firstorderlabs.common.types.Events.Event
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
@@ -25,7 +31,7 @@ abstract class DatabaseReaderBase(
     url: String,
     user: String,
     password: String,
-    strategy: Strategy,
+    strategy: Strategy
 ) extends Snapshotable[DatabaseReaderSnapshot] {
   protected val queryResultMap: mutable.AbstractMap[TimeInterval, QueryResult]
   private implicit val contextShift = IO.contextShift(ExecutionContext.global)
@@ -58,13 +64,13 @@ abstract class DatabaseReaderBase(
 
   def buildQueryResult(timeInterval: TimeInterval): QueryResult =
     QueryResult(
-          queryBuyLimitOrders(productId, timeInterval).executeQuery,
-          queryBuyMarketOrders(productId, timeInterval).executeQuery,
-          queryCancellations(productId, timeInterval).executeQuery,
-          querySellLimitOrders(productId, timeInterval).executeQuery,
-          querySellMarketOrders(productId, timeInterval).executeQuery,
-          timeInterval
-        )
+      queryBuyLimitOrders(productId, timeInterval).executeQuery,
+      queryBuyMarketOrders(productId, timeInterval).executeQuery,
+      queryCancellations(productId, timeInterval).executeQuery,
+      querySellLimitOrders(productId, timeInterval).executeQuery,
+      querySellMarketOrders(productId, timeInterval).executeQuery,
+      timeInterval
+    )
 
   def getQueryResult(timeInterval: TimeInterval): QueryResult
 
@@ -82,15 +88,15 @@ abstract class DatabaseReaderBase(
       timeInterval: TimeInterval
   ): Query0[BuyLimitOrder]
 
-  protected def  queryBuyMarketOrders(
+  protected def queryBuyMarketOrders(
       productId: ProductId,
       timeInterval: TimeInterval
   ): Query0[BuyMarketOrder]
 
   protected def querySellLimitOrders(
-        productId: ProductId,
-        timeInterval: TimeInterval
-    ): Query0[SellLimitOrder]
+      productId: ProductId,
+      timeInterval: TimeInterval
+  ): Query0[SellLimitOrder]
 
   protected def querySellMarketOrders(
       productId: ProductId,
@@ -109,7 +115,7 @@ abstract class DatabaseReaderBase(
             .transact(xa)
         }.unsafeRunSync
       }
-  }
+    }
   }
 }
 
@@ -119,6 +125,6 @@ object DatabaseReaderBase {
     PostgresReader.clear
   }
 
-  def areReadersCleared: Boolean = BigQueryReader.isCleared && PostgresReader.isCleared
+  def areReadersCleared: Boolean =
+    BigQueryReader.isCleared && PostgresReader.isCleared
 }
-

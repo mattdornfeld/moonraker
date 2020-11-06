@@ -4,10 +4,12 @@ import java.math.BigDecimal
 import java.util.UUID
 
 import co.firstorderlabs.coinbaseml.fakebase.Wallets.WalletMap
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{Currency, WalletProto, Wallets => WalletsProto}
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.currency.{Constants => CurrencyConstants}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
+import co.firstorderlabs.common.currency.Price.BtcUsdPrice.QuoteVolume
 import co.firstorderlabs.common.currency.Volume.{Volume, VolumeCompanion}
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Liquidity}
+import co.firstorderlabs.common.protos.fakebase.{Currency, WalletProto, Wallets => WalletsProto}
 import co.firstorderlabs.common.types.Events.{SellOrderEvent, _}
 
 import scala.collection.mutable.HashMap
@@ -48,12 +50,12 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
       case order: BuyLimitOrder => {
         val feeFraction =
           if (Exchange.checkIsTaker(order))
-            Constants.feeFraction(Liquidity.taker)
-          else Constants.feeFraction(Liquidity.maker)
+            CurrencyConstants.feeFraction(Liquidity.taker)
+          else CurrencyConstants.feeFraction(Liquidity.maker)
         order.price * order.size * Left(feeFraction.add(new BigDecimal("1.0")))
       }
       case order: BuyMarketOrder => {
-        val feeFraction = Constants.feeFraction(Liquidity.taker)
+        val feeFraction = CurrencyConstants.feeFraction(Liquidity.taker)
         order.funds * Left(feeFraction.add(new BigDecimal("1.0")))
       }
     }

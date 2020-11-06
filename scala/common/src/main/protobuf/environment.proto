@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+import "events.proto";
+
+import "google/protobuf/empty.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  preserve_unknown_fields: false
+  package_name: "co.firstorderlabs.common.protos"
+};
+
+enum Actionizer {
+    SignalPositionSize = 0;
+}
+
+enum InfoDictKey {
+    buyFeesPaid = 0;
+    buyOrdersPlaced = 1;
+    buyVolumeTraded = 2;
+    numOrdersRejected = 3;
+    portfolioValue = 4;
+    sellFeesPaid = 5;
+    sellOrdersPlaced = 6;
+    sellVolumeTraded = 7;
+}
+
+enum RewardStrategy {
+    ReturnRewardStrategy = 0;
+    LogReturnRewardStrategy = 1;
+}
+
+service EnvironmentService {
+    rpc executeAction (ActionRequest) returns (Order) {
+    }
+    rpc getInfoDict (google.protobuf.Empty) returns (InfoDictProto) {
+    }
+    rpc getObservation (ObservationRequest) returns (Observation) {
+    }
+    rpc getReward (RewardRequest) returns (Reward) {
+    }
+}
+
+message ActionRequest {
+    repeated double actorOutput = 1;
+    Actionizer actionizer = 2;
+}
+
+message InfoDictProto {
+    option (scalapb.message).type = "co.firstorderlabs.common.protos.environment.InfoDict";
+    map<string, double> infoDict = 1;
+}
+
+message ObservationRequest {
+    int32 orderBookDepth = 1;
+    bool normalize = 2;
+    RewardRequest rewardRequest = 3;
+}
+
+message Features {
+//    option (scalapb.message).extends = "co.firstorderlabs.common.types.FeaturesBase";
+    repeated double account = 1;
+    repeated double orderBook = 2;
+    repeated double timeSeries = 3;
+}
+
+message Observation {
+    Features features = 1;
+    Reward reward = 2;
+    InfoDictProto infoDict = 3;
+}
+
+message RewardRequest {
+    RewardStrategy rewardStrategy = 1;
+}
+
+message Reward {
+    double reward = 1;
+}

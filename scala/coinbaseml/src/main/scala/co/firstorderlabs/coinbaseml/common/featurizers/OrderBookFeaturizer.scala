@@ -3,10 +3,10 @@ package co.firstorderlabs.coinbaseml.common.featurizers
 import java.util.logging.Logger
 
 import co.firstorderlabs.coinbaseml.common.featurizers.OrderBookFeaturizer.OrderBookFeature
-import co.firstorderlabs.coinbaseml.common.protos.ObservationRequest
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
 import co.firstorderlabs.coinbaseml.fakebase._
+import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.events.OrderSide
 
 case class OrderBookFeaturizerSnapshot(featureBuffer: List[OrderBookFeature])

@@ -1,15 +1,15 @@
 package co.firstorderlabs.coinbaseml.common
 
-import co.firstorderlabs.coinbaseml.common.protos.InfoDictKey
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.doubleEquality
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase._
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase._
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.OrderRequest
 import co.firstorderlabs.common.currency.Configs.ProductPrice
+import co.firstorderlabs.common.protos.environment.InfoDictKey
+import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest, SellLimitOrderRequest, SellMarketOrderRequest, SimulationInfoRequest, StepRequest}
+import co.firstorderlabs.common.types.Events.OrderRequest
 import org.scalatest.funspec.AnyFunSpec
 
 class InfoAggregatorTest extends AnyFunSpec {

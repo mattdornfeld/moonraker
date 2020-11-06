@@ -4,11 +4,13 @@ FROM registry.gitlab.com/moonraker/base_images/coinbase_train_sbt:${BASE_IMAGE_V
 
 ARG TEST_MODE="false"
 
+ARG PROJECT=coinbaseml
+
 ADD ./ /app
 
 WORKDIR /app
 
-RUN if [ "$TEST_MODE" = "true" ] ; then make build-scala test-scala ; else make build-scala ; fi
+RUN if [ "$TEST_MODE" = "true" ] ; then make build-scala test-scala ; else make build-scala project=$PROJECT ; fi
 
 FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:${BASE_IMAGE_VERSION}
 
@@ -18,7 +20,7 @@ ADD ./ /app
 
 WORKDIR /app
 
-COPY --from=sbt-builder /app/coinbaseml.jar ./
+COPY --from=sbt-builder /tmp/moonraker/coinbaseml/coinbaseml.jar /tmp/moonraker/coinbaseml/coinbaseml.jar
 
 RUN make install && \
 	make build-python-protos && \

@@ -3,11 +3,11 @@ package co.firstorderlabs.coinbaseml.common.utils
 import java.time.{Duration, Instant}
 
 import co.firstorderlabs.coinbaseml.common.Environment
-import co.firstorderlabs.coinbaseml.common.types.FeaturesBase
+import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatureUtils
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.observationRequest
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.SimulationStartRequest
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange}
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.fakebase.SimulationStartRequest
 import org.scalatest.funspec.AnyFunSpec
 
 class TestArrowUtils extends AnyFunSpec{
@@ -31,7 +31,7 @@ class TestArrowUtils extends AnyFunSpec{
       TestUtils.advanceExchangeAndPlaceOrders
       val writeFeatures = Environment.construct(observationRequest)
       writeFeatures.writeToSockets
-      val readFeatures = FeaturesBase.fromArrowSockets
+      val readFeatures = ArrowUtils.fromArrowSockets
 
       assert(writeFeatures == readFeatures)
     }

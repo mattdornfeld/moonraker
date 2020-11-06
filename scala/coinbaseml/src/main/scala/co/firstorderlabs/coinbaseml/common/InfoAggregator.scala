@@ -1,49 +1,12 @@
 package co.firstorderlabs.coinbaseml.common
 
-import co.firstorderlabs.coinbaseml.common.protos.{InfoDictKey, InfoDict => InfoDictProto}
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.{Account, Constants, Exchange, SnapshotBuffer}
+import co.firstorderlabs.common.protos.environment.{InfoDict, InfoDictKey}
 import co.firstorderlabs.common.protos.events.Match
 import co.firstorderlabs.common.types.Events.OrderEvent
 
-import scala.collection.mutable
-
-class InfoDict extends mutable.HashMap[InfoDictKey, Double] {
-  def increment(key: InfoDictKey, incrementValue: Double): Unit = {
-    val currentValue = getOrElse(key, 0.0)
-    update(key, currentValue + incrementValue)
-  }
-
-  def instantiate: Unit =
-    InfoDictKey.values.foreach { key =>
-      put(key, 0.0)
-    }
-}
-
-object InfoDict {
-  def fromProto(infoDictProto: InfoDictProto): InfoDict = {
-    val infoDict = new InfoDict
-    infoDictProto.infoDict
-      .map { item =>
-        val key = InfoDictKey.fromName(item._1) match {
-          case Some(key) => key
-          case None =>
-            throw new IllegalArgumentException(
-              s"Key ${item._1} is not a member of InfoDictKeys"
-            )
-        }
-        (key, item._2)
-      }
-      .foreach(item => infoDict.put(item._1, item._2))
-
-    infoDict
-  }
-
-  def toProto(infoDict: InfoDict): InfoDictProto = {
-    InfoDictProto(infoDict.map(item => (item._1.name, item._2)).toMap)
-  }
-}
 
 object InfoAggregator {
   private val infoDict = new InfoDict

@@ -2,15 +2,15 @@ package co.firstorderlabs.coinbaseml.fakebase
 
 import java.time.Duration
 
-import co.firstorderlabs.coinbaseml.common.protos.{ObservationRequest, RewardRequest, RewardStrategy}
 import co.firstorderlabs.coinbaseml.common.utils
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData.lowerOrder
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{BuyLimitOrderRequest, CancellationRequest, SellLimitOrderRequest, SimulationInfoRequest, StepRequest}
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.environment.{ObservationRequest, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.protos.events.OrderSide
+import co.firstorderlabs.common.protos.fakebase.{Wallets => _, _}
 import co.firstorderlabs.common.types.Types.TimeInterval
 import org.scalatest.funspec.AnyFunSpec
 

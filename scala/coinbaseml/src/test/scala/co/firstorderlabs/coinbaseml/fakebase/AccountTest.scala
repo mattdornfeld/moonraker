@@ -5,14 +5,12 @@ import java.time.Duration
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{Wallets => _, _}
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.{BuyOrderRequest, SellOrderRequest}
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.QuoteVolume
-import co.firstorderlabs.common.currency.Price.BtcUsdPrice.ProductVolume
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.events._
-import co.firstorderlabs.common.types.Events._
+import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest, CancellationRequest, SellLimitOrderRequest, SellMarketOrderRequest, StepRequest, Wallets => _}
+import co.firstorderlabs.common.types.Events.{SellOrderRequest, _}
 import org.scalatest.funspec.AnyFunSpec
 
 class AccountTest extends AnyFunSpec {
@@ -85,8 +83,10 @@ class AccountTest extends AnyFunSpec {
         val quoteWallet = Wallets.getWallet(QuoteVolume)
 
         order match {
-          case order: BuyOrderEvent => assert(quoteWallet.holds equalTo order.holds)
-          case order: SellOrderEvent => assert(productWallet.holds equalTo order.holds)
+          case order: BuyOrderEvent =>
+            assert(quoteWallet.holds equalTo order.holds)
+          case order: SellOrderEvent =>
+            assert(productWallet.holds equalTo order.holds)
         }
 
         Account.cancelOrder(new CancellationRequest(order.orderId))
@@ -250,10 +250,13 @@ class AccountTest extends AnyFunSpec {
           Exchange.step(stepRequest)
 
           val expectedMatchPrices =
-            TestUtils.getOrderBookPrices(2, orderRequest match {
-              case _: BuyOrderRequest  => OrderSide.sell
-              case _: SellOrderRequest => OrderSide.buy
-            })
+            TestUtils.getOrderBookPrices(
+              2,
+              orderRequest match {
+                case _: BuyOrderRequest  => OrderSide.sell
+                case _: SellOrderRequest => OrderSide.buy
+              }
+            )
 
           val orderFuture = orderRequest match {
             case orderRequest: BuyLimitOrderRequest =>
@@ -279,22 +282,20 @@ class AccountTest extends AnyFunSpec {
           doneOrder match {
             case doneOrder: BuyLimitOrder => {
               matchEvents.foreach(m => assert(m.price <= doneOrder.price))
-              matchEvents.foreach(
-                m =>
-                  assert(
-                    m.price <= Exchange
-                      .getOrderBook(OrderSide.sell)
-                      .minPrice
-                      .get
+              matchEvents.foreach(m =>
+                assert(
+                  m.price <= Exchange
+                    .getOrderBook(OrderSide.sell)
+                    .minPrice
+                    .get
                 )
               )
             }
             case doneOrder: SellLimitOrder => {
               matchEvents.foreach(m => assert(m.price >= doneOrder.price))
-              matchEvents.foreach(
-                m =>
-                  assert(
-                    m.price >= Exchange.getOrderBook(OrderSide.buy).maxPrice.get
+              matchEvents.foreach(m =>
+                assert(
+                  m.price >= Exchange.getOrderBook(OrderSide.buy).maxPrice.get
                 )
               )
             }
@@ -387,10 +388,13 @@ class AccountTest extends AnyFunSpec {
           Exchange.step(stepRequest)
 
           val expectedMatchPrices =
-            TestUtils.getOrderBookPrices(1, orderRequest match {
-              case _: BuyOrderRequest  => OrderSide.sell
-              case _: SellOrderRequest => OrderSide.buy
-            })
+            TestUtils.getOrderBookPrices(
+              1,
+              orderRequest match {
+                case _: BuyOrderRequest  => OrderSide.sell
+                case _: SellOrderRequest => OrderSide.buy
+              }
+            )
 
           val orderFuture = orderRequest match {
             case orderRequest: BuyLimitOrderRequest =>
@@ -593,10 +597,13 @@ class AccountTest extends AnyFunSpec {
           Exchange.step(stepRequest)
 
           val expectedMatchPrices =
-            TestUtils.getOrderBookPrices(2, orderRequest match {
-              case _: BuyMarketOrderRequest  => OrderSide.sell
-              case _: SellMarketOrderRequest => OrderSide.buy
-            })
+            TestUtils.getOrderBookPrices(
+              2,
+              orderRequest match {
+                case _: BuyMarketOrderRequest  => OrderSide.sell
+                case _: SellMarketOrderRequest => OrderSide.buy
+              }
+            )
 
           val orderFuture = orderRequest match {
             case orderRequest: BuyMarketOrderRequest =>
@@ -624,7 +631,6 @@ class AccountTest extends AnyFunSpec {
           expectedMatchPrices
             .zipAll(matchPrices, ProductPrice.zeroPrice, ProductPrice.zeroPrice)
             .foreach(item => assert(item._1 equalTo item._2))
-
 
           val matchedSize = matchEvents.map(m => m.size).reduce(_ + _)
           val matchedVolume = matchEvents.map(m => m.quoteVolume).reduce(_ + _)
@@ -689,9 +695,13 @@ class AccountTest extends AnyFunSpec {
           val productWallet = Wallets.getWallet(ProductVolume)
           val quoteWallet = Wallets.getWallet(QuoteVolume)
 
-          assert(productWallet.balance equalTo simulationStartRequest.initialProductFunds)
+          assert(
+            productWallet.balance equalTo simulationStartRequest.initialProductFunds
+          )
           assert(productWallet.holds equalTo ProductVolume.zeroVolume)
-          assert(quoteWallet.balance equalTo simulationStartRequest.initialQuoteFunds)
+          assert(
+            quoteWallet.balance equalTo simulationStartRequest.initialQuoteFunds
+          )
           assert(quoteWallet.holds equalTo QuoteVolume.zeroVolume)
       }
     }
@@ -704,7 +714,7 @@ class AccountTest extends AnyFunSpec {
         ProductPrice.productId,
         new ProductVolume(Right("10.000000")),
         false,
-        Some(Duration.ofDays(10)),
+        Some(Duration.ofDays(10))
       )
 
       val sellLimitOrderRequest = new SellLimitOrderRequest(
@@ -712,7 +722,7 @@ class AccountTest extends AnyFunSpec {
         ProductPrice.productId,
         new ProductVolume(Right("10.000000")),
         false,
-        Some(Duration.ofDays(10)),
+        Some(Duration.ofDays(10))
       )
 
       List(
@@ -769,8 +779,12 @@ class AccountTest extends AnyFunSpec {
         val productWallet = Wallets.getWallet(ProductVolume)
         val quoteWallet = Wallets.getWallet(QuoteVolume)
 
-        assert(productWallet.balance equalTo simulationStartRequest.initialProductFunds)
-        assert(quoteWallet.balance equalTo simulationStartRequest.initialQuoteFunds)
+        assert(
+          productWallet.balance equalTo simulationStartRequest.initialProductFunds
+        )
+        assert(
+          quoteWallet.balance equalTo simulationStartRequest.initialQuoteFunds
+        )
         makerOrder match {
           case makerOrder: BuyOrderEvent => {
             assert(productWallet.holds equalTo ProductVolume.zeroVolume)

@@ -2,10 +2,11 @@ package co.firstorderlabs.coinbaseml.fakebase.TestData
 
 import java.time.{Duration, Instant}
 
-import co.firstorderlabs.coinbaseml.common.protos.ObservationRequest
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase._
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
+import co.firstorderlabs.common.currency.Price.BtcUsdPrice.QuoteVolume
+import co.firstorderlabs.common.protos.environment.ObservationRequest
+import co.firstorderlabs.common.protos.fakebase._
 
 object RequestsData {
   val buyLimitOrderRequest = new BuyLimitOrderRequest(

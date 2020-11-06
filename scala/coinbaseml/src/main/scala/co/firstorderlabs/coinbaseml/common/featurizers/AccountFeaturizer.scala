@@ -1,9 +1,9 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
-import co.firstorderlabs.coinbaseml.common.protos.ObservationRequest
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
 import co.firstorderlabs.coinbaseml.fakebase.Wallets
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.environment.ObservationRequest
 
 /** Generates Account specific features
   *

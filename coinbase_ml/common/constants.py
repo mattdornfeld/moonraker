@@ -35,4 +35,4 @@ MONGO_DB_URL = os.environ.get("MONGO_DB_URL", "mongodb://root:password@mongo:270
 SACRED_DB_NAME = "sacred"
 
 # arrow configs
-ARROW_SOCKETS_BASE_DIR = Path("/tmp/coinbaseml/arrow_sockets")
+ARROW_SOCKETS_BASE_DIR = Path("/tmp/moonraker/coinbaseml/arrow_sockets")

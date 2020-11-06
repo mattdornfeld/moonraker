@@ -5,13 +5,14 @@ import java.util.logging.Logger
 import co.firstorderlabs.coinbaseml.common
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.SignalPositionSize
 import co.firstorderlabs.coinbaseml.common.featurizers._
-import co.firstorderlabs.coinbaseml.common.protos.EnvironmentServiceGrpc.EnvironmentService
-import co.firstorderlabs.coinbaseml.common.protos.{ActionRequest, Actionizer, Features, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
 import co.firstorderlabs.coinbaseml.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.{UnrecognizedActionizer, UnrecognizedRewardStrategy}
+import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatureUtils
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.coinbaseml.fakebase.{Snapshot, Snapshotable}
+import co.firstorderlabs.common.protos.environment.EnvironmentServiceGrpc.EnvironmentService
+import co.firstorderlabs.common.protos.environment.{ActionRequest, Actionizer, Features, InfoDict, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.protos.events.{Order, OrderMessage}
 import com.google.protobuf.empty.Empty
 
@@ -82,7 +83,7 @@ object Environment
     Future.successful(reward)
   }
 
-  override def getInfoDict(request: Empty): Future[common.InfoDict] =
+  override def getInfoDict(request: Empty): Future[InfoDict] =
     Future.successful(InfoAggregator.getInfoDict)
 
   def start(snapshotBufferSize: Int): Unit = {

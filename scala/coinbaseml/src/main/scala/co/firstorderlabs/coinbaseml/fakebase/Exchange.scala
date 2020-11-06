@@ -4,20 +4,19 @@ import java.time.{Duration, Instant}
 import java.util.UUID.randomUUID
 import java.util.logging.Logger
 
-import co.firstorderlabs.coinbaseml.common.protos.ObservationRequest
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.coinbaseml.common.{Environment, InfoAggregator}
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.DatabaseBackend.{BigQuery, Postgres}
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{ExchangeInfo, ExchangeServiceGrpc, OrderBooks, OrderBooksRequest, SimulationInfo, SimulationInfoRequest, SimulationStartRequest, SimulationType, StepRequest}
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.coinbaseml.fakebase.sql.{BigQueryReader, DatabaseReaderBase, PostgresReader}
-import co.firstorderlabs.common.types.Events.{Event, LimitOrderEvent, OrderEvent}
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.{SimulationNotStarted, SnapshotBufferNotFull}
-import co.firstorderlabs.common.types.Types.TimeInterval
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
-import co.firstorderlabs.common.protos.events
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.events.{MatchEvents, OrderSide}
+import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{BigQuery, Postgres}
+import co.firstorderlabs.common.protos.fakebase._
+import co.firstorderlabs.common.protos.{events, fakebase}
+import co.firstorderlabs.common.types.Events.{Event, LimitOrderEvent, OrderEvent}
+import co.firstorderlabs.common.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future
@@ -331,7 +330,7 @@ object Exchange
         case None => None
       }
 
-      SimulationInfo(Some(exchangeInfo), observation)
+      fakebase.SimulationInfo(Some(exchangeInfo), observation)
     } else {
       SimulationInfo()
     }

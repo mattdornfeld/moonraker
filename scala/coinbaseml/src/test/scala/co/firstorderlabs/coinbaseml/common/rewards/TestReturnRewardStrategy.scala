@@ -1,9 +1,9 @@
 package co.firstorderlabs.coinbaseml.common.rewards
 
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.CancellationRequest
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.fakebase.CancellationRequest
 import org.scalatest.funspec.AnyFunSpec
 
 class TestReturnRewardStrategy extends AnyFunSpec {

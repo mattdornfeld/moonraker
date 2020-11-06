@@ -6,29 +6,29 @@ ENVIRONMENT_PROTOS_DIR=./
 mkdir -p scalapb
 
 python3 -m grpc_tools.protoc \
-    -I scala/coinbaseml/src/main/protobuf \
+    -I scala/common/src/main/protobuf \
     --mypy_out=$EVENTS_PROTOS_DIR \
     --python_out=$EVENTS_PROTOS_DIR \
     --grpc_python_out=$EVENTS_PROTOS_DIR \
-    scala/coinbaseml/src/main/protobuf/events.proto
+    scala/common/src/main/protobuf/events.proto
 
 python3 -m grpc_tools.protoc \
-    -I scala/coinbaseml/src/main/protobuf \
+    -I scala/common/src/main/protobuf \
     --mypy_out=$SCALAPB_PROTOS_DIR \
     --python_out=$SCALAPB_PROTOS_DIR \
     --grpc_python_out=$SCALAPB_PROTOS_DIR \
-    scala/coinbaseml/src/main/protobuf/scalapb/scalapb.proto
+    scala/common/src/main/protobuf/scalapb/scalapb.proto
 
 python3 -m grpc_tools.protoc \
-    -I scala/coinbaseml/src/main/protobuf \
+    -I scala/common/src/main/protobuf \
     --mypy_out=$FAKEBASE_PROTOS_DIR \
     --python_out=$FAKEBASE_PROTOS_DIR \
     --grpc_python_out=$FAKEBASE_PROTOS_DIR \
-    scala/coinbaseml/src/main/protobuf/fakebase.proto
+    scala/common/src/main/protobuf/fakebase.proto
 
 python3 -m grpc_tools.protoc \
-    -I scala/coinbaseml/src/main/protobuf \
+    -I scala/common/src/main/protobuf \
     --mypy_out=$ENVIRONMENT_PROTOS_DIR \
     --python_out=$ENVIRONMENT_PROTOS_DIR \
     --grpc_python_out=$ENVIRONMENT_PROTOS_DIR \
-    scala/coinbaseml/src/main/protobuf/environment.proto
+    scala/common/src/main/protobuf/environment.proto

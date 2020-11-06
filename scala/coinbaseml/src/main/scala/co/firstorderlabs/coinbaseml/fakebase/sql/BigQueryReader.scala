@@ -2,9 +2,9 @@ package co.firstorderlabs.coinbaseml.fakebase.sql
 
 import java.time.{Duration, Instant}
 
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.OrderType
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, OrderSide, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.protos.fakebase.OrderType
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
 import doobie.implicits._

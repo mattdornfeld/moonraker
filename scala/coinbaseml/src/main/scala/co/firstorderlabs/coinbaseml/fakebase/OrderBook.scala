@@ -1,14 +1,12 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-import java.time.Duration
-
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
+import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.OrderBookEmpty
+import co.firstorderlabs.coinbaseml.fakebase.utils.IndexedLinkedList
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
-import co.firstorderlabs.common.types.Events.LimitOrderEvent
-import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.OrderBookEmpty
+import co.firstorderlabs.common.types.Events.{LimitOrderEvent, OrderBookKey}
 import co.firstorderlabs.common.types.Types.OrderId
-import co.firstorderlabs.coinbaseml.fakebase.utils.IndexedLinkedList
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -24,8 +22,6 @@ case class OrderBookSnapshot(
     orderIdLookup: mutable.HashMap[OrderId, LimitOrderEvent],
     priceTree: PriceTree
 ) extends Snapshot
-
-case class OrderBookKey(price: ProductPrice, time: Duration, degeneracy: Int)
 
 case class PriceGlob(price: ProductPrice) {
   val orders = new IndexedLinkedList[OrderBookKey, LimitOrderEvent]
