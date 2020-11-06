@@ -13,9 +13,8 @@ build:
 	make build-scala build-python-protos
 
 build-scala:
-	cd scala/coinbaseml && \
-	sbt clean assembly && \
-	mv target/scala-2.13/coinbaseml-assembly-*.jar ../../coinbaseml.jar
+	cd scala && \
+	sbt "project $(project)" clean assembly
 
 build-python-protos:
 	chmod u+x bin/build_python_protos && bin/build_python_protos
@@ -51,4 +50,4 @@ test-unit:
 	python3 setup.py test --addopts "-s ${PYTEST_IGNORE}"
 
 test-scala:
-	cd scala/coinbaseml && sbt test
+	cd scala && sbt test

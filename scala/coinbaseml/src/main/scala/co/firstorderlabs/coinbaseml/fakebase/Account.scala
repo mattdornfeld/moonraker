@@ -3,17 +3,15 @@ package co.firstorderlabs.coinbaseml.fakebase
 import java.util.UUID
 
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResultOptional
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.{AccountInfo, AccountServiceGrpc, BuyLimitOrderRequest, BuyMarketOrderRequest, CancellationRequest, SellLimitOrderRequest, SellMarketOrderRequest, Wallets => WalletsProto}
-import co.firstorderlabs.coinbaseml.fakebase.types.Events.{LimitOrderRequest, OrderRequest}
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.{InvalidOrderStatus, InvalidOrderType, OrderNotFound}
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.currency.Volume.Volume
-import co.firstorderlabs.common.protos
 import co.firstorderlabs.common.protos.events
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, Match, MatchEvents, Order, OrderSide, OrderStatus, Orders, RejectReason, SellLimitOrder, SellMarketOrder}
-import co.firstorderlabs.common.types.Events._
+import co.firstorderlabs.common.protos.fakebase.{AccountInfo, AccountServiceGrpc, BuyLimitOrderRequest, BuyMarketOrderRequest, CancellationRequest, SellLimitOrderRequest, SellMarketOrderRequest, Wallets => WalletsProto}
+import co.firstorderlabs.common.types.Events.{LimitOrderRequest, OrderRequest, _}
 import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, TimeInterval}
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
@@ -83,7 +81,11 @@ object Account
       .foreach { item =>
         item._2 match {
           case order: LimitOrderEvent => {
-            if (order.isExpired) {
+            if (
+              order.isExpired(
+                Exchange.getSimulationMetadata.currentTimeInterval
+              )
+            ) {
               val cancellationRequest = CancellationRequest(order.orderId)
               cancelOrder(cancellationRequest)
             }
@@ -283,7 +285,7 @@ object Account
   }
 
   override def getOrders(request: Empty): Future[Orders] = {
-    val orders = protos.events.Orders(
+    val orders = Orders(
       placedOrders
         .map(item =>
           (

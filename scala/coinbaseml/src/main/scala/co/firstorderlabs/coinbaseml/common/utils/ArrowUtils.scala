@@ -3,6 +3,8 @@ package co.firstorderlabs.coinbaseml.common.utils
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.channels.Channels
 
+import co.firstorderlabs.coinbaseml.fakebase.Exchange
+import co.firstorderlabs.common.protos.environment.Features
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.message.IpcOption
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
@@ -15,6 +17,53 @@ import scala.jdk.CollectionConverters._
   */
 object ArrowUtils {
   private val allocator = new RootAllocator()
+  private val socketDir = "/tmp/moonraker/coinbaseml/arrow_sockets"
+
+  def fromArrowSockets(): Features =
+    new Features(
+      readVectorFromSocket(new File(socketFileDir, "account.socket")),
+      readVectorFromSocket(new File(socketFileDir, "orderBook.socket")),
+      readVectorFromSocket(new File(socketFileDir, "timeSeries.socket"))
+    )
+
+  def socketFileDir: File = {
+    val file = new File(
+      s"${socketDir}/${Exchange.getSimulationMetadata.simulationId}"
+    )
+    file.deleteOnExit
+    file
+  }
+
+  private def readVectorFromSocket(socketFile: File): List[Double] = {
+    val reader = new ArrowUtils.SocketReader(socketFile)
+    reader.hasNext
+    val vector = reader.next
+    val listDouble =
+      for (i <- (0 to vector.getValueCount - 1).toList)
+        yield vector.getValueAsDouble(i)
+    reader.close
+    vector.close
+    listDouble
+  }
+
+  implicit class ArrowFeatureUtils(features: Features) {
+    def writeToSockets: Unit = {
+      if (!socketFileDir.exists) {
+        socketFileDir.mkdirs
+      }
+
+      Seq(
+        (features.account, "account"),
+        (features.orderBook, "orderBook"),
+        (features.timeSeries, "timeSeries")
+      ).foreach(item =>
+        item._1
+          .writeToSocket(
+            new File(socketFileDir, s"${item._2}.socket")
+          )
+      )
+    }
+  }
 
   /** Enhances a Seq[Double] with functionality to transmit its contents with Apache Arrow
     *

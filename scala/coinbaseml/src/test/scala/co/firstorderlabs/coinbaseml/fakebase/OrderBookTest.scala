@@ -7,7 +7,7 @@ import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData._
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData
 import co.firstorderlabs.coinbaseml.fakebase.utils.DuplicateKey
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Price.BtcUsdPrice.ProductVolume
+import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, OrderSide}
 import org.scalatest.funspec.AnyFunSpec
 

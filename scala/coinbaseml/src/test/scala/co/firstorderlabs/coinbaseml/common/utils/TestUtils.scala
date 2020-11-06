@@ -2,11 +2,11 @@ package co.firstorderlabs.coinbaseml.common.utils
 
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.buyMarketOrderRequest
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.StepRequest
 import co.firstorderlabs.coinbaseml.fakebase.{Account, Exchange}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Price.BtcUsdPrice.ProductVolume
+import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.protos.events.OrderSide
+import co.firstorderlabs.common.protos.fakebase.StepRequest
 import org.scalactic.TolerantNumerics
 
 import scala.math.pow

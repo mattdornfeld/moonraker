@@ -3,8 +3,8 @@ package co.firstorderlabs.coinbaseml.common.rewards
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.doubleEquality
 import co.firstorderlabs.coinbaseml.common.utils.Utils.logEpsilon
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
-import co.firstorderlabs.coinbaseml.fakebase.protos.fakebase.CancellationRequest
 import co.firstorderlabs.coinbaseml.fakebase.{Account, Configs, Constants, Exchange}
+import co.firstorderlabs.common.protos.fakebase.CancellationRequest
 import org.scalatest.funspec.AnyFunSpec
 
 class TestLogReturnRewardStrategy extends AnyFunSpec{
