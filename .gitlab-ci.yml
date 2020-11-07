@@ -38,6 +38,12 @@ tests:
    DOCKER_DRIVER: overlay2
    DOCKER_HOST: tcp://docker:2375/
 
+helm_charts:
+  extends: .package_helm_chart
+
+  variables:
+    CHART_NAME: bqwriter,coinbase-ml-train,coinbase-ml-serve,coinbase-kafka-producer
+
 bqwriter_image:
   extends: .build_image
 
@@ -47,6 +53,7 @@ bqwriter_image:
 
   only:
     refs:
+      - master
       - merge_requests
     changes:
       - dockerfiles/Dockerfile.bqwriter
@@ -55,6 +62,21 @@ bqwriter_image:
       - scala/common/**/*
       - scala/bqWriterDependencies.scala
       - scala/project/CommonDependencies.scala
+
+.coinbaseml_files: &coinbaseml_files
+  - coinbaseml/**/*
+  - coinbaseml_tests/**/*
+  - dockerfiles/Dockerfile.cpu
+  - dockerfiles/Dockerfile.gpu
+  - helm/coinbase-ml-train/**/*
+  - helm/coinbase-ml-serve/**/*
+  - notebooks/**/*
+  - scala/coinbaseml/**/*
+  - scala/common/**/*
+  - scala/project/CommonDependencies.scala
+  - scala/project/CoinbasemlDependencies.scala
+  - setup.cfg
+  - setup.py
 
 gpu_image:
   extends: .build_image
@@ -65,21 +87,9 @@ gpu_image:
 
   only:
     refs:
+      - master
       - merge_requests
-    changes:
-      - coinbaseml/**/*
-      - coinbaseml_tests/**/*
-      - dockerfiles/Dockerfile.cpu
-      - dockerfiles/Dockerfile.gpu
-      - helm/coinbase-ml-train/**/*
-      - helm/coinbase-ml-serve/**/*
-      - notebooks/**/*
-      - scala/coinbaseml/**/*
-      - scala/common/**/*
-      - scala/project/CommonDependencies.scala
-      - scala/project/CoinbasemlDependencies.scala
-      - setup.cfg
-      - setup.py
+    changes: *coinbaseml_files
 
 cpu_image:
   extends: .build_image
@@ -90,40 +100,9 @@ cpu_image:
 
   only:
     refs:
+      - master
       - merge_requests
-    changes:
-      - coinbaseml/**/*
-      - coinbaseml_tests/**/*
-      - dockerfiles/Dockerfile.cpu
-      - dockerfiles/Dockerfile.gpu
-      - helm/coinbase-ml-train/**/*
-      - helm/coinbase-ml-serve/**/*
-      - notebooks/**/*
-      - scala/coinbaseml/**/*
-      - scala/common/**/*
-      - scala/project/CommonDependencies.scala
-      - scala/project/CoinbasemlDependencies.scala
-      - setup.cfg
-      - setup.py
-
-helm_charts:
-  extends: .package_helm_chart
-
-  variables:
-    CHART_NAME: bqwriter,coinbase-ml-train,coinbase-ml-serve,coinbase-kafka-producer
-
-
-# deploy_helm_chart_dry_run:
-#   # We do this in the before_script here because Gitlab had trouble interpolating the VERSION_TAG variable
-#   # passing helm_deploy_args in as an environment variable
-#   before_script:
-#     - *version_tag_script
-#     - *helm_deploy_args
-
-#   extends: .deploy_helm_chart_dry_run
-
-#   variables:
-#     CHART_PATH: helm/coinbase-ml-train
+    changes: *coinbaseml_files
 
 .helm_deploy_args: &helm_deploy_args |
   HELM_ARGS="--set CI_TOKEN=${CI_TOKEN}
@@ -146,11 +125,11 @@ coinbase_train:
 
   extends: .deploy_helm_chart
 
-  needs:
-    - cpu_image
-    - gpu_image
-    - helm_charts
-    - tests
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
 
   variables:
     CHART_NAME: coinbase-ml-train
@@ -162,6 +141,12 @@ delete_coinbase_train:
     action: stop
 
   extends: .delete_helm_release
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
 
   variables:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
@@ -192,11 +177,11 @@ coinbase_serve:
 
   extends: .deploy_helm_chart
 
-  needs:
-    - cpu_image
-    - gpu_image
-    - helm_charts
-    - tests
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
 
   variables:
     CHART_NAME: coinbase-ml-serve
@@ -208,6 +193,12 @@ delete_coinbase_serve:
     action: stop
 
   extends: .delete_helm_release
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
 
   variables:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-serve
@@ -226,11 +217,11 @@ coinbase_kafka_producer:
 
   extends: .deploy_helm_chart
 
-  needs:
-    - cpu_image
-    - gpu_image
-    - helm_charts
-    - tests
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
 
   variables:
     CHART_NAME: coinbase-kafka-producer
@@ -242,6 +233,12 @@ delete_coinbase_kafka_producer:
     action: stop
 
   extends: .delete_helm_release
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
 
   variables:
     RELEASE_NAME: coinbase-kafka-producer-$CI_COMMIT_REF_NAME
