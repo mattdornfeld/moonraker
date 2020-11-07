@@ -12,3 +12,19 @@ job:
   model_server:
     num_cpus: 2.6
     memory: 10000Mi
+
+# Add in dummy values for secrets so linting passes
+SANDBOX_COINBASE_API_KEY_B64SECRET: test
+SANDBOX_COINBASE_API_KEY_NAME: test
+SANDBOX_COINBASE_API_KEY_PASSPHRASE: test
+
+gitlab-token-secret:
+  CI_TOKEN: test
+
+mongo-db-secret:
+  mongodb_url: test
+
+gitlab-registry-secret:
+  registry:
+    username: test
+    password: test

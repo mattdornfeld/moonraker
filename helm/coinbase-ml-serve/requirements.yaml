@@ -3,9 +3,9 @@ dependencies:
     repository: gs://moonraker-helm-repo
     version: 0.1.0-15f76e9d9bfdab1c0408b6d1a148be7802a496f8
 
-  - name: moonraker-common
+  - name: gitlab-registry-secret
     repository: gs://moonraker-helm-repo
-    version: ~0.9.0
+    version: 0.1.0-b927e28fa9c65a8cde450190744c0c2fce7076b3
 
   - name: gitlab-token-secret
     repository: gs://moonraker-helm-repo

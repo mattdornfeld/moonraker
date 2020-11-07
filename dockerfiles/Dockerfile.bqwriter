@@ -1,0 +1,15 @@
+ARG BASE_IMAGE_VERSION=0.1.0-e4d3dbe7f92d53434968194ad4842dce0df70562
+
+FROM registry.gitlab.com/moonraker/base_images/coinbase_train_sbt:${BASE_IMAGE_VERSION} AS sbt-builder
+
+ADD ./scala /app
+
+WORKDIR /app
+
+RUN make build project=bqwriter
+
+FROM openjdk:14-alpine
+
+COPY --from=sbt-builder /tmp/moonraker/bqwriter/bqwriter.jar /tmp/moonraker/bqwriter/bqwriter.jar
+
+CMD java -jar /tmp/moonraker/bqwriter/bqwriter.jar

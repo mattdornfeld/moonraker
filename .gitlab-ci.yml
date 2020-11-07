@@ -3,10 +3,6 @@ include:
     file: '.gitlab-ci-templates.yml'
     ref: master
 
-stages:
-  - build
-  - deploy
-
 variables:
   K8S_NAMESPACE: moonraker
   NEXT_RELEASE_TYPE: minor
@@ -22,7 +18,7 @@ variables:
   echo 'export VERSION_TAG environment variable' && set -o allexport && if [ -f "semantic_version.env" ]; then source semantic_version.env; else VERSION_TAG=0.1.0-${CI_COMMIT_SHA}; fi && set +o allexport
   export VERSION_TAG
 
-build:tests:
+tests:
   extends: .base_test
 
   image: tmaier/docker-compose
@@ -42,29 +38,82 @@ build:tests:
    DOCKER_DRIVER: overlay2
    DOCKER_HOST: tcp://docker:2375/
 
-build:build_gpu_image:
+bqwriter_image:
+  extends: .build_image
+
+  variables:
+   DOCKER_ARGS: '-f dockerfiles/Dockerfile.bqwriter'
+   DOCKER_REPO: $CI_REGISTRY_IMAGE/bqwriter
+
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - dockerfiles/Dockerfile.bqwriter
+      - helm/bqwriter/**/*
+      - scala/bqwriter/**/*
+      - scala/common/**/*
+      - scala/bqWriterDependencies.scala
+      - scala/project/CommonDependencies.scala
+
+gpu_image:
   extends: .build_image
 
   variables:
    DOCKER_ARGS: '-f dockerfiles/Dockerfile.gpu'
    DOCKER_REPO: $CI_REGISTRY_IMAGE/gpu
 
-build:build_cpu_image:
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - coinbaseml/**/*
+      - coinbaseml_tests/**/*
+      - dockerfiles/Dockerfile.cpu
+      - dockerfiles/Dockerfile.gpu
+      - helm/coinbase-ml-train/**/*
+      - helm/coinbase-ml-serve/**/*
+      - notebooks/**/*
+      - scala/coinbaseml/**/*
+      - scala/common/**/*
+      - scala/project/CommonDependencies.scala
+      - scala/project/CoinbasemlDependencies.scala
+      - setup.cfg
+      - setup.py
+
+cpu_image:
   extends: .build_image
 
   variables:
    DOCKER_ARGS: '-f dockerfiles/Dockerfile.cpu'
    DOCKER_REPO: $CI_REGISTRY_IMAGE/cpu
 
-build:package_helm_charts:
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - coinbaseml/**/*
+      - coinbaseml_tests/**/*
+      - dockerfiles/Dockerfile.cpu
+      - dockerfiles/Dockerfile.gpu
+      - helm/coinbase-ml-train/**/*
+      - helm/coinbase-ml-serve/**/*
+      - notebooks/**/*
+      - scala/coinbaseml/**/*
+      - scala/common/**/*
+      - scala/project/CommonDependencies.scala
+      - scala/project/CoinbasemlDependencies.scala
+      - setup.cfg
+      - setup.py
+
+helm_charts:
   extends: .package_helm_chart
 
   variables:
-    HELM_ARGS: "--dependency-update"
-    CHART_NAME: coinbase-ml-train,coinbase-ml-serve,coinbase-kafka-producer
+    CHART_NAME: bqwriter,coinbase-ml-train,coinbase-ml-serve,coinbase-kafka-producer
 
 
-# build:deploy_helm_chart_dry_run:
+# deploy_helm_chart_dry_run:
 #   # We do this in the before_script here because Gitlab had trouble interpolating the VERSION_TAG variable
 #   # passing helm_deploy_args in as an environment variable
 #   before_script:
@@ -86,22 +135,28 @@ build:package_helm_charts:
   --set ray.worker_deployments.cpu-workers.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
   --set service_account_json=${SERVICE_ACCOUNT_JSON}"
 
-deploy:deploy_coinbase_train:
+coinbase_train:
   before_script:
     - *version_tag_script
     - *helm_deploy_args
 
   environment:
     name: staging/train-$CI_COMMIT_REF_NAME
-    on_stop: deploy:delete_coinbase_train
+    on_stop: delete_coinbase_train
 
   extends: .deploy_helm_chart
+
+  needs:
+    - cpu_image
+    - gpu_image
+    - helm_charts
+    - tests
 
   variables:
     CHART_NAME: coinbase-ml-train
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
 
-deploy:delete_coinbase_train:
+delete_coinbase_train:
   environment:
     name: staging/train-$CI_COMMIT_REF_NAME
     action: stop
@@ -110,16 +165,6 @@ deploy:delete_coinbase_train:
 
   variables:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
-
-deploy:delete_coinbase_kafka_producer:
-  environment:
-    name: staging/coinbase-kafka-producer-$CI_COMMIT_REF_NAME
-    action: stop
-
-  extends: .delete_helm_release
-
-  variables:
-    RELEASE_NAME: coinbase-kafka-producer-$CI_COMMIT_REF_NAME
 
 .helm_serve_deploy_args: &helm_serve_deploy_args |
   HELM_ARGS="--set gcp-service-account-secret.service_account_json=${SERVICE_ACCOUNT_JSON}
@@ -136,22 +181,28 @@ deploy:delete_coinbase_kafka_producer:
   --set SANDBOX_COINBASE_API_KEY_NAME=${SANDBOX_COINBASE_API_KEY_NAME}"
 
 
-deploy:deploy_coinbase_serve:
+coinbase_serve:
   before_script:
     - *version_tag_script
     - *helm_serve_deploy_args
 
   environment:
     name: staging/serve-$CI_COMMIT_REF_NAME
-    on_stop: deploy:delete_coinbase_serve
+    on_stop: delete_coinbase_serve
 
   extends: .deploy_helm_chart
+
+  needs:
+    - cpu_image
+    - gpu_image
+    - helm_charts
+    - tests
 
   variables:
     CHART_NAME: coinbase-ml-serve
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-serve
 
-deploy:delete_coinbase_serve:
+delete_coinbase_serve:
   environment:
     name: staging/serve-$CI_COMMIT_REF_NAME
     action: stop
@@ -165,7 +216,7 @@ deploy:delete_coinbase_serve:
   HELM_ARGS="--set moonraker-common.registry.password=${CI_TOKEN}
   --set moonraker-common.registry.username=${CI_USERNAME}"
 
-deploy:deploy_coinbase_kafka_producer:
+coinbase_kafka_producer:
   before_script:
     - *version_tag_script
     - *helm_coinbase_kafka_producer_deploy_args
@@ -175,6 +226,22 @@ deploy:deploy_coinbase_kafka_producer:
 
   extends: .deploy_helm_chart
 
+  needs:
+    - cpu_image
+    - gpu_image
+    - helm_charts
+    - tests
+
   variables:
     CHART_NAME: coinbase-kafka-producer
+    RELEASE_NAME: coinbase-kafka-producer-$CI_COMMIT_REF_NAME
+
+delete_coinbase_kafka_producer:
+  environment:
+    name: staging/coinbase-kafka-producer-$CI_COMMIT_REF_NAME
+    action: stop
+
+  extends: .delete_helm_release
+
+  variables:
     RELEASE_NAME: coinbase-kafka-producer-$CI_COMMIT_REF_NAME
