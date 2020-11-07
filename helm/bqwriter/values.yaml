@@ -1,7 +1,6 @@
-kafkaHosts: "kafka-headless:9092"
 resources:
-  num_cpus: 0.25
-  memory: 200Mi
+  memory: 1Gi
+  num_cpus: 1.0
 
 gitlab-registry-secret:
   registry:

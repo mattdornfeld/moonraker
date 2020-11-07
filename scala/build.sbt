@@ -1,3 +1,7 @@
+import CommonDependencies.commonDependencies
+import BqWriterDependencies.bqWriterDependencies
+import CoinbasemlDependencies.coinbasemlDependencies
+
 organization in ThisBuild := "co.firstorderlabs"
 scalaVersion in ThisBuild := "2.13.1"
 
@@ -22,7 +26,7 @@ lazy val bqwriter = project
   .settings(
     name := "bqwriter",
     commonSettings,
-    libraryDependencies ++= commonDependencies ++ bqWriterDependencies,
+    libraryDependencies ++= bqWriterDependencies,
     assemblyOutputPath in assembly := file("/tmp/moonraker/bqwriter/bqwriter.jar"),
     )
   .dependsOn(common)
@@ -31,7 +35,7 @@ lazy val coinbaseml = project
   .settings(
     name := "coinbaseml",
     commonSettings,
-    libraryDependencies ++= commonDependencies ++ coinbasemlDependencies,
+    libraryDependencies ++= coinbasemlDependencies,
     assemblyOutputPath in assembly := file("/tmp/moonraker/coinbaseml/coinbaseml.jar"),
     )
   .dependsOn(common)
@@ -57,33 +61,4 @@ resolvers in Global ++= Seq(
   "TypeSafe Repository Releases"  at "https://repo.typesafe.com/typesafe/releases/",
   "TypeSafe Repository Snapshots" at "https://repo.typesafe.com/typesafe/snapshots/",
   Resolver.sonatypeRepo("releases"),
-)
-
-lazy val apacheArrowVersion = "1.0.1"
-lazy val googleCloudBigqueryVersion = "1.124.2"
-lazy val catsVersion = "2.0.0"
-lazy val doobieVersion = "0.9.0"
-lazy val scalaTestVersion = "3.1.1"
-lazy val xchangeVersion = "5.0.3"
-
-lazy val commonDependencies = Seq(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
-  "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
-  "org.scalactic" %% "scalactic" % scalaTestVersion,
-  "org.scalatest" %% "scalatest" % scalaTestVersion % "test",
-)
-
-lazy val coinbasemlDependencies = Seq(
-  "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
-  "org.apache.arrow" % "arrow-algorithm" % apacheArrowVersion,
-  "org.apache.arrow" % "arrow-memory-netty" % apacheArrowVersion,
-  "org.tpolecat" %% "doobie-core" % doobieVersion,
-  "org.tpolecat" %% "doobie-hikari" % doobieVersion,
-  "org.tpolecat" %% "doobie-postgres"  % doobieVersion,
-  "org.typelevel" %% "cats-core" % catsVersion,
-)
-
-lazy val bqWriterDependencies = Seq(
-  "org.knowm.xchange" % "xchange-stream-coinbasepro" % xchangeVersion,
-  "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigqueryVersion exclude("com.google.guava", "guava"),
 )

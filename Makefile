@@ -13,8 +13,7 @@ build:
 	make build-scala build-python-protos
 
 build-scala:
-	cd scala && \
-	sbt "project $(project)" clean assembly
+	cd scala && make build $(project)
 
 build-python-protos:
 	chmod u+x bin/build_python_protos && bin/build_python_protos
@@ -50,4 +49,4 @@ test-unit:
 	python3 setup.py test --addopts "-s ${PYTEST_IGNORE}"
 
 test-scala:
-	cd scala && sbt test
+	cd scala && make test

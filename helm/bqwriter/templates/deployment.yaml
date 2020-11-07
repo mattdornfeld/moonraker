@@ -1,0 +1,54 @@
+---
+{{$release_name := .Release.Name | trunc 14}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{$release_name}}-bqwriter
+  labels:
+    app: bqwriter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      pod-selector: {{$release_name}}-bqwriter
+  template:
+    metadata:
+      labels:
+        pod-selector: {{$release_name}}-bqwriter
+
+    spec:
+      {{- if .Values.node_group}}
+      nodeSelector:
+        node-group: {{.Values.node_group}}
+      tolerations:
+        - key: node-group
+          operator: "Equal"
+          effect: "NoSchedule"
+          value: {{.Values.node_group}}
+      {{- end}}
+      imagePullSecrets:
+        - name: {{.Release.Name}}-registry-credentials
+      restartPolicy: Always
+      containers:
+        - name: bqwriter
+          env:
+          {{- range .Values.env }}
+            - name: {{.name}}
+              value: {{.value}}
+          {{- end }}
+          image: "registry.gitlab.com/moonraker/coinbase_train/bqwriter:{{.Chart.Version}}"
+          resources:
+            limits:
+              cpu: {{.Values.resources.num_cpus}}
+              memory: {{.Values.resources.memory}}
+
+          volumeMounts:
+            - mountPath: /secrets
+              name: service-account-json
+              readOnly: true
+
+      volumes:
+        - name: service-account-json
+          secret:
+            secretName: {{$release_name}}-service-account-json
