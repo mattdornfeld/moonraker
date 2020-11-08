@@ -66,7 +66,7 @@ bqwriter_image:
     changes: *bqwriter_files
 
 .bqwriter_deploy_args: &bqwriter_deploy_args |
-  HELM_ARGS="--set ENVIRONMENT=${CI_COMMIT_REF_NAME}
+  HELM_ARGS="--set env.ENVIRONMENT=${CI_COMMIT_REF_NAME}
   --set gitlab-registry-secret.registry.username=${CI_USERNAME}
   --set gitlab-registry-secret.registry.password=${CI_TOKEN}
   --set service_account_json=${BQWRITER_SERVICE_ACCOUNT_JSON}"
