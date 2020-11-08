@@ -28,14 +28,14 @@ spec:
           value: {{.Values.node_group}}
       {{- end}}
       imagePullSecrets:
-        - name: {{.Release.Name}}-registry-credentials
+        - name: {{$release_name}}-registry-credentials
       restartPolicy: Always
       containers:
         - name: bqwriter
           env:
-          {{- range .Values.env }}
-            - name: {{.name}}
-              value: {{.value}}
+          {{- range $key, $value := .Values.env }}
+            - name: {{$key}}
+              value: {{$value}}
           {{- end }}
           image: "registry.gitlab.com/moonraker/coinbase_train/bqwriter:{{.Chart.Version}}"
           resources:
@@ -44,7 +44,7 @@ spec:
               memory: {{.Values.resources.memory}}
 
           volumeMounts:
-            - mountPath: /secrets
+            - mountPath: /var/moonraker/bqwriter
               name: service-account-json
               readOnly: true
 

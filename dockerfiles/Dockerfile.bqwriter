@@ -8,7 +8,7 @@ WORKDIR /app
 
 RUN make build project=bqwriter
 
-FROM openjdk:14-alpine
+FROM adoptopenjdk/openjdk14:jre-14.0.2_12-alpine
 
 COPY --from=sbt-builder /tmp/moonraker/bqwriter/bqwriter.jar /tmp/moonraker/bqwriter/bqwriter.jar
 

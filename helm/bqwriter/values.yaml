@@ -1,6 +1,12 @@
+env:
+  ENVIRONMENT: staging
+
 resources:
   memory: 1Gi
   num_cpus: 1.0
+
+# Mock values for secrets so linting doesn't fail
+service_account_json: test
 
 gitlab-registry-secret:
   registry:

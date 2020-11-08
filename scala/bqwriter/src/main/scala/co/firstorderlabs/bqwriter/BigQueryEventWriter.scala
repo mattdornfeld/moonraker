@@ -154,7 +154,7 @@ class BigQueryRows(tableId: TableId) {
     if (numRows > 0) {
       val response = BigQueryRows.bigquery.insertAll(builder.build)
 
-      logger.info(
+      logger.fine(
         s"Wrote ${numRows} rows to table ${tableId.getTable} from channel ${Configs.channelId}."
       )
 
@@ -216,7 +216,7 @@ class BigQueryEventsWriter {
       matchEvents.writeToBigQuery
       orderEvents.writeToBigQuery
     }
-    logger.info(
+    logger.fine(
       s"Missing ${SequenceTracker.numMissingDelta} sequenceIds from channel ${Configs.channelId}."
     )
   }
