@@ -240,6 +240,7 @@ class EventObserver extends Observer[CoinbaseProWebSocketTransaction] {
 
   override def onSubscribe(d: Disposable): Unit = {
     logger.info(s"Subscribed to channel ${Configs.channelId}")
+    logger.info(s"Writing to BigQuery dataset ${Configs.datasetId}")
   }
 
   override def onNext(t: CoinbaseProWebSocketTransaction): Unit = {
