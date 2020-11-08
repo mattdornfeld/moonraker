@@ -44,6 +44,14 @@ helm_charts:
   variables:
     CHART_NAME: bqwriter,coinbase-ml-train,coinbase-ml-serve,coinbase-kafka-producer
 
+.bqwriter_files: &bqwriter_files
+  - dockerfiles/Dockerfile.bqwriter
+  - helm/bqwriter/**/*
+  - scala/bqwriter/**/*
+  - scala/common/**/*
+  - scala/bqWriterDependencies.scala
+  - scala/project/CommonDependencies.scala
+
 bqwriter_image:
   extends: .build_image
 
@@ -55,13 +63,50 @@ bqwriter_image:
     refs:
       - master
       - merge_requests
-    changes:
-      - dockerfiles/Dockerfile.bqwriter
-      - helm/bqwriter/**/*
-      - scala/bqwriter/**/*
-      - scala/common/**/*
-      - scala/bqWriterDependencies.scala
-      - scala/project/CommonDependencies.scala
+    changes: *bqwriter_files
+
+.bqwriter_deploy_args: &bqwriter_deploy_args |
+  HELM_ARGS="--set ENVIRONMENT=${CI_COMMIT_REF_NAME}
+  --set gitlab-registry-secret.registry.username=${CI_USERNAME}
+  --set gitlab-registry-secret.registry.password=${CI_TOKEN}
+  --set service_account_json=${BQWRITER_SERVICE_ACCOUNT_JSON}"
+
+bqwriter:
+  before_script:
+    - *version_tag_script
+    - *bqwriter_deploy_args
+
+  environment:
+    name: bqwriter/$CI_COMMIT_REF_NAME
+    on_stop: delete_bqwriter
+
+  extends: .deploy_helm_chart
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *bqwriter_files
+
+  variables:
+    CHART_NAME: bqwriter
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-bqwriter
+
+delete_bqwriter:
+  environment:
+    name: bqwriter/$CI_COMMIT_REF_NAME
+    action: stop
+
+  extends: .delete_helm_release
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *bqwriter_files
+
+  variables:
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-bqwriter
 
 .coinbaseml_files: &coinbaseml_files
   - coinbaseml/**/*
@@ -104,12 +149,12 @@ cpu_image:
       - merge_requests
     changes: *coinbaseml_files
 
-.helm_deploy_args: &helm_deploy_args |
+.coinbase_train_deploy_args: &coinbase_train_deploy_args |
   HELM_ARGS="--set CI_TOKEN=${CI_TOKEN}
   --set ENVIRONMENT=staging/train-${CI_COMMIT_REF_NAME}
   --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-pri.2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
-  --set moonraker-common.registry.username=${CI_USERNAME}
-  --set moonraker-common.registry.password=${CI_TOKEN}
+  --set gitlab-registry-secret.registry.username=${CI_USERNAME}
+  --set gitlab-registry-secret.registry.password=${CI_TOKEN}
   --set ray.head_deployment.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
   --set ray.worker_deployments.cpu-workers.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
   --set service_account_json=${SERVICE_ACCOUNT_JSON}"
@@ -117,7 +162,7 @@ cpu_image:
 coinbase_train:
   before_script:
     - *version_tag_script
-    - *helm_deploy_args
+    - *coinbase_train_deploy_args
 
   environment:
     name: staging/train-$CI_COMMIT_REF_NAME
@@ -151,12 +196,12 @@ delete_coinbase_train:
   variables:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
 
-.helm_serve_deploy_args: &helm_serve_deploy_args |
+.coinbase_serve_deploy_args: &coinbase_serve_deploy_args |
   HELM_ARGS="--set gcp-service-account-secret.service_account_json=${SERVICE_ACCOUNT_JSON}
   --set gitlab-token-secret.CI_TOKEN=${CI_TOKEN}
   --set mongo-db-secret.mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
-  --set moonraker-common.registry.password=${CI_TOKEN}
-  --set moonraker-common.registry.username=${CI_USERNAME}
+  --set gitlab-registry-secret.registry.password=${CI_TOKEN}
+  --set gitlab-registry-secret.registry.username=${CI_USERNAME}
   --set COINBASE_API_KEY_B64SECRET=${COINBASE_API_KEY_B64SECRET}
   --set COINBASE_API_KEY_PASSPHRASE=${COINBASE_API_KEY_PASSPHRASE}
   --set COINBASE_API_KEY_NAME=${COINBASE_API_KEY_NAME}
@@ -169,7 +214,7 @@ delete_coinbase_train:
 coinbase_serve:
   before_script:
     - *version_tag_script
-    - *helm_serve_deploy_args
+    - *coinbase_serve_deploy_args
 
   environment:
     name: staging/serve-$CI_COMMIT_REF_NAME
@@ -204,8 +249,8 @@ delete_coinbase_serve:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-serve
 
 .helm_coinbase_kafka_producer_deploy_args: &helm_coinbase_kafka_producer_deploy_args |
-  HELM_ARGS="--set moonraker-common.registry.password=${CI_TOKEN}
-  --set moonraker-common.registry.username=${CI_USERNAME}"
+  HELM_ARGS="--set gitlab-registry-secret.registry.password=${CI_TOKEN}
+  --set gitlab-registry-secret.registry.username=${CI_USERNAME}"
 
 coinbase_kafka_producer:
   before_script:
