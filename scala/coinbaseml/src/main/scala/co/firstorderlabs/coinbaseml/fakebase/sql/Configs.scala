@@ -4,10 +4,10 @@ import scala.util.Properties.envOrElse
 
 object Configs {
   //BigQueryReader configs
-  val serviceAccountJsonPath = "/secrets/service-account.json"
-  val datasetId = envOrElse("BIGQUERY_DATASET_ID", "exchange_events_staging")
+  val serviceAccountJsonPath = "/var/moonraker/coinbaseml/service-account.json"
+  val datasetId = "exchange_events_prod"
   val gcpProjectId = "moonraker"
-  val serviceAccountEmail = "moonraker-ci@moonraker.iam.gserviceaccount.com"
+  val serviceAccountEmail = "coinbase-train-ci@moonraker.iam.gserviceaccount.com"
 
   //PostgresReader configs
   val maxResultsQueueSize = envOrElse("MAX_RESULTS_QUEUE_SIZE", "50").toInt

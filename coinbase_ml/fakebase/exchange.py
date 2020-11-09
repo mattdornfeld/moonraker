@@ -322,6 +322,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             observationRequest=self._generate_observation_request(),
             enableProgressBar=enable_progress_bar,
             simulationType=simulation_type,
+            databaseBackend=c.DATABASE_BACKEND,
         )
 
         simulation_info: SimulationInfo = self.stub.start(simulation_start_request)
