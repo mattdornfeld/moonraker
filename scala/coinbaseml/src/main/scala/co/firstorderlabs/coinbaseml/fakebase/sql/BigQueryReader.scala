@@ -70,7 +70,7 @@ object BigQueryReader
             side,
             remaining_size,
             time
-          FROM coinbase_cancellations
+          FROM cancellations
           WHERE time BETWEEN ${timeInterval.startTime.toString} and ${timeInterval.endTime.toString}
           AND product_id = ${productId.toString}
        """
@@ -95,7 +95,7 @@ object BigQueryReader
             ${DoneReason.notDone.value},
             '',
             0
-          FROM coinbase_orders
+          FROM orders
           WHERE time BETWEEN ${timeInterval.startTime.toString} AND ${timeInterval.endTime.toString}
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.limit.name}
@@ -120,7 +120,7 @@ object BigQueryReader
             TIMESTAMP(${Instant.EPOCH.toString}),
             ${DoneReason.notDone.value},
             ''
-          FROM coinbase_orders
+          FROM orders
           WHERE time BETWEEN ${timeInterval.startTime.toString} AND ${timeInterval.endTime.toString}
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.market.name}
@@ -147,7 +147,7 @@ object BigQueryReader
             ${DoneReason.notDone.value},
             '',
             0
-          FROM coinbase_orders
+          FROM orders
           WHERE time BETWEEN ${timeInterval.startTime.toString} and ${timeInterval.endTime.toString}
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.limit.name}
@@ -172,7 +172,7 @@ object BigQueryReader
             TIMESTAMP(${Instant.EPOCH.toString}),
             ${DoneReason.notDone.value},
             ''
-          FROM coinbase_orders
+          FROM orders
           WHERE time BETWEEN ${timeInterval.startTime.toString} and ${timeInterval.endTime.toString}
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.market.name}
