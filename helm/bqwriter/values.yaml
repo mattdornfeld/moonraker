@@ -2,8 +2,8 @@ env:
   ENVIRONMENT: staging
 
 resources:
-  memory: 1Gi
-  num_cpus: 1.0
+  memory: 0.5Gi
+  num_cpus: 0.15
 
 # mock values for secrets so linting doesn't fail
 service_account_json: test
