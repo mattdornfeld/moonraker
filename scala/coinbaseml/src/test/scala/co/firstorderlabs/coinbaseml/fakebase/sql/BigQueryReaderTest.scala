@@ -13,6 +13,23 @@ class BigQueryReaderTest extends AnyFunSpec {
       val bigQuery = new BigQuery
     }
 
+    ignore("This integration test is not automatically run. If your local has access to BigQuery you can un-ignore it and run" +
+      "it manually to test BigQueryReader queries results correctly.") {
+      Configs.testMode = false
+      BigQueryReader.start(startTime, endTime, timeDelta)
+      val keys = BigQueryReader.queryResultMapKeys
+      val printSize = (queryResult: QueryResult) => {
+        println(s"TimeInterval: ${queryResult.timeInterval}")
+        println(s"\tnumCancellations: ${queryResult.cancellations.size}")
+        println(s"\tnumBuyLimitOrders: ${queryResult.buyLimitOrders.size}")
+        println(s"\tnumBuyMarketOrders: ${queryResult.buyMarketOrders.size}")
+        println(s"\tnumSellLimitOrders: ${queryResult.sellLimitOrders.size}")
+        println(s"\tnumSellMarketOrders: ${queryResult.sellMarketOrder.size}\n")
+      }
+      keys.foreach(k => printSize(BigQueryReader.getQueryResult(k)))
+      Configs.testMode = true
+    }
+
     it("BigQueryReader should add the sub TimeIntervals of the passed in interval as keys to queryResultMap") {
       BigQueryReader.start(startTime, endTime, timeDelta)
       assert(expectedTimeIntervals.toSet == BigQueryReader.queryResultMapKeys)

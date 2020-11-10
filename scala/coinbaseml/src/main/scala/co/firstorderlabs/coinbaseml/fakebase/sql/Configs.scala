@@ -7,6 +7,7 @@ object Configs {
   val serviceAccountJsonPath = "/var/moonraker/coinbaseml/service-account.json"
   val datasetId = "exchange_events_prod"
   val gcpProjectId = "moonraker"
+  val queryTimeout = 60 * 60 // in seconds
   val serviceAccountEmail = "coinbase-train-ci@moonraker.iam.gserviceaccount.com"
 
   //PostgresReader configs

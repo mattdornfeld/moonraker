@@ -28,7 +28,7 @@ spec:
       {{- end}}
 
       imagePullSecrets:
-      - name: {{.Release.Name}}-registry-credentials
+      - name: {{$release_name}}-registry-credentials
 
       restartPolicy: OnFailure
 
@@ -96,7 +96,7 @@ spec:
           - mountPath: /dev/shm
             name: dshm
 
-          - mountPath: /secrets
+          - mountPath: {{.Values.ray.gcp_service_account_secret.mount_path}}
             name: service-account-json
             readOnly: true
 

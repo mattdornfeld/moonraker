@@ -152,12 +152,12 @@ cpu_image:
 .coinbase_train_deploy_args: &coinbase_train_deploy_args |
   HELM_ARGS="--set CI_TOKEN=${CI_TOKEN}
   --set ENVIRONMENT=staging/train-${CI_COMMIT_REF_NAME}
-  --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-pri.2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
+  --set gcp-service-account-secret.service_account_json=${SERVICE_ACCOUNT_JSON}
   --set gitlab-registry-secret.registry.username=${CI_USERNAME}
   --set gitlab-registry-secret.registry.password=${CI_TOKEN}
+  --set mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-pri.2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
   --set ray.head_deployment.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
-  --set ray.worker_deployments.cpu-workers.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
-  --set service_account_json=${SERVICE_ACCOUNT_JSON}"
+  --set ray.worker_deployments.cpu-workers.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}"
 
 coinbase_train:
   before_script:

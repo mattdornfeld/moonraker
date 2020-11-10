@@ -1,8 +1,13 @@
 dependencies:
+  - name: gcp-service-account-secret
+    condition: gcp-service-account-secret.enabled
+    repository: gs://moonraker-helm-repo
+    version: 0.1.0-b927e28fa9c65a8cde450190744c0c2fce7076b3
+
   - name: gitlab-registry-secret
     repository: gs://moonraker-helm-repo
     version: 0.1.0-b927e28fa9c65a8cde450190744c0c2fce7076b3
 
   - name: ray
     repository: gs://moonraker-helm-repo
-    version: 0.1.0-5b3f8797bd78f66b8ced6e391a274b9d4e240cca
+    version: 0.1.0-9ffa01fcd571e030f79ef8507346af7ef63637ba

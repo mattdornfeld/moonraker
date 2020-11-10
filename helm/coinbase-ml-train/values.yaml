@@ -12,11 +12,16 @@ notebook:
   node_group: n1-standard-4-nvidia-tesla-p100
 
 ray:
+  gcp_service_account_secret:
+    enabled: false
+    mount_path: /var/moonraker/coinbaseml
+
   gitlab-registry-secret:
     enabled: false
     registry:
       username: test
       password: test
+
   deploy_ray_cluster: true
 
   head_deployment:

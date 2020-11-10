@@ -27,7 +27,9 @@ SACRED_LOGGER_PORT = 60994
 GCP_PROJECT_NAME = "moonraker"
 MODEL_BUCKET_NAME = os.environ.get("MODEL_BUCKET_NAME", "moonraker-trained-models")
 SERVICE_ACCOUNT_JSON = Path(
-    os.environ.get("SERVICE_ACCOUNT_JSON", "/secrets/service-account.json")
+    os.environ.get(
+        "SERVICE_ACCOUNT_JSON", "/var/moonraker/coinbaseml/service-account.json"
+    )
 )
 
 # mongodb configs

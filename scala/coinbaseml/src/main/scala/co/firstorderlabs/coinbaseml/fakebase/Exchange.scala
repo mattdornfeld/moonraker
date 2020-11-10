@@ -67,9 +67,9 @@ case class SimulationMetadata(
     }
   }
 
-  def stepProgressBar(stepDuration: Long): Unit =
+  def stepProgressBar(stepDuration: Long, numEvents: Int): Unit =
     progressBar match {
-      case Some(progressBar) => progressBar.step(stepDuration)
+      case Some(progressBar) => progressBar.step(stepDuration, numEvents)
       case None              =>
     }
 
@@ -293,7 +293,7 @@ object Exchange
     val endTime = System.currentTimeMillis()
     val stepDuration = endTime - startTime
     logger.fine(s"Exchange.step took ${stepDuration} ms")
-    getSimulationMetadata.stepProgressBar(stepDuration)
+    getSimulationMetadata.stepProgressBar(stepDuration, receivedEvents.size)
 
     Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
   }
