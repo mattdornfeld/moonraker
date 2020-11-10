@@ -20,7 +20,8 @@ object BigQueryReader
         "OAuthType=0;" +
         s"OAuthServiceAcctEmail=${Configs.serviceAccountEmail};" +
         s"OAuthPvtKeyPath=${Configs.serviceAccountJsonPath};" +
-        s"DefaultDataset=${Configs.datasetId}",
+        s"DefaultDataset=${Configs.datasetId};" +
+        s"Timeout=${Configs.queryTimeout}",
       "",
       "",
       Strategy.void,
@@ -100,6 +101,8 @@ object BigQueryReader
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.limit.name}
           AND side = ${OrderSide.buy.name}
+          AND price > 0
+          AND size > 0
        """
       .query[BuyLimitOrder]
   }
@@ -125,6 +128,7 @@ object BigQueryReader
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.market.name}
           AND side = ${OrderSide.buy.name}
+          AND funds > 0
        """
       .query[BuyMarketOrder]
   }
@@ -152,6 +156,8 @@ object BigQueryReader
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.limit.name}
           AND side = ${OrderSide.sell.name}
+          AND price > 0
+          AND size > 0
        """
       .query[SellLimitOrder]
   }
@@ -177,6 +183,7 @@ object BigQueryReader
           AND product_id = ${productId.toString}
           AND order_type = ${OrderType.market.name}
           AND side = ${OrderSide.sell.name}
+          AND size > 0
        """
       .query[SellMarketOrder]
   }

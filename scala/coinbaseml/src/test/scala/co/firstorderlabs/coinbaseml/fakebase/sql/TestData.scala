@@ -8,8 +8,8 @@ import co.firstorderlabs.common.protos.fakebase.SimulationStartRequest
 import co.firstorderlabs.common.types.Types.TimeInterval
 
 object TestData {
-  val startTime = Instant.parse("2019-11-20T00:00:00.0Z")
-  val endTime = Instant.parse("2019-11-20T00:10:00.0Z")
+  val startTime = Instant.parse("2020-11-09T00:00:00.0Z")
+  val endTime = Instant.parse("2020-11-09T00:10:00.0Z")
   val timeDelta = Duration.ofMinutes(1)
   val expectedTimeIntervals =
     TimeInterval(startTime, endTime).chunkByTimeDelta(timeDelta)
