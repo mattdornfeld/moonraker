@@ -111,8 +111,7 @@ abstract class DatabaseReaderBase(
         List[A]()
       } else {
         transactor.use { xa =>
-          query.stream.compile.toList
-            .transact(xa)
+          query.stream.compile.toList.transact(xa)
         }.unsafeRunSync
       }
     }

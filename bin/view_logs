@@ -1,0 +1,6 @@
+#!/bin/bash
+branch_name=$(git rev-parse --abbrev-ref HEAD)
+release_name=$(echo ${branch_name}-coinbaseml-train | tr '_' '-')
+pod_selector_value=$(echo $release_name | cut -c 1-14)-job-train
+pod_name=$(kubectl get pods --selector=pod-selector=${pod_selector_value} -o name --no-headers=true)
+kubectl logs -f ${pod_name}

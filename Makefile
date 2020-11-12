@@ -50,3 +50,9 @@ test-unit:
 
 test-scala:
 	cd scala && make test
+
+logs-train-driver:
+	chmod u+x bin/view_logs && bin/view_logs
+
+ui-ray:
+	chmod u+x bin/port_forward && bin/port_forward

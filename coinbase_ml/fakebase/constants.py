@@ -20,6 +20,7 @@ FAKEBASE_SERVER_CLASS = "co.firstorderlabs.coinbaseml.fakebase.FakebaseServer"
 FAKBASE_SERVER_DEFAULT_PORT = 9090
 EMPTY_PROTO = Empty()
 DATABASE_BACKEND = DatabaseBackend.BigQuery
+JVM_HEAP_MEMORY = "3G"
 
 # Coinbase configs
 COINBASE_WEBSOCKET_API_URL = "wss://ws-feed.pro.coinbase.com"
