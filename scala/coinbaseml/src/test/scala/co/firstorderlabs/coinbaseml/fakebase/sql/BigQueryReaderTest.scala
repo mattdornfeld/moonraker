@@ -9,10 +9,6 @@ class BigQueryReaderTest extends AnyFunSpec {
   Configs.testMode = true
 
   describe("BigQueryReader") {
-    it("Ensure the BigQuery JDBC driver can be imported since it's only accessed by reflection at runtime by Doobie") {
-      val bigQuery = new BigQuery
-    }
-
     ignore("This integration test is not automatically run. If your local has access to BigQuery you can un-ignore it and run" +
       "it manually to test BigQueryReader queries results correctly.") {
       Configs.testMode = false
@@ -28,6 +24,10 @@ class BigQueryReaderTest extends AnyFunSpec {
       }
       keys.foreach(k => printSize(BigQueryReader.getQueryResult(k)))
       Configs.testMode = true
+    }
+
+    it("Ensure the BigQuery JDBC driver can be imported since it's only accessed by reflection at runtime by Doobie") {
+      val bigQuery = new BigQuery
     }
 
     it("BigQueryReader should add the sub TimeIntervals of the passed in interval as keys to queryResultMap") {

@@ -1,0 +1,5 @@
+#!/bin/bash
+branch_name=$(git rev-parse --abbrev-ref HEAD)
+release_name=$(echo ${branch_name}-coinbaseml-train | tr '_' '-')
+svc_name=${release_name}-ray-head
+kubectl port-forward svc/${svc_name} 8265:8265

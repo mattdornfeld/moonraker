@@ -178,7 +178,7 @@ coinbase_train:
 
   variables:
     CHART_NAME: coinbase-ml-train
-    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbaseml-train
 
 delete_coinbase_train:
   environment:
@@ -194,7 +194,7 @@ delete_coinbase_train:
     changes: *coinbaseml_files
 
   variables:
-    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-train
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbaseml-train
 
 .coinbase_serve_deploy_args: &coinbase_serve_deploy_args |
   HELM_ARGS="--set gcp-service-account-secret.service_account_json=${SERVICE_ACCOUNT_JSON}

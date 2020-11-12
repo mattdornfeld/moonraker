@@ -16,6 +16,7 @@ object BigQueryReader
     extends DatabaseReaderBase(
       "com.simba.googlebigquery.jdbc42.Driver",
       "jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443;" +
+        "EnableHighThroughputAPI=1;" +
         s"ProjectId=${Configs.gcpProjectId};" +
         "OAuthType=0;" +
         s"OAuthServiceAcctEmail=${Configs.serviceAccountEmail};" +
@@ -64,7 +65,7 @@ object BigQueryReader
       productId: ProductId,
       timeInterval: TimeInterval
   ): Query0[Cancellation] = {
-    sql"""SELECT
+    sql"""SELECT DISTINCT
             order_id,
             price,
             product_id,
@@ -82,7 +83,7 @@ object BigQueryReader
       productId: ProductId,
       timeInterval: TimeInterval
   ): Query0[BuyLimitOrder] = {
-    sql"""SELECT
+    sql"""SELECT DISTINCT
             order_id,
             order_status,
             price,
@@ -111,7 +112,7 @@ object BigQueryReader
       productId: ProductId,
       timeInterval: TimeInterval
   ): Query0[BuyMarketOrder] = {
-    sql"""SELECT
+    sql"""SELECT DISTINCT
             funds,
             order_id,
             order_status,
@@ -137,7 +138,7 @@ object BigQueryReader
       productId: ProductId,
       timeInterval: TimeInterval
   ): Query0[SellLimitOrder] = {
-    sql"""SELECT
+    sql"""SELECT DISTINCT
             order_id,
             order_status,
             price,
@@ -166,7 +167,7 @@ object BigQueryReader
       productId: ProductId,
       timeInterval: TimeInterval
   ): Query0[SellMarketOrder] = {
-    sql"""SELECT
+    sql"""SELECT DISTINCT
             order_id,
             order_status,
             product_id,

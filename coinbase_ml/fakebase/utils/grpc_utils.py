@@ -34,6 +34,7 @@ def start_fakebase_server(port: int, test_mode: bool) -> Popen:
     process = Popen(
         [
             "java",
+            f"-Xmx{c.JVM_HEAP_MEMORY}",
             "-cp",
             c.FAKBASE_SERVER_JAR.as_posix(),
             c.FAKEBASE_SERVER_CLASS,
