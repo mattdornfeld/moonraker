@@ -12,6 +12,8 @@ import co.firstorderlabs.common.types.Types.TimeInterval
   */
 trait RewardStrategy {
   private val logger = Logger.getLogger(this.toString)
+  private var previousPortfolioValueTimeInterval: Option[TimeInterval] = None
+  protected var _previousPortfolioValue: Option[Double] = None
 
   private def currentTimeInterval: TimeInterval =
     Exchange.getSimulationMetadata.currentTimeInterval
@@ -97,6 +99,16 @@ trait RewardStrategy {
   def currentMidPrice: Double =
     calcMidPrice(currentTimeInterval)
 
-  protected def previousPortfolioValue: Double =
-    calcPortfolioValue(Exchange.getSimulationMetadata.previousTimeInterval)
+  protected def previousPortfolioValue: Double = {
+    val previousTimeInterval = Exchange.getSimulationMetadata.previousTimeInterval
+    val isReset = previousPortfolioValueTimeInterval match {
+      case Some(previousPortfolioValueTimeInterval) => previousPortfolioValueTimeInterval != previousTimeInterval
+      case None => false
+    }
+    if (_previousPortfolioValue.isEmpty || isReset) {
+      calcPortfolioValue(Exchange.getSimulationMetadata.previousTimeInterval)
+    } else {
+      _previousPortfolioValue.get
+    }
+  }
 }

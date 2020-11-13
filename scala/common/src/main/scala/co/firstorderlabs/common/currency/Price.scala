@@ -33,6 +33,7 @@ object Price {
     scale: Int,
     value: Either[BigDecimal, String]
   ) extends PreciseNumber[ProductPrice[A, B]](scale, value) {
+    private val _hashCode = amount.hashCode
     val companion: ProductPriceCompanion[A, B]
 
     /**Creates new ProductPrice from this + that
@@ -68,6 +69,8 @@ object Price {
       * @return
       */
     def /(that: Either[BigDecimal, Double]): ProductPrice[A, B]
+
+    override def hashCode(): Int = _hashCode
 
     def normalize: Double = this.toDouble / companion.normalizationFactor
   }
