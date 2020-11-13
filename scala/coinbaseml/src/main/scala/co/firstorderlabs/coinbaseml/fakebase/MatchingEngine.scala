@@ -6,8 +6,20 @@ import java.util.UUID
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.SelfTrade
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.events.{BuyMarketOrder, Cancellation, DoneReason, Liquidity, Match, OrderSide, OrderStatus, SellMarketOrder}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
+import co.firstorderlabs.common.protos.events.{
+  BuyMarketOrder,
+  Cancellation,
+  DoneReason,
+  Liquidity,
+  Match,
+  OrderSide,
+  OrderStatus,
+  SellMarketOrder
+}
 import co.firstorderlabs.common.types.Events._
 import co.firstorderlabs.common.types.Types._
 
@@ -78,13 +90,23 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   }
 
   def processEvents(events: List[Event]): Unit = {
-    events.foreach(event => {
-      event match {
+    val _events = events.iterator
+    while (_events.hasNext) {
+      _events.next match {
         case cancellation: Cancellation => processCancellation(cancellation)
         case order: OrderEvent          => processOrder(order)
       }
-    })
+    }
   }
+
+//  def processEvents(events: List[Event]): Unit = {
+//    events.foreach(event => {
+//      event match {
+//        case cancellation: Cancellation => processCancellation(cancellation)
+//        case order: OrderEvent          => processOrder(order)
+//      }
+//    })
+//  }
 
   override def restore(snapshot: MatchingEngineSnapshot): Unit = {
     clear

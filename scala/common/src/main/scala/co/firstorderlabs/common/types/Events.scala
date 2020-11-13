@@ -186,7 +186,11 @@ object Events {
 
   }
 
-  case class OrderBookKey(price: ProductPrice, time: Duration, degeneracy: Int)
+  case class OrderBookKey(price: ProductPrice, time: Duration, degeneracy: Int) {
+    private val _hashCode = scala.runtime.Statics.anyHash((price, time, degeneracy))
+
+    override def hashCode(): Int = _hashCode
+  }
 
   trait LimitOrderEvent
       extends OrderEvent

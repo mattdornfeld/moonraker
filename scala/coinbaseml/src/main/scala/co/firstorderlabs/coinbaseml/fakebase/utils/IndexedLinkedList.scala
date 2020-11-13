@@ -11,7 +11,7 @@ class DuplicateKey extends IllegalStateException
   * @tparam V
   */
 class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
-  private val index = new mutable.HashMap[K, Node[K, V]]
+  private val index = new mutable.HashMap[Int, Node[K, V]]
   private var _head: Option[Node[K, V]] = None
   private var _tail: Option[Node[K, V]] = None
 
@@ -23,10 +23,11 @@ class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
   @throws[DuplicateKey]
   override def addOne(elem: (K, V)): this.type = {
     val node = Some(new Node(elem._1, elem._2))
-    if (index.contains(elem._1)) {
+    val hashCode = elem._1.hashCode
+    if (index.contains(hashCode)) {
       throw new DuplicateKey
     } else {
-      index.put(elem._1, node.get)
+      index.put(hashCode, node.get)
     }
 
     (_head, _tail) match {
@@ -65,7 +66,7 @@ class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
     * @return
     */
   def get(key: K): Option[V] =
-    index.get(key).map(_.value)
+    index.get(key.hashCode).map(_.value)
 
   /**
     * Gets head Node of list. Returns None if list empty.
@@ -108,7 +109,7 @@ class IndexedLinkedList[K, V] extends mutable.Growable[(K, V)] {
     * @return
     */
   def remove(key: K): Option[Node[K, V]] = {
-    val node = index.remove(key)
+    val node = index.remove(key.hashCode)
     node match {
       case Some(node) => {
         if (_head.get equalTo node) { _head = node.child }

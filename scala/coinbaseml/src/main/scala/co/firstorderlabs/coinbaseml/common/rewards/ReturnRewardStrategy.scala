@@ -7,7 +7,10 @@ import co.firstorderlabs.coinbaseml.fakebase.SnapshotBuffer
 object ReturnRewardStrategy extends RewardStrategy {
   override def calcReward: Double = {
     if (SnapshotBuffer.size >= 2) {
-      currentPortfolioValue - previousPortfolioValue
+      val _formerPreviousPortfolioValue = previousPortfolioValue
+      val _currentPortfolioValue = currentPortfolioValue
+      _previousPortfolioValue = Some(_currentPortfolioValue)
+      _currentPortfolioValue - _formerPreviousPortfolioValue
     } else {
       0.0
     }

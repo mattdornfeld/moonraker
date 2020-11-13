@@ -67,9 +67,9 @@ case class SimulationMetadata(
     }
   }
 
-  def stepProgressBar(stepDuration: Long, numEvents: Int): Unit =
+  def stepProgressBar(stepDuration: Double, dataGetDuration: Double, matchingEngineDuration: Double, environmentDuration: Double, snapshotDuration: Double, numEvents: Int): Unit =
     progressBar match {
-      case Some(progressBar) => progressBar.step(stepDuration, numEvents)
+      case Some(progressBar) => progressBar.step(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, snapshotDuration, numEvents)
       case None              =>
     }
 
@@ -244,7 +244,7 @@ object Exchange
   }
 
   override def step(stepRequest: StepRequest): Future[SimulationInfo] = {
-    val startTime = System.currentTimeMillis
+    val stepStartTime = System.nanoTime
     getSimulationMetadata.incrementCurrentTimeInterval
     require(
       !getSimulationMetadata.simulationIsOver,
@@ -261,6 +261,7 @@ object Exchange
     InfoAggregator.preStep
     Account.step
 
+    val dataGetStartTime = System.nanoTime
     val queryResult = Exchange.getSimulationMetadata.databaseReader
       .getQueryResult(getSimulationMetadata.currentTimeInterval)
 
@@ -277,6 +278,8 @@ object Exchange
       ++ queryResult.cancellations)
       .sortBy(event => event.time)
 
+    val dataGetDuration = (System.nanoTime - dataGetStartTime) / 1e6
+
     if (receivedEvents.isEmpty)
       logger.warning(
         s"No events queried for time interval ${getSimulationMetadata.currentTimeInterval}"
@@ -285,17 +288,28 @@ object Exchange
       logger.fine(s"Processing ${receivedEvents.length} events")
 
     matchingEngine.matches.clear
+
+    val matchingEngineStartTime = System.nanoTime
     matchingEngine.processEvents(receivedEvents)
+    val matchingEngineDuration = (System.nanoTime - matchingEngineStartTime) / 1e6
 
+    val environmentStartTime = System.nanoTime
     Environment.step(stepRequest.actionRequest)
-    SnapshotBuffer.step
-    InfoAggregator.step
-    val endTime = System.currentTimeMillis()
-    val stepDuration = endTime - startTime
-    logger.fine(s"Exchange.step took ${stepDuration} ms")
-    getSimulationMetadata.stepProgressBar(stepDuration, receivedEvents.size)
+    val environmentDuration = (System.nanoTime - environmentStartTime) / 1e6
 
-    Future successful getSimulationInfo(stepRequest.simulationInfoRequest)
+    val snapshotStartTime = System.nanoTime
+    SnapshotBuffer.step
+    val snapshotDuration = (System.nanoTime - snapshotStartTime) / 1e6
+
+    InfoAggregator.step
+
+    val simulationInfo = getSimulationInfo(stepRequest.simulationInfoRequest)
+    val stepDuration = (System.nanoTime - stepStartTime) / 1e6
+
+    logger.fine(s"Exchange.step took ${stepDuration} ms")
+    getSimulationMetadata.stepProgressBar(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, snapshotDuration,  receivedEvents.size)
+
+    Future successful simulationInfo
   }
 
   override def stop(request: Empty): Future[Empty] = {
