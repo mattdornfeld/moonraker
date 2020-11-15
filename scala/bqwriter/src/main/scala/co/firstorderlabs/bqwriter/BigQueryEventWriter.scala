@@ -7,8 +7,22 @@ import java.util.logging.Logger
 import java.util.{Map => JavaMap}
 
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, Liquidity, Match, OrderSide, OrderStatus, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  BuyMarketOrder,
+  Cancellation,
+  DoneReason,
+  Liquidity,
+  Match,
+  OrderSide,
+  OrderStatus,
+  SellLimitOrder,
+  SellMarketOrder
+}
 import co.firstorderlabs.common.protos.fakebase.OrderType
 import co.firstorderlabs.common.types.Events.{Event, OrderEvent}
 import co.firstorderlabs.common.types.Types.{OrderId, ProductId, TradeId}
@@ -244,6 +258,14 @@ class EventObserver extends Observer[CoinbaseProWebSocketTransaction] {
   }
 
   override def onNext(t: CoinbaseProWebSocketTransaction): Unit = {
+    try {
+      _onNext(t)
+    } catch {
+      case e: Throwable => logger.severe(e.getStackTrace.toString)
+    }
+  }
+
+  private def _onNext(t: CoinbaseProWebSocketTransaction): Unit = {
     if (bigQueryEventsWriter.shouldWrite) {
       bigQueryEventsWriter.writeEventsToBigQuery
       bigQueryEventsWriter = new BigQueryEventsWriter
