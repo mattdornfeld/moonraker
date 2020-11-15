@@ -2,6 +2,7 @@ package co.firstorderlabs.coinbaseml.fakebase
 
 import java.math.{BigDecimal, RoundingMode}
 import java.util.UUID
+import java.util.logging.Logger
 
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.SelfTrade
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
@@ -29,10 +30,15 @@ import scala.collection.mutable.ListBuffer
 final case class MatchingEngineSnapshot(
     buyOrderBookSnapshot: OrderBookSnapshot,
     matches: ListBuffer[Match],
-    sellOrderBookSnapshot: OrderBookSnapshot
+    sellOrderBookSnapshot: OrderBookSnapshot,
+    currentPortfolioValue: Option[Double],
+    previousPortfolioValue: Option[Double]
 ) extends Snapshot
 
 object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
+  private val logger = Logger.getLogger(this.toString)
+  var currentPortfolioValue: Option[Double] = None
+  var previousPortfolioValue: Option[Double] = None
   val matches = new ListBuffer[Match]
   val orderBooks = Map[OrderSide, OrderBook](
     OrderSide.buy -> new OrderBook,
@@ -58,7 +64,9 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     MatchingEngineSnapshot(
       orderBooks(OrderSide.buy).createSnapshot,
       matches.clone,
-      orderBooks(OrderSide.sell).createSnapshot
+      orderBooks(OrderSide.sell).createSnapshot,
+      currentPortfolioValue,
+      previousPortfolioValue
     )
 
   def checkIsTaker(order: LimitOrderEvent): Boolean = {
@@ -81,12 +89,15 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   override def clear: Unit = {
     orderBooks.values.foreach(orderBook => orderBook.clear)
     matches.clear
+    currentPortfolioValue = None
+    previousPortfolioValue = None
   }
 
   override def isCleared: Boolean = {
-    orderBooks.values.forall(orderBook =>
-      orderBook.isCleared
-    ) && matches.isEmpty
+    (orderBooks.values.forall(orderBook => orderBook.isCleared)
+    && matches.isEmpty
+    && currentPortfolioValue.isEmpty
+    && previousPortfolioValue.isEmpty)
   }
 
   def processEvents(events: List[Event]): Unit = {
@@ -99,20 +110,13 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     }
   }
 
-//  def processEvents(events: List[Event]): Unit = {
-//    events.foreach(event => {
-//      event match {
-//        case cancellation: Cancellation => processCancellation(cancellation)
-//        case order: OrderEvent          => processOrder(order)
-//      }
-//    })
-//  }
-
   override def restore(snapshot: MatchingEngineSnapshot): Unit = {
     clear
     orderBooks(OrderSide.buy).restore(snapshot.buyOrderBookSnapshot)
     orderBooks(OrderSide.sell).restore(snapshot.sellOrderBookSnapshot)
     matches.addAll(snapshot.matches.iterator)
+    currentPortfolioValue = snapshot.currentPortfolioValue
+    previousPortfolioValue = snapshot.previousPortfolioValue
   }
 
   @tailrec
@@ -157,6 +161,42 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
       case (false, false) => Liquidity.global
       case (true, true)   => throw new SelfTrade
     }
+  }
+
+  def calcMidPrice: Double = {
+    val (buyOrderBook, sellOrderBook) =
+      (orderBooks(OrderSide.buy), orderBooks(OrderSide.sell))
+
+    val bestAskPrice = sellOrderBook.minPrice.getOrElse {
+      logger.warning(
+        "The best ask price is 0. This indicates the sell order book is empty"
+      )
+      ProductPrice.zeroPrice
+    }
+    val bestBidPrice = buyOrderBook.maxPrice.getOrElse {
+      logger.warning(
+        "The best bid price is 0. This indicates the buy order book is empty"
+      )
+      ProductPrice.zeroPrice
+    }
+
+    ((bestAskPrice + bestBidPrice) / Right(2.0)).toDouble
+  }
+
+  def calcPortfolioValue: Double = {
+    val (productWallet, quoteWallet) =
+      (Wallets.getWallet(ProductVolume), Wallets.getWallet(QuoteVolume))
+
+    val productVolume = productWallet.balance.toDouble
+    val quoteVolume = quoteWallet.balance.toDouble
+
+    productVolume * calcMidPrice + quoteVolume
+  }
+
+  def step(events: List[Event]): Unit = {
+    previousPortfolioValue = currentPortfolioValue
+    processEvents(events)
+    currentPortfolioValue = Some(calcPortfolioValue)
   }
 
   private def processMatchedMakerOrder(

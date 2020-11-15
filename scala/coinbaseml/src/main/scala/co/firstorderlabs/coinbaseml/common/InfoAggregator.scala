@@ -2,7 +2,7 @@ package co.firstorderlabs.coinbaseml.common
 
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
-import co.firstorderlabs.coinbaseml.fakebase.{Account, Constants, Exchange, SnapshotBuffer}
+import co.firstorderlabs.coinbaseml.fakebase.{Account, Constants, Exchange}
 import co.firstorderlabs.common.protos.environment.{InfoDict, InfoDictKey}
 import co.firstorderlabs.common.protos.events.Match
 import co.firstorderlabs.common.types.Events.OrderEvent
@@ -75,10 +75,8 @@ object InfoAggregator {
   private def updatePortfolioValue: Unit = {
     val simulationMetadata = Exchange.getSimulationMetadata
     val portfolioValue =
-      if (SnapshotBuffer.size > 0)
-        ReturnRewardStrategy.calcPortfolioValue(
-          simulationMetadata.currentTimeInterval
-        )
+      if (simulationMetadata.currentStep > 0)
+        ReturnRewardStrategy.currentPortfolioValue
       else simulationMetadata.initialQuoteFunds.toDouble
 
     infoDict.put(InfoDictKey.portfolioValue, portfolioValue)

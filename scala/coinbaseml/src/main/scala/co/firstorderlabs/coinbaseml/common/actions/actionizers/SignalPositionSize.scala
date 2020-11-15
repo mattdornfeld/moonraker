@@ -3,7 +3,7 @@ package co.firstorderlabs.coinbaseml.common.actions.actionizers
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{Action, BuyMarketOrderTransaction, NoTransaction, SellMarketOrderTransaction}
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.Utils.DoubleEquality
-import co.firstorderlabs.coinbaseml.fakebase.Wallets
+import co.firstorderlabs.coinbaseml.fakebase.{MatchingEngine, Wallets}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.events.Liquidity
 
@@ -61,7 +61,7 @@ object SignalPositionSize extends Actionizer {
       val rebalanceSize = if (rebalanceMagnitude > minRebalanceMagnitude)
         new ProductVolume(
           Right(
-            (rebalanceMagnitude / ReturnRewardStrategy.currentMidPrice).toString
+            (rebalanceMagnitude / MatchingEngine.calcMidPrice).toString
           )
         )
       else ProductVolume.zeroVolume

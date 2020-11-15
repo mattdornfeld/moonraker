@@ -134,7 +134,7 @@ object TimeSeriesFeaturizer
 
   override def construct(observationRequest: ObservationRequest): List[Double] =
     featureBuffer.toList.reverse.flatten
-      .padTo(numChannels * SnapshotBuffer.maxSize, 0.0)
+      .padTo(numChannels * featureBuffer.getMaxSize, 0.0)
 }
 
 object Filters {

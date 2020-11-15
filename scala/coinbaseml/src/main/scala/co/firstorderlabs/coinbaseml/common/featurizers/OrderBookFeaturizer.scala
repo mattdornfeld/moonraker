@@ -27,7 +27,7 @@ object OrderBookFeaturizer
       orderBookDepth: Int
   ): List[OrderBookFeature] = {
     val zerosArray = getArrayOfZeros(orderBookDepth, 4)
-    featureBuffer.toList.padTo(SnapshotBuffer.maxSize, zerosArray)
+    featureBuffer.toList.padTo(featureBuffer.getMaxSize, zerosArray)
   }
 
   def getBestBidsAsksArray(

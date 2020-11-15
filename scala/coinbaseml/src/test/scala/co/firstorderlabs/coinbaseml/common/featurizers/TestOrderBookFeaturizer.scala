@@ -193,7 +193,7 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
       val bestBidsAsksArray = OrderBookFeaturizer.getBestBidsAsksArray(orderBooksRequest.orderBookDepth)
 
       assert(
-        4 * orderBooksRequest.orderBookDepth * SnapshotBuffer.maxSize == orderBookFeatures.size
+        4 * orderBooksRequest.orderBookDepth * Exchange.getSimulationMetadata.snapshotBufferSize == orderBookFeatures.size
       )
       assert(
         bestBidsAsksArray.flatten sameElements orderBookFeatures

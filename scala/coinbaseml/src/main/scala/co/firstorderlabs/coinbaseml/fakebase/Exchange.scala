@@ -34,10 +34,12 @@ final case class SimulationMetadata(
     observationRequest: ObservationRequest,
     enableProgressBar: Boolean,
     simulationType: SimulationType,
-    databaseReader: DatabaseReaderBase
+    databaseReader: DatabaseReaderBase,
+    snapshotBufferSize: Int,
 ) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
+  var currentStep = 0L
 
   private val progressBar: Option[ProgressBar] =
     if (enableProgressBar)
@@ -61,17 +63,20 @@ final case class SimulationMetadata(
 
   def reset: Unit = {
     currentTimeInterval = Checkpointer.checkpointTimeInterval
+    currentStep = numWarmUpSteps
     progressBar match {
       case Some(progressBar) => progressBar.resetTo(numWarmUpSteps)
       case None              =>
     }
   }
 
-  def stepProgressBar(stepDuration: Double, dataGetDuration: Double, matchingEngineDuration: Double, environmentDuration: Double, snapshotDuration: Double, numEvents: Int): Unit =
+  def step(stepDuration: Double, dataGetDuration: Double, matchingEngineDuration: Double, environmentDuration: Double, numEvents: Int): Unit = {
+    currentStep += 1
     progressBar match {
-      case Some(progressBar) => progressBar.step(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, snapshotDuration, numEvents)
+      case Some(progressBar) => progressBar.step(currentStep, stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, numEvents)
       case None              =>
     }
+  }
 
   def simulationIsOver: Boolean =
     currentTimeInterval.endTime isAfter endTime
@@ -130,13 +135,6 @@ object Exchange
 
   @throws[SnapshotBufferNotFull]
   override def checkpoint(request: Empty): Future[Empty] = {
-    if (SnapshotBuffer.size < SnapshotBuffer.maxSize) {
-      throw SnapshotBufferNotFull(
-        "Cannot checkpoint simulation as SnapshotBuffer is not yet full. " +
-          s"It has ${SnapshotBuffer.size} and requires ${SnapshotBuffer.maxSize} elements. You must call step " +
-          s"${SnapshotBuffer.maxSize - SnapshotBuffer.size} more times."
-      )
-    }
     logger.info(
       s"creating checkpoint at timeInterval ${Exchange.getSimulationMetadata.currentTimeInterval}"
     )
@@ -213,12 +211,14 @@ object Exchange
         simulationStartRequest.observationRequest.get,
         simulationStartRequest.enableProgressBar,
         simulationStartRequest.simulationType,
-        databaseReader
+        databaseReader,
+        simulationStartRequest.snapshotBufferSize
       )
     )
 
     logger.info(s"starting simulation for parameters ${getSimulationMetadata}")
-
+    Checkpointer.start
+    Environment.start(simulationStartRequest.snapshotBufferSize)
     getSimulationMetadata.databaseReader.start(
       getSimulationMetadata.startTime,
       getSimulationMetadata.endTime,
@@ -228,8 +228,6 @@ object Exchange
     Account.initializeWallets
     Account.addFunds(simulationStartRequest.initialQuoteFunds)
     Account.addFunds(simulationStartRequest.initialProductFunds)
-
-    SnapshotBuffer.start(simulationStartRequest.snapshotBufferSize)
 
     if (simulationStartRequest.numWarmUpSteps > 0) {
       (1 to simulationStartRequest.numWarmUpSteps) foreach (_ =>
@@ -290,16 +288,12 @@ object Exchange
     matchingEngine.matches.clear
 
     val matchingEngineStartTime = System.nanoTime
-    matchingEngine.processEvents(receivedEvents)
+    matchingEngine.step(receivedEvents)
     val matchingEngineDuration = (System.nanoTime - matchingEngineStartTime) / 1e6
 
     val environmentStartTime = System.nanoTime
     Environment.step(stepRequest.actionRequest)
     val environmentDuration = (System.nanoTime - environmentStartTime) / 1e6
-
-    val snapshotStartTime = System.nanoTime
-    SnapshotBuffer.step
-    val snapshotDuration = (System.nanoTime - snapshotStartTime) / 1e6
 
     InfoAggregator.step
 
@@ -307,7 +301,7 @@ object Exchange
     val stepDuration = (System.nanoTime - stepStartTime) / 1e6
 
     logger.fine(s"Exchange.step took ${stepDuration} ms")
-    getSimulationMetadata.stepProgressBar(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, snapshotDuration,  receivedEvents.size)
+    getSimulationMetadata.step(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, receivedEvents.size)
 
     Future successful simulationInfo
   }
