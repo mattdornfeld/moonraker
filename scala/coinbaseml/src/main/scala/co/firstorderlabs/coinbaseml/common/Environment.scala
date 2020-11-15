@@ -2,7 +2,6 @@ package co.firstorderlabs.coinbaseml.common
 
 import java.util.logging.Logger
 
-import co.firstorderlabs.coinbaseml.common
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.SignalPositionSize
 import co.firstorderlabs.coinbaseml.common.featurizers._
 import co.firstorderlabs.coinbaseml.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
@@ -18,7 +17,7 @@ import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future
 
-case class FeaturizerSnapshot(
+final case class FeaturizerSnapshot(
     orderBookFeaturizerSnapshot: OrderBookFeaturizerSnapshot,
     timeSeriesFeaturizerSnapshot: TimeSeriesFeaturizerSnapshot
 ) extends Snapshot
@@ -119,5 +118,4 @@ object Environment
     OrderBookFeaturizer.restore(snapshot.orderBookFeaturizerSnapshot)
     TimeSeriesFeaturizer.restore(snapshot.timeSeriesFeaturizerSnapshot)
   }
-
 }

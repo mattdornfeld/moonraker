@@ -20,7 +20,7 @@ import scala.collection.mutable
 import scala.collection.mutable.{HashMap, ListBuffer}
 import scala.concurrent.Future
 
-class CancellationsHashMap
+final class CancellationsHashMap
     extends HashMap[TimeInterval, ListBuffer[Cancellation]] {
   override def clone: CancellationsHashMap = {
     val clonedMap = new CancellationsHashMap
@@ -31,7 +31,7 @@ class CancellationsHashMap
     super.getOrElseUpdate(key, ListBuffer())
 }
 
-class MatchesHashMap extends HashMap[OrderId, ListBuffer[Match]] {
+final class MatchesHashMap extends HashMap[OrderId, ListBuffer[Match]] {
   override def clone: MatchesHashMap = {
     val clonedMap = new MatchesHashMap
     clonedMap.addAll(super.clone.iterator)
@@ -41,7 +41,7 @@ class MatchesHashMap extends HashMap[OrderId, ListBuffer[Match]] {
     super.getOrElseUpdate(key, ListBuffer())
 }
 
-case class AccountSnapshot(
+final case class AccountSnapshot(
     orderRequests: HashMap[OrderRequestId, OrderRequest],
     placedCancellations: CancellationsHashMap,
     placedOrders: mutable.HashMap[OrderId, OrderEvent],

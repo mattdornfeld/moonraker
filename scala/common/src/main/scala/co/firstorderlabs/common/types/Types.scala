@@ -6,16 +6,16 @@ import co.firstorderlabs.common.protos.fakebase.Currency
 import scalapb.TypeMapper
 
 object Types {
-  case class OrderId(orderId: String) extends AnyVal
-  case class OrderRequestId(orderRequestId: String) extends AnyVal
-  case class TradeId(tradeId: Long) extends AnyVal
+  final case class OrderId(orderId: String) extends AnyVal
+  final case class OrderRequestId(orderRequestId: String) extends AnyVal
+  final case class TradeId(tradeId: Long) extends AnyVal
 
-  case class ProductId(productCurrency: Currency, quoteCurrency: Currency) {
+  final case class ProductId(productCurrency: Currency, quoteCurrency: Currency) {
     override def toString: String =
       productCurrency.toString + "-" + quoteCurrency.toString
   }
 
-  case class TimeInterval(startTime: Instant, endTime: Instant) {
+  final case class TimeInterval(startTime: Instant, endTime: Instant) {
     def +(duration: Duration): TimeInterval = {
       val startDt = this.startTime.plus(duration)
       val endDt = this.endTime.plus(duration)

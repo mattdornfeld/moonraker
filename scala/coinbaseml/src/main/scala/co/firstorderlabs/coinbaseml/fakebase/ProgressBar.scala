@@ -1,6 +1,6 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-case class ProgressBar(task: String, maxSteps: Long) {
+final case class ProgressBar(task: String, maxSteps: Long) {
   private var currentStep = 0L
 
   private def render(

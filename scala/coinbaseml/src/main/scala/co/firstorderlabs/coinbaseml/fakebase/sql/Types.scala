@@ -16,11 +16,11 @@ import doobie.util.meta.Meta
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-case class DatabaseReaderSnapshot(
+final case class DatabaseReaderSnapshot(
     timeIntervalQueue: LinkedBlockingQueueBase[TimeInterval]
 ) extends Snapshot
 
-case class QueryResult(
+final case class QueryResult(
     buyLimitOrders: List[BuyLimitOrder],
     buyMarketOrders: List[BuyMarketOrder],
     cancellations: List[Cancellation],
@@ -100,7 +100,7 @@ final case class BoundedTrieMap[K, V](
   }
 }
 
-class LinkedBlockingQueue[A] extends LinkedBlockingQueueBase[A] {
+final class LinkedBlockingQueue[A] extends LinkedBlockingQueueBase[A] {
   override def equals(that: Any): Boolean = {
     that match {
       case that: LinkedBlockingQueue[A] =>

@@ -9,7 +9,7 @@ import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.events.OrderSide
 
-case class OrderBookFeaturizerSnapshot(featureBuffer: List[OrderBookFeature])
+final case class OrderBookFeaturizerSnapshot(featureBuffer: List[OrderBookFeature])
     extends Snapshot
 
 object OrderBookFeaturizer

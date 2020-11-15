@@ -13,17 +13,17 @@ import scala.collection.mutable
 import scala.collection.mutable.{HashMap, TreeMap}
 import scala.math.Ordering
 
-class AggregatedMap extends HashMap[ProductPrice, ProductVolume] {
+final class AggregatedMap extends HashMap[ProductPrice, ProductVolume] {
   override def apply(key: ProductPrice): ProductVolume =
     super.getOrElseUpdate(key, ProductVolume.zeroVolume)
 }
 
-case class OrderBookSnapshot(
+final case class OrderBookSnapshot(
     orderIdLookup: mutable.HashMap[OrderId, LimitOrderEvent],
     priceTree: PriceTree
 ) extends Snapshot
 
-case class PriceGlob(price: ProductPrice) {
+final case class PriceGlob(price: ProductPrice) {
   val orders = new IndexedLinkedList[OrderBookKey, LimitOrderEvent]
 
   def aggregateVolume: ProductVolume = {
@@ -56,14 +56,11 @@ case class PriceGlob(price: ProductPrice) {
     orders.remove(key).flatMap(n => Some(n.value))
 }
 
-case class PriceTree(
+final case class PriceTree(
     priceTree: TreeMap[ProductPrice, PriceGlob] = new TreeMap,
     priceTreeIndex: mutable.HashMap[ProductPrice, PriceGlob] =
       new mutable.HashMap
 ) {
-//  private val priceTreeIndex = new mutable.HashMap[ProductPrice, PriceGlob]
-//  private val priceTree = new TreeMap[ProductPrice, PriceGlob]
-
   def addAll(iterator: Iterator[(ProductPrice, PriceGlob)]): this.type = {
     priceTree.addAll(iterator)
     priceTreeIndex.addAll(priceTree.iterator)
@@ -106,7 +103,7 @@ case class PriceTree(
   }
 }
 
-class OrderBook(snapshot: Option[OrderBookSnapshot] = None)
+final class OrderBook(snapshot: Option[OrderBookSnapshot] = None)
     extends Snapshotable[OrderBookSnapshot] {
   private val orderIdLookup = new HashMap[OrderId, LimitOrderEvent]
   private val priceTree = new PriceTree
@@ -205,7 +202,6 @@ class OrderBook(snapshot: Option[OrderBookSnapshot] = None)
 
     if (priceGlob.isEmpty) {
       priceTree.remove(price)
-//      priceTreeIndex.remove(price)
     }
     orderIdLookup.remove(order.orderId)
   }

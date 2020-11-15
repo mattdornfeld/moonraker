@@ -10,7 +10,7 @@ import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, Cancellation, Match, SellLimitOrder}
 import co.firstorderlabs.common.types.Events.{Event, OrderEvent, SpecifiesPrice, SpecifiesSize}
 
-case class TimeSeriesFeaturizerSnapshot(
+final case class TimeSeriesFeaturizerSnapshot(
     featureBuffer: List[TimeSeriesFeaturizer.TimeSeriesFeature]
 ) extends Snapshot
 
