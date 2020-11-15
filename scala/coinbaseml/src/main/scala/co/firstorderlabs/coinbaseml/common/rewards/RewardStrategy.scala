@@ -1,91 +1,17 @@
 package co.firstorderlabs.coinbaseml.common.rewards
 
-import java.util.logging.Logger
-
-import co.firstorderlabs.coinbaseml.fakebase._
-import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.events.OrderSide
-import co.firstorderlabs.common.types.Types.TimeInterval
+import co.firstorderlabs.coinbaseml.fakebase.MatchingEngine
 
 /** RewardStrategy is a base trait for all reward strategies
   */
 trait RewardStrategy {
-  private val logger = Logger.getLogger(this.toString)
-  private var previousPortfolioValueTimeInterval: Option[TimeInterval] = None
   protected var _previousPortfolioValue: Option[Double] = None
 
-  private def currentTimeInterval: TimeInterval =
-    Exchange.getSimulationMetadata.currentTimeInterval
-
-  /** Calculates mid price for a given TimeInterval
+  /** Calculates mid price for the current TimeInterval
     *
-    * @param timeInterval
     * @return
     */
-  def calcMidPrice(timeInterval: TimeInterval): Double = {
-    val (buyOrderBook, sellOrderBook) =
-      if (timeInterval == currentTimeInterval) {
-        (
-          Exchange.getOrderBook(OrderSide.buy),
-          Exchange.getOrderBook(OrderSide.sell)
-        )
-      } else {
-        val snapshot = SnapshotBuffer.getSnapshot(timeInterval)
-        (
-          new OrderBook(
-            Some(snapshot.matchingEngineSnapshot.buyOrderBookSnapshot)
-          ),
-          new OrderBook(
-            Some(snapshot.matchingEngineSnapshot.sellOrderBookSnapshot)
-          )
-        )
-      }
-
-    val bestAskPrice = sellOrderBook.minPrice.getOrElse {
-      logger.warning(
-        "The best ask price is 0. This indicates the sell order book is empty"
-      )
-      ProductPrice.zeroPrice
-    }
-    val bestBidPrice = buyOrderBook.maxPrice.getOrElse {
-      logger.warning(
-        "The best bid price is 0. This indicates the buy order book is empty"
-      )
-      ProductPrice.zeroPrice
-    }
-
-    ((bestAskPrice + bestBidPrice) / Right(2.0)).toDouble
-  }
-
-  /** Calculates portfolio value for a given TimeInterval
-    *
-    * @param timeInterval
-    * @return
-    */
-  def calcPortfolioValue(timeInterval: TimeInterval): Double = {
-    val (productWallet, quoteWallet) =
-      if (timeInterval == currentTimeInterval) {
-        (Wallets.getWallet(ProductVolume), Wallets.getWallet(QuoteVolume))
-      } else {
-        val walletsMap = SnapshotBuffer
-          .getSnapshot(timeInterval)
-          .accountSnapshot
-          .walletsSnapshot
-          .walletsMap
-
-        (
-          walletsMap(ProductVolume.currency)
-            .asInstanceOf[Wallet[ProductVolume]],
-          walletsMap(QuoteVolume.currency).asInstanceOf[Wallet[QuoteVolume]]
-        )
-      }
-
-    val productVolume = productWallet.balance.toDouble
-    val quoteVolume = quoteWallet.balance.toDouble
-
-    productVolume * calcMidPrice(timeInterval) + quoteVolume
-  }
+  def calcMidPrice: Double = MatchingEngine.calcMidPrice
 
   /** All RewardStrategy objects must implement this method
     *
@@ -93,22 +19,13 @@ trait RewardStrategy {
     */
   def calcReward: Double
 
-  def currentPortfolioValue: Double =
-    calcPortfolioValue(currentTimeInterval)
+  def currentPortfolioValue: Double = MatchingEngine.currentPortfolioValue match {
+    case Some(currentPortfolioValue) => currentPortfolioValue
+    case None => throw new IllegalStateException
+  }
 
-  def currentMidPrice: Double =
-    calcMidPrice(currentTimeInterval)
-
-  protected def previousPortfolioValue: Double = {
-    val previousTimeInterval = Exchange.getSimulationMetadata.previousTimeInterval
-    val isReset = previousPortfolioValueTimeInterval match {
-      case Some(previousPortfolioValueTimeInterval) => previousPortfolioValueTimeInterval != previousTimeInterval
-      case None => false
-    }
-    if (_previousPortfolioValue.isEmpty || isReset) {
-      calcPortfolioValue(Exchange.getSimulationMetadata.previousTimeInterval)
-    } else {
-      _previousPortfolioValue.get
-    }
+  protected def previousPortfolioValue: Double = MatchingEngine.previousPortfolioValue match {
+    case Some(previousPortfolioValue) => previousPortfolioValue
+    case None => throw new IllegalStateException
   }
 }

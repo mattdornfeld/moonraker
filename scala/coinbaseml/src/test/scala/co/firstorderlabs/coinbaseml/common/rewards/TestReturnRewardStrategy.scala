@@ -16,9 +16,7 @@ class TestReturnRewardStrategy extends AnyFunSpec {
       Exchange.start(simulationStartRequest)
       (1 to 2) foreach (_ => Exchange.step(Constants.emptyStepRequest))
       assert(
-        ReturnRewardStrategy.calcPortfolioValue(
-          Exchange.getSimulationMetadata.currentTimeInterval
-        ) == Wallets.getWallet(QuoteVolume).balance.toDouble
+        ReturnRewardStrategy.currentPortfolioValue == Wallets.getWallet(QuoteVolume).balance.toDouble
       )
     }
 
@@ -33,8 +31,7 @@ class TestReturnRewardStrategy extends AnyFunSpec {
         )).toDouble
 
       assert(
-        expectedMidPrice == ReturnRewardStrategy
-          .calcMidPrice(Exchange.getSimulationMetadata.currentTimeInterval)
+        expectedMidPrice == ReturnRewardStrategy.calcMidPrice
       )
     }
 
@@ -46,14 +43,13 @@ class TestReturnRewardStrategy extends AnyFunSpec {
       TestReturnRewardStrategy.populateOrderBook
       val currentTimeInterval =
         Exchange.getSimulationMetadata.currentTimeInterval
-      val midPrice = ReturnRewardStrategy.calcMidPrice(currentTimeInterval)
+      val midPrice = ReturnRewardStrategy.calcMidPrice
       val productVolume = Wallets.getWallet(ProductVolume).balance.toDouble
       val quoteVolume = Wallets.getWallet(QuoteVolume).balance.toDouble
       val expectedPortfolioValue = quoteVolume + midPrice * productVolume
 
       assert(
-        expectedPortfolioValue == ReturnRewardStrategy
-          .calcPortfolioValue(currentTimeInterval)
+        expectedPortfolioValue == ReturnRewardStrategy.currentPortfolioValue
       )
     }
 
@@ -61,11 +57,11 @@ class TestReturnRewardStrategy extends AnyFunSpec {
       "between two consecutive time steps") {
       Exchange.start(simulationStartRequest)
       TestReturnRewardStrategy.populateOrderBook
-      val portfolioValue1 = ReturnRewardStrategy.calcPortfolioValue(Exchange.getSimulationMetadata.currentTimeInterval)
+      val portfolioValue1 = ReturnRewardStrategy.currentPortfolioValue
       val productValue = portfolioValue1 - Wallets.getWallet(QuoteVolume).balance.toDouble
       Account.placedOrders.keys.foreach(orderId => Account.cancelOrder(new CancellationRequest(orderId)))
       Exchange.step(Constants.emptyStepRequest)
-      val portfolioValue2 = ReturnRewardStrategy.calcPortfolioValue(Exchange.getSimulationMetadata.currentTimeInterval)
+      val portfolioValue2 = ReturnRewardStrategy.currentPortfolioValue
       val expectedReward = (portfolioValue2 - portfolioValue1)
 
       assert(expectedReward == ReturnRewardStrategy.calcReward)

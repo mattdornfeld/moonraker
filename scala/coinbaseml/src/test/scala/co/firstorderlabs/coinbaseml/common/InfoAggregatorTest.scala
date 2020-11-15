@@ -95,10 +95,7 @@ class InfoAggregatorTest extends AnyFunSpec {
         simulationStartRequest.initialQuoteFunds + midPrice * simulationStartRequest.initialProductFunds
 
       assert(
-        expectedPortfolioValue.toDouble ===
-          ReturnRewardStrategy.calcPortfolioValue(
-            Exchange.getSimulationMetadata.currentTimeInterval
-          )
+        expectedPortfolioValue.toDouble === ReturnRewardStrategy.currentPortfolioValue
       )
     }
 

@@ -36,7 +36,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       val features = TimeSeriesFeaturizer.construct(observationRequest)
 
       assert(
-        features.size == SnapshotBuffer.maxSize * TimeSeriesFeaturizer.numChannels
+        features.size == Exchange.getSimulationMetadata.snapshotBufferSize * TimeSeriesFeaturizer.numChannels
       )
       assert(features.forall(_ == 0))
     }

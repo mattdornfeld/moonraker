@@ -24,7 +24,7 @@ class CheckpointerTest extends AnyFunSpec {
 
       Exchange.reset(SimulationInfoRequest())
 
-      assert(Checkpointer.checkpointSnapshot == SnapshotBuffer.createSnapshot)
+      assert(Checkpointer.checkpointSnapshot == Checkpointer.createSnapshot)
     }
 
     it(
@@ -35,10 +35,7 @@ class CheckpointerTest extends AnyFunSpec {
       val expectedCheckpointSnapshotBuffer = advanceExchange
       Exchange.reset(SimulationInfoRequest())
 
-      assert(Checkpointer.checkpointSnapshot == SnapshotBuffer.createSnapshot)
-      assert(
-        expectedCheckpointSnapshotBuffer == SnapshotBuffer.snapshotBuffer.toSeq
-      )
+      assert(Checkpointer.checkpointSnapshot == Checkpointer.createSnapshot)
     }
 
     it(
@@ -51,7 +48,7 @@ class CheckpointerTest extends AnyFunSpec {
       assert(PostgresReader.blockUntilWaiting)
     }
   }
-  def advanceExchange: Seq[SimulationSnapshot] = {
+  def advanceExchange: SimulationSnapshot = {
     Exchange step StepRequest(
       insertOrders = OrdersData.insertSellOrders(
         new ProductPrice(Right("100.00")),
@@ -62,7 +59,7 @@ class CheckpointerTest extends AnyFunSpec {
     Account.placeBuyMarketOrder(buyMarketOrderRequest)
 
     Exchange.checkpoint(Constants.emptyProto)
-    val checkpointSnapshotBuffer = SnapshotBuffer.snapshotBuffer.toSeq
+    val simulationSnapshot = Checkpointer.simulationSnapshot
 
     Exchange step StepRequest(
       insertOrders = OrdersData.insertSellOrders(
@@ -72,6 +69,6 @@ class CheckpointerTest extends AnyFunSpec {
     )
 
     Account.placeBuyMarketOrder(buyMarketOrderRequest)
-    checkpointSnapshotBuffer
+    simulationSnapshot.get
   }
 }

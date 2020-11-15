@@ -15,10 +15,10 @@ class TestLogReturnRewardStrategy extends AnyFunSpec{
       "between two consecutive time steps") {
       Exchange.start(simulationStartRequest)
       TestReturnRewardStrategy.populateOrderBook
-      val portfolioValue1 = ReturnRewardStrategy.calcPortfolioValue(Exchange.getSimulationMetadata.currentTimeInterval)
+      val portfolioValue1 = ReturnRewardStrategy.currentPortfolioValue
       Account.placedOrders.keys.foreach(orderId => Account.cancelOrder(new CancellationRequest(orderId)))
       Exchange.step(Constants.emptyStepRequest)
-      val portfolioValue2 = ReturnRewardStrategy.calcPortfolioValue(Exchange.getSimulationMetadata.currentTimeInterval)
+      val portfolioValue2 = ReturnRewardStrategy.currentPortfolioValue
       val expectedReward = logEpsilon(portfolioValue2 / portfolioValue1)
 
       assert(expectedReward === LogReturnRewardStrategy.calcReward)
