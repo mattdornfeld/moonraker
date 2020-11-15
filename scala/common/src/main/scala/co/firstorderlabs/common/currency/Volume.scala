@@ -102,7 +102,7 @@ object Volume {
     *
     * @param value
     */
-  class BtcVolume(value: Either[BigDecimal, String])
+  final class BtcVolume(value: Either[BigDecimal, String])
       extends Volume[BtcVolume](BtcVolume.scale, value) {
 
     override val companion = BtcVolume
@@ -154,7 +154,7 @@ object Volume {
     *
     * @param value is the numerical value of the volume
     */
-  class UsdVolume(value: Either[BigDecimal, String])
+  final class UsdVolume(value: Either[BigDecimal, String])
       extends Volume[UsdVolume](UsdVolume.scale, value) {
 
     override val companion = UsdVolume

@@ -15,7 +15,7 @@ import doobie.util.transactor.Strategy
 
 import scala.annotation.tailrec
 
-class PostgresReader extends Thread {
+final class PostgresReader extends Thread {
   private var _shouldStop = false
 
   def inState(expectedState: Thread.State): Boolean = {

@@ -21,7 +21,7 @@ object FakebaseServer {
   }
 }
 
-class FakebaseServer(executionContext: ExecutionContext) { self =>
+final class FakebaseServer(executionContext: ExecutionContext) { self =>
   private[this] var server: Server = null
 
   private def start(port: Int): Unit = {

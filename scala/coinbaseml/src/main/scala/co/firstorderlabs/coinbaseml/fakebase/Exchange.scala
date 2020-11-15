@@ -21,9 +21,9 @@ import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future
 
-case class ExchangeSnapshot(receivedEvents: List[Event]) extends Snapshot
+final case class ExchangeSnapshot(receivedEvents: List[Event]) extends Snapshot
 
-case class SimulationMetadata(
+final case class SimulationMetadata(
     startTime: Instant,
     endTime: Instant,
     timeDelta: Duration,

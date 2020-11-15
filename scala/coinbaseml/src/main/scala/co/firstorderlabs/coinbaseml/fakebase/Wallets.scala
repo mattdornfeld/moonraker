@@ -14,7 +14,7 @@ import co.firstorderlabs.common.types.Events.{SellOrderEvent, _}
 
 import scala.collection.mutable.HashMap
 
-case class Wallet[A <: Volume[A]](id: String,
+final case class Wallet[A <: Volume[A]](id: String,
                                   currency: Currency,
                                   initialBalance: A,
                                   initialHolds: A) {
@@ -34,7 +34,7 @@ case class Wallet[A <: Volume[A]](id: String,
   }
 }
 
-case class WalletsSnapshot(walletsMap: WalletMap) extends Snapshot
+final case class WalletsSnapshot(walletsMap: WalletMap) extends Snapshot
 
 object Wallets extends Snapshotable[WalletsSnapshot] {
   type GenericWallet = Wallet[_ >: ProductVolume with QuoteVolume <: Volume[_ >: ProductVolume with QuoteVolume]]

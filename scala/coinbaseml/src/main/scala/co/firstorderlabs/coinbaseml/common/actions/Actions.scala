@@ -16,11 +16,11 @@ import scalapb.lenses.Updatable
 import scala.concurrent.Future
 
 object Actions {
-  trait Action {
+  sealed trait Action {
     def execute: Option[OrderEvent]
   }
 
-  case class LimitOrderTransaction(
+  final case class LimitOrderTransaction(
       price: ProductPrice,
       size: ProductVolume,
       side: OrderSide,
@@ -59,7 +59,7 @@ object Actions {
     }
   }
 
-  case class BuyMarketOrderTransaction(funds: QuoteVolume) extends Action {
+  final case class BuyMarketOrderTransaction(funds: QuoteVolume) extends Action {
     override def execute: Option[OrderEvent] =
       getResultOptional(
         Account.placeBuyMarketOrder(
@@ -68,11 +68,11 @@ object Actions {
       )
   }
 
-  class NoTransaction extends Action {
+  final class NoTransaction extends Action {
     override def execute: Option[OrderEvent] = None
   }
 
-  case class SellMarketOrderTransaction(size: ProductVolume) extends Action {
+  final case class SellMarketOrderTransaction(size: ProductVolume) extends Action {
     override def execute: Option[OrderEvent] =
       getResultOptional(
         Account.placeSellMarketOrder(

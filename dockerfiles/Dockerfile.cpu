@@ -1,6 +1,8 @@
-ARG BASE_IMAGE_VERSION=0.1.0-e4d3dbe7f92d53434968194ad4842dce0df70562
+ARG BUILDER_BASE_IMAGE_VERSION=0.1.0-ace523e3c28c523eba2f45e89a1d3265c2e9b872
 
-FROM registry.gitlab.com/moonraker/base_images/coinbase_train_sbt:${BASE_IMAGE_VERSION} AS sbt-builder
+ARG RUNTIME_BASE_IMAGE_VERSION=0.1.0-d464dddbf3db8bf24408070f8264350e882aca12
+
+FROM registry.gitlab.com/moonraker/base_images/coinbase_train_sbt:${BUILDER_BASE_IMAGE_VERSION} AS sbt-builder
 
 ARG TEST_MODE="false"
 
@@ -12,7 +14,7 @@ WORKDIR /app
 
 RUN if [ "$TEST_MODE" = "true" ] ; then make build-scala test-scala ; else make build-scala project=$PROJECT ; fi
 
-FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:${BASE_IMAGE_VERSION}
+FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:${RUNTIME_BASE_IMAGE_VERSION}
 
 ENV PYTHONPATH=/app RAY_USE_MULTIPROCESSING_CPU_COUNT=1
 

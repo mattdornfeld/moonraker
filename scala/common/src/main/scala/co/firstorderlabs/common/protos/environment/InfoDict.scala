@@ -1,7 +1,5 @@
 package co.firstorderlabs.common.protos.environment
 
-import co.firstorderlabs.common.protos.environment.InfoDictProto
-
 import scala.collection.mutable
 
 object InfoDict {
@@ -28,7 +26,7 @@ object InfoDict {
   }
 }
 
-class InfoDict extends mutable.HashMap[InfoDictKey, Double] {
+final class InfoDict extends mutable.HashMap[InfoDictKey, Double] {
   def increment(key: InfoDictKey, incrementValue: Double): Unit = {
     val currentValue = getOrElse(key, 0.0)
     update(key, currentValue + incrementValue)

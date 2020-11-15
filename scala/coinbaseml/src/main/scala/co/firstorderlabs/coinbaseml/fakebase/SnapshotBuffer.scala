@@ -38,7 +38,7 @@ trait Snapshotable[A <: Snapshot] {
   * @param featurizerSnapshot
   * @param timeInterval
   */
-case class SimulationSnapshot(accountSnapshot: AccountSnapshot,
+final case class SimulationSnapshot(accountSnapshot: AccountSnapshot,
                               databaseWorkersSnapshot: DatabaseReaderSnapshot,
                               exchangeSnapshot: ExchangeSnapshot,
                               matchingEngineSnapshot: MatchingEngineSnapshot,
@@ -46,7 +46,7 @@ case class SimulationSnapshot(accountSnapshot: AccountSnapshot,
                               timeInterval: TimeInterval)
     extends Snapshot
 
-class SnapshotBuffer(maxSize: Int) extends FiniteQueue[SimulationSnapshot](maxSize) {
+final class SnapshotBuffer(maxSize: Int) extends FiniteQueue[SimulationSnapshot](maxSize) {
   private var snapshotBufferArray: Option[Array[SimulationSnapshot]] = None
 
     /** Override addOne so that there are never more than maxSize elements in the queue

@@ -26,7 +26,7 @@ import co.firstorderlabs.common.types.Types._
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-case class MatchingEngineSnapshot(
+final case class MatchingEngineSnapshot(
     buyOrderBookSnapshot: OrderBookSnapshot,
     matches: ListBuffer[Match],
     sellOrderBookSnapshot: OrderBookSnapshot

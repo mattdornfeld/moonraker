@@ -75,7 +75,7 @@ object Price {
     def normalize: Double = this.toDouble / companion.normalizationFactor
   }
 
-  class BtcUsdPrice(value: Either[BigDecimal, String])
+  final class BtcUsdPrice(value: Either[BigDecimal, String])
       extends ProductPrice[BtcVolume, UsdVolume](UsdVolume.scale, value) {
 
     val companion = BtcUsdPrice

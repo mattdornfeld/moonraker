@@ -4,6 +4,7 @@ import CoinbasemlDependencies.coinbasemlDependencies
 
 organization in ThisBuild := "co.firstorderlabs"
 scalaVersion in ThisBuild := "2.13.1"
+scalacOptions in ThisBuild := Seq("-opt:l:method", "-opt:l:inline", "-opt-inline-from:co.firstorderlabs.**", "-opt-warnings")
 
 lazy val global = project
   .in(file("."))
@@ -47,6 +48,7 @@ lazy val commonSettings = Seq(
     case "git.properties" => MergeStrategy.first
     case "META-INF/io.netty.versions.properties" => MergeStrategy.first
     case x if x.contains("netty") => MergeStrategy.first
+    case x if x.contains("scalapb/option") => MergeStrategy.last
     case x if x.endsWith("module-info.class") => MergeStrategy.discard
     case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
