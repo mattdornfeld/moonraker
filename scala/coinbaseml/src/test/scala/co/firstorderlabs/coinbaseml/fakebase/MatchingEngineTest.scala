@@ -30,6 +30,7 @@ class MatchingEngineTest extends AnyFunSpec {
 
   describe("MatchingEngine") {
     it("should do the following when buy orders are added") {
+      Exchange.start(RequestsData.simulationStartRequest)
       MatchingEngine.processEvents(buyOrderEvents)
 
       assert(
@@ -62,6 +63,7 @@ class MatchingEngineTest extends AnyFunSpec {
     it(
       "should do the following when buy orders are added and one is cancelled"
     ) {
+      Exchange.start(RequestsData.simulationStartRequest)
       MatchingEngine.processEvents(buyOrderEventsWithCancellation)
       assert(
         MatchingEngine
@@ -80,6 +82,7 @@ class MatchingEngineTest extends AnyFunSpec {
     it(
       "should do the following when buy orders are added and a sell order is matched"
     ) {
+      Exchange.start(RequestsData.simulationStartRequest)
       MatchingEngine.processEvents(buyOrderEventsAndTakerOrder)
       val matchEvent = MatchingEngine.matches(0)
       assert(matchEvent.price equalTo TestData.OrdersData.higherOrder.price)

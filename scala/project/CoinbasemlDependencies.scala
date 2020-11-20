@@ -10,6 +10,7 @@ object CoinbasemlDependencies {
     "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
     "org.apache.arrow" % "arrow-algorithm" % apacheArrowVersion,
     "org.apache.arrow" % "arrow-memory-netty" % apacheArrowVersion,
+    "io.swaydb" %% "swaydb" % "0.16.2",
     "org.tpolecat" %% "doobie-core" % doobieVersion,
     "org.tpolecat" %% "doobie-hikari" % doobieVersion,
     "org.tpolecat" %% "doobie-postgres"  % doobieVersion,

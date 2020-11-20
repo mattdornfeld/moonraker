@@ -12,7 +12,7 @@ object TestData {
   val endTime = Instant.parse("2020-11-09T00:10:00.0Z")
   val timeDelta = Duration.ofMinutes(1)
   val expectedTimeIntervals =
-    TimeInterval(startTime, endTime).chunkByTimeDelta(timeDelta)
+    TimeInterval(startTime, endTime).chunkBy(timeDelta)
 
   val simulationStartRequest = new SimulationStartRequest(
     startTime,

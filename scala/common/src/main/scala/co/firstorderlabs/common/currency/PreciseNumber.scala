@@ -2,7 +2,11 @@ package co.firstorderlabs.common.currency
 
 import java.math.{BigDecimal, RoundingMode}
 
-abstract class PreciseNumber[T <: PreciseNumber[T]](scale: Int, value: Either[BigDecimal, String]) extends Ordered[PreciseNumber[T]] {
+abstract class PreciseNumber[T <: PreciseNumber[T]](
+    scale: Int,
+    value: Either[BigDecimal, String]
+) extends Ordered[PreciseNumber[T]]
+    with Serializable {
   protected val _scale = scale
   val amount = value match {
     case Left(value) => value.setScale(scale, RoundingMode.HALF_UP)
@@ -11,8 +15,7 @@ abstract class PreciseNumber[T <: PreciseNumber[T]](scale: Int, value: Either[Bi
         // ScalaPB needs to be able to successfully pass an empty string to subtypes of this
         // We interpret empty string as 0
         new BigDecimal("0").setScale(scale, RoundingMode.HALF_UP)
-      }
-      else {
+      } else {
         new BigDecimal(value).setScale(scale, RoundingMode.HALF_UP)
       }
     }
@@ -23,7 +26,7 @@ abstract class PreciseNumber[T <: PreciseNumber[T]](scale: Int, value: Either[Bi
   override def equals(that: Any): Boolean = {
     that match {
       case that: PreciseNumber[T] => this.amount == that.amount
-      case _ => false
+      case _                      => false
     }
   }
 

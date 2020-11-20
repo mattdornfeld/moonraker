@@ -7,8 +7,9 @@ import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
 import co.firstorderlabs.coinbaseml.fakebase.Snapshot
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, MatchEvents, OrderSide, OrderStatus, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.protos.events.{DoneReason, MatchEvents, OrderSide, OrderStatus, RejectReason}
 import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest}
+import co.firstorderlabs.common.types.Events.Event
 import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, ProductId, TimeInterval}
 import doobie.implicits.legacy.instant.JavaTimeInstantMeta
 import doobie.util.meta.Meta
@@ -21,39 +22,24 @@ final case class DatabaseReaderSnapshot(
 ) extends Snapshot
 
 final case class QueryResult(
-    buyLimitOrders: List[BuyLimitOrder],
-    buyMarketOrders: List[BuyMarketOrder],
-    cancellations: List[Cancellation],
-    sellLimitOrders: List[SellLimitOrder],
-    sellMarketOrder: List[SellMarketOrder],
+    events: List[Event],
     timeInterval: TimeInterval
 ) {
   def chunkByTimeDelta(timeDelta: Duration): List[QueryResult] = {
-    val groupedBuyLimitOrders = buyLimitOrders.groupBy(x =>
-      timeInterval.getSubInterval(x.time, timeDelta)
-    )
-    val groupedBuyMarketOrders = buyMarketOrders.groupBy(x =>
-      timeInterval.getSubInterval(x.time, timeDelta)
-    )
-    val groupedCancellations =
-      cancellations.groupBy(x => timeInterval.getSubInterval(x.time, timeDelta))
-    val groupedSellLimitOrders = sellLimitOrders.groupBy(x =>
-      timeInterval.getSubInterval(x.time, timeDelta)
-    )
-    val groupedSellMarketOrders = sellMarketOrder.groupBy(x =>
-      timeInterval.getSubInterval(x.time, timeDelta)
+    val groupedEvents = events.groupBy(event =>
+      timeInterval.getSubInterval(event.time, timeDelta)
     )
 
-    timeInterval.chunkByTimeDelta(timeDelta).map { timeInterval =>
+    timeInterval.chunkBy(timeDelta).map { timeInterval =>
       QueryResult(
-        groupedBuyLimitOrders.getOrElse(timeInterval, List()),
-        groupedBuyMarketOrders.getOrElse(timeInterval, List()),
-        groupedCancellations.getOrElse(timeInterval, List()),
-        groupedSellLimitOrders.getOrElse(timeInterval, List()),
-        groupedSellMarketOrders.getOrElse(timeInterval, List()),
+        groupedEvents.getOrElse(timeInterval, List()),
         timeInterval
       )
     }
+  }
+
+  def serialize: String = {
+    events.toString
   }
 }
 
@@ -109,9 +95,10 @@ final class LinkedBlockingQueue[A] extends LinkedBlockingQueueBase[A] {
     }
   }
 
-  def takeOrElse(default: Option[A] = None): Option[A] =
-    if (isEmpty) { default }
-    else { Some(super.take()) }
+  def takeOrElse(default: Option[A] = None): Option[A] = {
+    if (toArray.isEmpty) { default }
+    else { Some(super.take) }
+  }
 }
 
 object Implicits {

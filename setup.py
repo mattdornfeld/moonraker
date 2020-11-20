@@ -48,6 +48,8 @@ INSTALL_REQUIRES = [
 
 SCRIPTS = [
     "bin/connect_to_ray_cluster",
+    "bin/clean",
+    "bin/clean_swaydb",
     "bin/notebook_entrypoint",
     "bin/start_jupyter_lab",
     "bin/serve_job_entrypoint",

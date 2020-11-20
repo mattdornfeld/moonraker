@@ -9,6 +9,7 @@ import co.firstorderlabs.common.protos.events.OrderSide
 import co.firstorderlabs.common.protos.fakebase.StepRequest
 import org.scalactic.TolerantNumerics
 
+import scala.annotation.tailrec
 import scala.math.pow
 
 object TestUtils {
@@ -80,6 +81,14 @@ object TestUtils {
     val variance = x.map(item => pow(item - mu, 2)).sum / (x.size - 1)
 
     if (variance > 0) pow(variance, 0.5) else 0.0
+  }
+
+  @tailrec
+  final def waitUntil(condition: () => Boolean): Unit = {
+    if (!condition()) {
+      Thread.sleep(5)
+      waitUntil(condition)
+    }
   }
 
 }

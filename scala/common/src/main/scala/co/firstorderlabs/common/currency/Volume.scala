@@ -102,6 +102,7 @@ object Volume {
     *
     * @param value
     */
+  @SerialVersionUID(2000L)
   final class BtcVolume(value: Either[BigDecimal, String])
       extends Volume[BtcVolume](BtcVolume.scale, value) {
 
@@ -154,6 +155,7 @@ object Volume {
     *
     * @param value is the numerical value of the volume
     */
+  @SerialVersionUID(2001L)
   final class UsdVolume(value: Either[BigDecimal, String])
       extends Volume[UsdVolume](UsdVolume.scale, value) {
 

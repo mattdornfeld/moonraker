@@ -94,6 +94,21 @@ message Cancellation {
     string time = 7 [(scalapb.field).type = "java.time.Instant"];
 }
 
+message Event {
+    oneof event {
+        BuyLimitOrder buyLimitOrder = 1;
+        BuyMarketOrder buyMarketOrder = 2;
+        Cancellation cancellation = 3;
+        Match match = 4;
+        SellLimitOrder sellLimitOrder = 5;
+        SellMarketOrder sellMarketOrder = 6;
+    }
+}
+
+message Events {
+    repeated Event events = 1;
+}
+
 message Order {
     oneof sealed_value {
         BuyLimitOrder buyLimitOrder = 1;

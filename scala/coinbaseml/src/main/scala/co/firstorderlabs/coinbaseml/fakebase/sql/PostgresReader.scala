@@ -1,11 +1,9 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 
-import java.time.{Duration, Instant}
+import java.time.Instant
 
-import co.firstorderlabs.coinbaseml.fakebase.Exchange
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
-import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.TimeoutExceeded
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, OrderSide, RejectReason, SellLimitOrder, SellMarketOrder}
 import co.firstorderlabs.common.protos.fakebase.OrderType
 import co.firstorderlabs.common.types.Types.{ProductId, TimeInterval}
@@ -13,78 +11,11 @@ import doobie.implicits._
 import doobie.util.query.Query0
 import doobie.util.transactor.Strategy
 
-import scala.annotation.tailrec
-
-final class PostgresReader extends Thread {
-  private var _shouldStop = false
-
-  def inState(expectedState: Thread.State): Boolean = {
-    val threadState = synchronized {
-      getState
-    }
-
-    threadState.compareTo(expectedState) == 0
-  }
-
-  def stopWorker: Unit = synchronized {
-      _shouldStop = true
-    }
-
-  def startWorker: Unit = synchronized {
-      _shouldStop = false
-      notify
-    }
-
-  def shouldStop: Boolean = synchronized {
-      _shouldStop
-    }
-
-  @tailrec
-  final def blockUntil(expectedState: Thread.State): Boolean = {
-    Thread.sleep(10)
-    PostgresReader.logger.fine(s"${getId} in recursive loop")
-    if (inState(expectedState)) {
-      true
-    } else {
-      blockUntil(expectedState)
-    }
-  }
-
-  def synchronizedWait: Unit = synchronized {
-      wait
-    }
-
-  override def run(): Unit = {
-    while (true) {
-      if (shouldStop) { synchronizedWait }
-
-      val timeInterval = PostgresReader.runUntilSuccess(
-        PostgresReader.timeIntervalQueue.takeOrElse _,
-        None,
-        10,
-        Some(this)
-      )
-
-      timeInterval match {
-        case None =>
-        case Some(timeInterval) => {
-          val queryResult = PostgresReader.buildQueryResult(timeInterval)
-
-          PostgresReader.runUntilSuccess(
-            (PostgresReader.queryResultMap.put _).tupled,
-            (timeInterval, queryResult),
-            10,
-            Some(this)
-          )
-
-          PostgresReader.logger.fine(
-            s"retrieved data for timeInterval ${timeInterval}"
-          )
-        }
-      }
-    }
-  }
-}
+final class PostgresReader extends DatabaseReaderThread(
+  PostgresReader.buildQueryResult,
+  PostgresReader.queryResultMap,
+  PostgresReader.timeIntervalQueue
+)
 
 object PostgresReader
     extends DatabaseReaderBase(
@@ -97,127 +28,11 @@ object PostgresReader
   protected val queryResultMap = new BoundedTrieMap[TimeInterval, QueryResult](
     SqlConfigs.maxResultsQueueSize
   )
-  private val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
-  private val workers =
-    for (_ <- (1 to SqlConfigs.numDatabaseWorkers))
+  protected val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
+  protected val workers: Seq[PostgresReader] =
+    for (_ <- (1 to SqlConfigs.numDatabaseReaderThreads))
       yield new PostgresReader
   workers.foreach(w => w.start)
-  private val timeoutMilli = 100000
-
-  override def createSnapshot: DatabaseReaderSnapshot = {
-    val checkpointTimeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
-    populateTimeIntervalQueue(
-      Exchange.getSimulationMetadata.currentTimeInterval.startTime,
-      Exchange.getSimulationMetadata.endTime,
-      Exchange.getSimulationMetadata.timeDelta,
-      checkpointTimeIntervalQueue
-    )
-    DatabaseReaderSnapshot(checkpointTimeIntervalQueue)
-  }
-
-  override def clear: Unit = {
-    stopWorkers
-    queryResultMap.clear
-    timeIntervalQueue.clear
-    // It's possible some workers to be stuck in a call to queryResultMap.put, which will be released after the first
-    // call to queryResultMap.clear. So we call it a second time here to remove any results those calls may have added
-    // to queryResultMap
-//    blockUntilWaiting
-//    queryResultMap.clear
-  }
-
-  override def isCleared: Boolean = {
-    (queryResultMap.isEmpty
-    && timeIntervalQueue.isEmpty)
-  }
-
-  override def restore(snapshot: DatabaseReaderSnapshot): Unit = {
-    clear
-    timeIntervalQueue.addAll(snapshot.timeIntervalQueue)
-    startWorkers
-  }
-
-  /** Call f on params until return value is not empty. Wait sleepTime between calls.
-    * If timeout is exceeded throw 5exception.
-    *
-    * @param f
-    * @param params
-    * @param sleepTime
-    * @tparam A
-    * @tparam B
-    * @throws
-    * @return
-    */
-  @throws[TimeoutExceeded]
-  def runUntilSuccess[A, B](
-      f: A => Option[B],
-      params: A,
-      sleepTime: Int,
-      thread: Option[PostgresReader] = None
-  ): Option[B] = {
-    val timeoutNano = timeoutMilli * 1000000L
-    val startTime = System.nanoTime
-    var result = f(params)
-    while (result.isEmpty) {
-      thread match {
-        case Some(thread) => if (thread.shouldStop) return None
-        case None =>
-      }
-
-      if (System.nanoTime - startTime > timeoutNano) {
-        throw TimeoutExceeded(
-          s"Timeout ${timeoutMilli} ms exceeded when calling ${f} on ${params}"
-        )
-      }
-      Thread.sleep(sleepTime)
-      result = f(params)
-    }
-    Some(result.get)
-  }
-
-  def getQueryResult(timeInterval: TimeInterval): QueryResult =
-    runUntilSuccess(queryResultMap.remove _, timeInterval, 1).get
-
-  def inState(expectedState: Thread.State): Boolean =
-    workers.forall(w => w.inState(expectedState))
-
-  def isWaiting: Boolean = inState(Thread.State.WAITING)
-
-  def blockUntilWaiting: Boolean = blockUntil(Thread.State.WAITING)
-
-  def blockUntil(expectedState: Thread.State): Boolean = {
-    workers.forall(w => w.blockUntil(expectedState))
-  }
-
-  def start(startTime: Instant, endTime: Instant, timeDelta: Duration): Unit = {
-    stopWorkers
-    clear
-    populateTimeIntervalQueue(startTime, endTime, timeDelta, timeIntervalQueue)
-    startWorkers
-    logger.info(
-      s"DatabaseWorkers started for ${startTime}-${endTime} with timeDelta ${timeDelta}"
-    )
-  }
-
-  private def stopWorkers: Unit = {
-    workers.foreach(w => w.stopWorker)
-    blockUntilWaiting
-  }
-
-  private def startWorkers: Unit = {
-    workers.foreach(w => w.startWorker)
-  }
-
-  private def populateTimeIntervalQueue(
-      startTime: Instant,
-      endTime: Instant,
-      timeDelta: Duration,
-      timeIntervalQueue: LinkedBlockingQueue[TimeInterval]
-  ): Unit = {
-    val timeIntervals =
-      TimeInterval(startTime, endTime).chunkByTimeDelta(timeDelta)
-    timeIntervals.foreach(timeInterval => timeIntervalQueue.put(timeInterval))
-  }
 
   protected def queryCancellations(
       productId: ProductId,

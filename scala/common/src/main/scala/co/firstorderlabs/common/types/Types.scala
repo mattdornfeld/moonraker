@@ -28,10 +28,14 @@ object Types {
       TimeInterval(startDt, endDt)
     }
 
-    def chunkByTimeDelta(timeDelta: Duration): List[TimeInterval] = {
+    def chunkBy(timeDelta: Duration): List[TimeInterval] = {
+      if (size.compareTo(timeDelta) <= 0) {
+        List(this)
+      } else {
       val numChunks = Duration.between(startTime, endTime).dividedBy(timeDelta).toInt
       (for (offset <- 0 to numChunks - 1)
         yield getTimeIntervalOffsetFromStart(offset, timeDelta)).toList
+      }
     }
 
     def contains(instant: Instant): Boolean =
