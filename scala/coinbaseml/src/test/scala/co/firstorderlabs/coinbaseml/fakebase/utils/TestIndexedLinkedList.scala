@@ -108,9 +108,9 @@ class TestIndexedLinkedList extends AnyFunSpec {
       val indexedLinkedList = new IndexedLinkedList[Int, Int]
       indexedLinkedList.addAll(keyValues)
       indexedLinkedList.clear
-      println(indexedLinkedList.size == 0)
-      println(indexedLinkedList.head.isEmpty)
-      println(indexedLinkedList.tail.isEmpty)
+      assert(indexedLinkedList.size == 0)
+      assert(indexedLinkedList.head.isEmpty)
+      assert(indexedLinkedList.tail.isEmpty)
     }
 
     it("Adding a duplicate key should throw a DuplicateKey exception") {

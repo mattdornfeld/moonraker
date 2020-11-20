@@ -3,14 +3,32 @@ package co.firstorderlabs.coinbaseml.fakebase.sql
 import java.time.{Duration, Instant}
 
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, OrderSide, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  BuyMarketOrder,
+  Cancellation,
+  DoneReason,
+  OrderSide,
+  RejectReason,
+  SellLimitOrder,
+  SellMarketOrder
+}
 import co.firstorderlabs.common.protos.fakebase.OrderType
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
 import doobie.implicits._
 import doobie.util.transactor.Strategy
 
-import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+
+final class BigQueryReader
+    extends DatabaseReaderThread(
+      BigQueryReader.loadQueryResultToMemory,
+      BigQueryReader.queryResultMap,
+      BigQueryReader.timeIntervalQueue
+    )
 
 object BigQueryReader
     extends DatabaseReaderBase(
@@ -25,39 +43,68 @@ object BigQueryReader
         s"Timeout=${Configs.queryTimeout}",
       "",
       "",
-      Strategy.void,
+      Strategy.void
     ) {
-  protected val queryResultMap = new mutable.HashMap[TimeInterval, QueryResult]
+  protected val queryResultMap = new BoundedTrieMap[TimeInterval, QueryResult](
+    SqlConfigs.maxResultsQueueSize
+  )
+  protected val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
+  protected val workers =
+    for (_ <- (1 to SqlConfigs.numDatabaseReaderThreads))
+      yield new BigQueryReader
+  workers.foreach(w => w.start)
 
-  def getQueryResult(timeInterval: TimeInterval): QueryResult = queryResultMap(timeInterval)
+  private def loadQueryResultToMemory(
+      timeInterval: TimeInterval
+  ): Option[QueryResult] =
+    SwayDbStorage.get(timeInterval)
 
-  def start(startTime: Instant, endTime: Instant, timeDelta: Duration): Unit = {
-    clear
-    populateQueryResultMap(TimeInterval(startTime, endTime), timeDelta)
+  override def start(
+      startTime: Instant,
+      endTime: Instant,
+      timeDelta: Duration
+  ): Future[Unit] = {
+    super.start(startTime, endTime, timeDelta)
+    val readTimeIntervals =
+      TimeInterval(startTime, endTime).chunkBy(Configs.bigQueryReadTimeDelta)
+
+    Future {
+      readTimeIntervals.foreach(timeInterval =>
+        populateQueryResultMap(timeInterval, timeDelta)
+      )
+    }
   }
 
   protected def populateQueryResultMap(
       timeInterval: TimeInterval,
       timeDelta: Duration
   ): Unit = {
-    //TODO: Try adding below queries to single transaction
-    logger.info(s"Querying BigQuery for events in ${timeInterval}")
+    if (SwayDbStorage.containsDataForQuery(timeInterval, timeDelta)) {
+      logger.info(s"Data for (${timeInterval}, ${timeDelta}) found locally. Skipping read from BigQuery.")
+    } else {
+      logger.info(s"Querying BigQuery for events in ${timeInterval}")
 
-    buildQueryResult(timeInterval)
-      .chunkByTimeDelta(timeDelta)
-      .foreach(queryResult =>
-        queryResultMap.put(queryResult.timeInterval, queryResult)
-      )
-    logger.info(
-      s"Successfully wrote ${queryResultMap.size} TimeInterval keys to queryResultMap"
-    )
-    val numEmptyTimeIntervals =
-      queryResultMap.map(_._2.buyLimitOrders.size).count(_ == 0)
+      val queryResults =
+        buildQueryResult(timeInterval).get.chunkByTimeDelta(timeDelta)
 
-    if (numEmptyTimeIntervals > 0) {
-      logger.warning(
-        s"There were ${numEmptyTimeIntervals} empty time intervals returned in this query"
+      SwayDbStorage.addAll(
+        queryResults
+          .map(queryResult => (queryResult.timeInterval, queryResult))
+          .iterator
       )
+
+      SwayDbStorage.recordQuerySuccess(timeInterval, timeDelta)
+
+      logger.info(
+        s"Successfully wrote ${queryResults.size} TimeInterval keys to queryResultMap"
+      )
+      val numEmptyTimeIntervals = queryResults.map(_.events.size).count(_ == 0)
+
+      if (numEmptyTimeIntervals > 0) {
+        logger.warning(
+          s"There were ${numEmptyTimeIntervals} empty time intervals returned in this query"
+        )
+      }
     }
   }
 
@@ -188,13 +235,4 @@ object BigQueryReader
        """
       .query[SellMarketOrder]
   }
-
-  override def clear: Unit = queryResultMap.clear
-
-  override def createSnapshot: DatabaseReaderSnapshot =
-    DatabaseReaderSnapshot(new LinkedBlockingQueue[TimeInterval])
-
-  override def isCleared: Boolean = queryResultMap.isEmpty
-
-  override def restore(snapshot: DatabaseReaderSnapshot): Unit = {}
 }

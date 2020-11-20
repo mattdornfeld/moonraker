@@ -27,6 +27,9 @@ build-image-gpu:
 clean:
 	chmod u+x bin/clean && bin/clean
 
+clean-swaydb:
+	chmod u+x bin/clean_swaydb && bin/clean_swaydb
+
 install:
 	pip3 install --upgrade pip && pip3 install -e .[grpc]
 

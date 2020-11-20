@@ -252,9 +252,6 @@ object Exchange
     logger.fine(
       s"Stepped to ${getSimulationMetadata.currentTimeInterval}"
     )
-    logger.fine(
-      s"There are ${Exchange.getSimulationMetadata.databaseReader.getResultMapSize.toString} entries in the results map queue"
-    )
 
     InfoAggregator.preStep
     Account.step
@@ -269,11 +266,7 @@ object Exchange
         .map(OrderUtils.orderEventFromSealedOneOf)
         .flatten
       ++ stepRequest.insertCancellations
-      ++ queryResult.buyLimitOrders
-      ++ queryResult.buyMarketOrders
-      ++ queryResult.sellLimitOrders
-      ++ queryResult.sellMarketOrder
-      ++ queryResult.cancellations)
+      ++ queryResult.events)
       .sortBy(event => event.time)
 
     val dataGetDuration = (System.nanoTime - dataGetStartTime) / 1e6

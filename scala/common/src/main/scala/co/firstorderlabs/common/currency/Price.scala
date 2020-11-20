@@ -75,6 +75,7 @@ object Price {
     def normalize: Double = this.toDouble / companion.normalizationFactor
   }
 
+  @SerialVersionUID(1000L)
   final class BtcUsdPrice(value: Either[BigDecimal, String])
       extends ProductPrice[BtcVolume, UsdVolume](UsdVolume.scale, value) {
 

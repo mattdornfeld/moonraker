@@ -6,7 +6,7 @@ import java.util.{Map => JavaMap}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.currency.Constants
-import co.firstorderlabs.common.protos.events.{DoneReason, Liquidity, MatchEvents, Order, OrderSide, OrderStatus, RejectReason}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, DoneReason, Liquidity, Match, MatchEvents, Order, OrderSide, OrderStatus, RejectReason, SellLimitOrder, SellMarketOrder, Cancellation => CancellationProto, Event => EventProto}
 import co.firstorderlabs.common.protos.fakebase.OrderType
 import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, ProductId, TimeInterval, TradeId}
 
@@ -72,6 +72,17 @@ object Events {
     def equalTo[A](that: A): Boolean = this == that
 
     def toBigQueryRow: JavaMap[String, Any]
+
+    def toEventProto: EventProto = {
+      this match {
+        case event: CancellationProto => EventProto().withCancellation(event)
+        case event: BuyLimitOrder => EventProto().withBuyLimitOrder(event)
+        case event: BuyMarketOrder => EventProto().withBuyMarketOrder(event)
+        case event: Match => EventProto().withMatch(event)
+        case event: SellLimitOrder => EventProto().withSellLimitOrder(event)
+        case event: SellMarketOrder => EventProto().withSellMarketOrder(event)
+      }
+    }
   }
 
   trait CancellationEvent extends Event with SpecifiesPrice {
