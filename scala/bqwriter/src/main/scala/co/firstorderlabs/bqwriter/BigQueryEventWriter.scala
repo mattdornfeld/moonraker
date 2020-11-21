@@ -149,6 +149,9 @@ object SequenceTracker {
     _currentNumMissing - _previousNumMissing
 }
 
+/**
+  * Represents a set of rows that will be written to tableId
+  */
 class BigQueryRows(tableId: TableId) {
   private val builder = InsertAllRequest.newBuilder(tableId)
   private val logger = Logger.getLogger(this.getClass.toString)
