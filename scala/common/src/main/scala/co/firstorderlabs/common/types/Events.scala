@@ -95,7 +95,7 @@ object Events {
 
     override def toBigQueryRow: JavaMap[String, Any] =
       Map(
-        "order_id" -> orderId.toString,
+        "order_id" -> orderId.orderId,
         "price" -> price.toPlainString,
         "product_id" -> productId.toString,
         "side" -> side.name,
