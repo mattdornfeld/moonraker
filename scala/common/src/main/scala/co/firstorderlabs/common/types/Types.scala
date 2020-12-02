@@ -1,5 +1,6 @@
 package co.firstorderlabs.common.types
 
+import java.io.{ByteArrayInputStream, ObjectInputStream}
 import java.time.{Duration, Instant}
 
 import co.firstorderlabs.common.protos.fakebase.Currency
@@ -10,7 +11,10 @@ object Types {
   final case class OrderRequestId(orderRequestId: String) extends AnyVal
   final case class TradeId(tradeId: Long) extends AnyVal
 
-  final case class ProductId(productCurrency: Currency, quoteCurrency: Currency) {
+  final case class ProductId(
+      productCurrency: Currency,
+      quoteCurrency: Currency
+  ) {
     override def toString: String =
       productCurrency.toString + "-" + quoteCurrency.toString
   }
@@ -32,9 +36,10 @@ object Types {
       if (size.compareTo(timeDelta) <= 0) {
         List(this)
       } else {
-      val numChunks = Duration.between(startTime, endTime).dividedBy(timeDelta).toInt
-      (for (offset <- 0 to numChunks - 1)
-        yield getTimeIntervalOffsetFromStart(offset, timeDelta)).toList
+        val numChunks =
+          Duration.between(startTime, endTime).dividedBy(timeDelta).toInt
+        (for (offset <- 0 to numChunks - 1)
+          yield getTimeIntervalOffsetFromStart(offset, timeDelta)).toList
       }
     }
 
@@ -43,17 +48,38 @@ object Types {
         && instant.compareTo(endTime) < 0)
 
     def getSubInterval(instant: Instant, timeDelta: Duration): TimeInterval = {
-      val offset = Duration.between(startTime, instant).dividedBy(timeDelta).toInt
+      val offset =
+        Duration.between(startTime, instant).dividedBy(timeDelta).toInt
       getTimeIntervalOffsetFromStart(offset, timeDelta)
     }
 
-    private def getTimeIntervalOffsetFromStart(offset: Int, timeDelta: Duration): TimeInterval =
+    def numStepsTo(timeInterval: TimeInterval, timeDelta: Duration): Int =
+      Duration
+        .between(startTime, timeInterval.startTime)
+        .dividedBy(timeDelta)
+        .toInt
+
+    private def getTimeIntervalOffsetFromStart(
+        offset: Int,
+        timeDelta: Duration
+    ): TimeInterval =
       TimeInterval(
-          startTime.plus(timeDelta.multipliedBy(offset)),
-          startTime.plus(timeDelta.multipliedBy(offset + 1))
-        )
+        startTime.plus(timeDelta.multipliedBy(offset)),
+        startTime.plus(timeDelta.multipliedBy(offset + 1))
+      )
 
     def size: Duration = Duration.between(startTime, endTime)
+  }
+
+  object TimeInterval {
+    def deserialize(bytes: Array[Byte]): TimeInterval = {
+      val objectInputStream = new ObjectInputStream(
+        new ByteArrayInputStream(bytes)
+      )
+      val value = objectInputStream.readObject.asInstanceOf[TimeInterval]
+      objectInputStream.close
+      value
+    }
   }
 
   object OrderId {

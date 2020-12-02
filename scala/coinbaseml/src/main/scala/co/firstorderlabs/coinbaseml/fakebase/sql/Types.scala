@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 
+import java.io.{ByteArrayInputStream, ObjectInputStream}
 import java.math.BigDecimal
 import java.time.Duration
 import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
@@ -18,7 +19,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 final case class DatabaseReaderSnapshot(
-    timeIntervalQueue: LinkedBlockingQueueBase[TimeInterval]
+    timeInterval: TimeInterval
 ) extends Snapshot
 
 final case class QueryResult(
@@ -38,16 +39,29 @@ final case class QueryResult(
     }
   }
 
-  def serialize: String = {
-    events.toString
+  override def toString: String = s"<QueryResult(${timeInterval})"
+}
+
+trait Deserializer[A] {
+  private type resultType = A
+  def deserialize(bytes: Array[Byte]): A = {
+    val objectInputStream = new ObjectInputStream(
+      new ByteArrayInputStream(bytes)
+    )
+    val value = objectInputStream.readObject.asInstanceOf[resultType]
+    objectInputStream.close
+    value
   }
 }
 
-final case class BoundedTrieMap[K, V](
+object QueryResult extends Deserializer[QueryResult]
+
+
+case class BoundedTrieMap[K, V](
     var maxSize: Int,
     trieMap: Option[TrieMap[K, V]] = None
 ) extends mutable.AbstractMap[K, V] {
-  val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
+  protected val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
 
   override def addOne(elem: (K, V)): BoundedTrieMap.this.type = {
     _trieMap.addOne(elem)
@@ -57,6 +71,8 @@ final case class BoundedTrieMap[K, V](
   override def clear: Unit = _trieMap.clear
 
   override def isEmpty: Boolean = _trieMap.isEmpty
+
+  def isFull: Boolean = _trieMap.size >= maxSize
 
   override def remove(key: K): Option[V] = _trieMap.remove(key)
 
@@ -72,7 +88,7 @@ final case class BoundedTrieMap[K, V](
     }
   }
 
-  override def size: Int = _trieMap.size
+  override def size: Int = synchronized{_trieMap.size}
 
   override def clone: BoundedTrieMap[K, V] = {
     BoundedTrieMap(maxSize, Some(_trieMap.clone))

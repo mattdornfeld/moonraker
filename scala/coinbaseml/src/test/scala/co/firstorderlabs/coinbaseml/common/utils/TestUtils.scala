@@ -10,10 +10,16 @@ import co.firstorderlabs.common.protos.fakebase.StepRequest
 import org.scalactic.TolerantNumerics
 
 import scala.annotation.tailrec
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 import scala.math.pow
 
 object TestUtils {
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(1e-10)
+
+  implicit class FutureUtils[A](future: Future[A]) {
+    def await(duration: Duration): Unit = Await.ready(future, duration)
+  }
 
   implicit class OrderSideUtils(orderside: OrderSide) {
     def getOppositeSide: OrderSide = {

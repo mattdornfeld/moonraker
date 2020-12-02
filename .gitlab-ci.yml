@@ -109,8 +109,8 @@ delete_bqwriter:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-bqwriter
 
 .coinbaseml_files: &coinbaseml_files
-  - coinbaseml/**/*
-  - coinbaseml_tests/**/*
+  - coinbase_ml/**/*
+  - coinbase_ml_tests/**/*
   - dockerfiles/Dockerfile.cpu
   - dockerfiles/Dockerfile.gpu
   - helm/coinbase-ml-train/**/*

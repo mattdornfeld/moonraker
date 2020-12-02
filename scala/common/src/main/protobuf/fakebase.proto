@@ -42,8 +42,8 @@ enum Currency {
 }
 
 enum DatabaseBackend {
-    Postgres = 0;
-    BigQuery = 1;
+    BigQuery = 0;
+    Postgres = 1;
 }
 
 enum OrderType {

@@ -6,7 +6,7 @@ import java.util.logging.Logger
 
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.coinbaseml.common.{Environment, InfoAggregator}
-import co.firstorderlabs.coinbaseml.fakebase.sql.{BigQueryReader, DatabaseReaderBase, PostgresReader}
+import co.firstorderlabs.coinbaseml.fakebase.sql.{BigQueryReader, DatabaseReader, PostgresReader}
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.{SimulationNotStarted, SnapshotBufferNotFull}
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
@@ -24,18 +24,18 @@ import scala.concurrent.Future
 final case class ExchangeSnapshot(receivedEvents: List[Event]) extends Snapshot
 
 final case class SimulationMetadata(
-    startTime: Instant,
-    endTime: Instant,
-    timeDelta: Duration,
-    numWarmUpSteps: Int,
-    initialProductFunds: ProductVolume,
-    initialQuoteFunds: QuoteVolume,
-    simulationId: String,
-    observationRequest: ObservationRequest,
-    enableProgressBar: Boolean,
-    simulationType: SimulationType,
-    databaseReader: DatabaseReaderBase,
-    snapshotBufferSize: Int,
+                                     startTime: Instant,
+                                     endTime: Instant,
+                                     timeDelta: Duration,
+                                     numWarmUpSteps: Int,
+                                     initialProductFunds: ProductVolume,
+                                     initialQuoteFunds: QuoteVolume,
+                                     simulationId: String,
+                                     observationRequest: ObservationRequest,
+                                     enableProgressBar: Boolean,
+                                     simulationType: SimulationType,
+                                     databaseReader: DatabaseReader,
+                                     snapshotBufferSize: Int,
 ) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
@@ -258,7 +258,7 @@ object Exchange
 
     val dataGetStartTime = System.nanoTime
     val queryResult = Exchange.getSimulationMetadata.databaseReader
-      .getQueryResult(getSimulationMetadata.currentTimeInterval)
+      .removeQueryResult(getSimulationMetadata.currentTimeInterval)
 
     receivedEvents = (Account.getReceivedOrders.toList
       ++ Account.getReceivedCancellations.toList

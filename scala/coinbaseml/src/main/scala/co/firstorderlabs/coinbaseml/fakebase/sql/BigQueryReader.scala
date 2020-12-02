@@ -1,112 +1,34 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 
-import java.time.{Duration, Instant}
+import java.time.Instant
 
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
-import co.firstorderlabs.common.protos.events.{
-  BuyLimitOrder,
-  BuyMarketOrder,
-  Cancellation,
-  DoneReason,
-  OrderSide,
-  RejectReason,
-  SellLimitOrder,
-  SellMarketOrder
-}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, OrderSide, RejectReason, SellLimitOrder, SellMarketOrder}
 import co.firstorderlabs.common.protos.fakebase.OrderType
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
 import doobie.implicits._
 import doobie.util.transactor.Strategy
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-
-final class BigQueryReader
-    extends DatabaseReaderThread(
-      BigQueryReader.loadQueryResultToMemory,
-      BigQueryReader.queryResultMap,
-      BigQueryReader.timeIntervalQueue
-    )
-
 object BigQueryReader
-    extends DatabaseReaderBase(
+    extends DatabaseReader(
       "com.simba.googlebigquery.jdbc42.Driver",
       "jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443;" +
         "EnableHighThroughputAPI=1;" +
-        s"ProjectId=${Configs.gcpProjectId};" +
+        "HighThroughputActivationRatio=1;" +
+        "HighThroughputMinTableSize=1;" +
+        "LogLevel=0;" +
+        s"ProjectId=${SqlConfigs.gcpProjectId};" +
         "OAuthType=0;" +
-        s"OAuthServiceAcctEmail=${Configs.serviceAccountEmail};" +
-        s"OAuthPvtKeyPath=${Configs.serviceAccountJsonPath};" +
-        s"DefaultDataset=${Configs.datasetId};" +
-        s"Timeout=${Configs.queryTimeout}",
+        s"OAuthServiceAcctEmail=${SqlConfigs.serviceAccountEmail};" +
+        s"OAuthPvtKeyPath=${SqlConfigs.serviceAccountJsonPath};" +
+        s"DefaultDataset=${SqlConfigs.datasetId};" +
+        s"Timeout=${SqlConfigs.queryTimeout}",
       "",
       "",
       Strategy.void
     ) {
-  protected val queryResultMap = new BoundedTrieMap[TimeInterval, QueryResult](
-    SqlConfigs.maxResultsQueueSize
-  )
-  protected val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
-  protected val workers =
-    for (_ <- (1 to SqlConfigs.numDatabaseReaderThreads))
-      yield new BigQueryReader
-  workers.foreach(w => w.start)
-
-  private def loadQueryResultToMemory(
-      timeInterval: TimeInterval
-  ): Option[QueryResult] =
-    SwayDbStorage.get(timeInterval)
-
-  override def start(
-      startTime: Instant,
-      endTime: Instant,
-      timeDelta: Duration
-  ): Future[Unit] = {
-    super.start(startTime, endTime, timeDelta)
-    val readTimeIntervals =
-      TimeInterval(startTime, endTime).chunkBy(Configs.bigQueryReadTimeDelta)
-
-    Future {
-      readTimeIntervals.foreach(timeInterval =>
-        populateQueryResultMap(timeInterval, timeDelta)
-      )
-    }
-  }
-
-  protected def populateQueryResultMap(
-      timeInterval: TimeInterval,
-      timeDelta: Duration
-  ): Unit = {
-    if (SwayDbStorage.containsDataForQuery(timeInterval, timeDelta)) {
-      logger.info(s"Data for (${timeInterval}, ${timeDelta}) found locally. Skipping read from BigQuery.")
-    } else {
-      logger.info(s"Querying BigQuery for events in ${timeInterval}")
-
-      val queryResults =
-        buildQueryResult(timeInterval).get.chunkByTimeDelta(timeDelta)
-
-      SwayDbStorage.addAll(
-        queryResults
-          .map(queryResult => (queryResult.timeInterval, queryResult))
-          .iterator
-      )
-
-      SwayDbStorage.recordQuerySuccess(timeInterval, timeDelta)
-
-      logger.info(
-        s"Successfully wrote ${queryResults.size} TimeInterval keys to queryResultMap"
-      )
-      val numEmptyTimeIntervals = queryResults.map(_.events.size).count(_ == 0)
-
-      if (numEmptyTimeIntervals > 0) {
-        logger.warning(
-          s"There were ${numEmptyTimeIntervals} empty time intervals returned in this query"
-        )
-      }
-    }
-  }
 
   protected def queryCancellations(
       productId: ProductId,

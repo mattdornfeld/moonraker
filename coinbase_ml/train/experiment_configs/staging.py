@@ -23,18 +23,18 @@ def staging():
     trainer_name = "apex_td3"
     initial_btc = "1.000000"
     initial_usd = "10000.00"
-    snapshot_buffer_size = 3
-    num_warmup_time_steps = 3
+    snapshot_buffer_size = 100
+    num_warmup_time_steps = 100
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
     actionizer = Actionizer.Name(Actionizer.SignalPositionSize)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
-    test_end_dt = "2020-11-10 02:00:00.00"
-    test_start_dt = "2020-11-10 01:00:00.00"
+    test_end_dt = "2020-11-19 16:00:00.00"
+    test_start_dt = "2020-11-19 12:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)
 
-    latest_train_end_dt = "2020-11-10 01:00:00.00"
-    latest_train_start_dt = "2020-11-10 00:00:00.00"
+    latest_train_end_dt = "2020-11-19 12:00:00.00"
+    latest_train_start_dt = "2020-11-19 00:00:00.00"
     num_actors = 2
     train_time_intervals = num_actors * [
         TimeInterval(
