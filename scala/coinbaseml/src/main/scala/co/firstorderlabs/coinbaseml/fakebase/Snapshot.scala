@@ -1,7 +1,7 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
 import co.firstorderlabs.coinbaseml.common.{Environment, FeaturizerSnapshot, InfoAggregator}
-import co.firstorderlabs.coinbaseml.fakebase.sql.{DatabaseReaderBase, DatabaseReaderSnapshot}
+import co.firstorderlabs.coinbaseml.fakebase.sql.{DatabaseReader, DatabaseReaderSnapshot}
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.CheckpointNotFound
 import co.firstorderlabs.common.types.Types.TimeInterval
 
@@ -78,21 +78,20 @@ object Checkpointer {
 
   def clear: Unit = {
     Account.clear
-    DatabaseReaderBase.clearAllReaders
+    DatabaseReader.clearAllReaders
     Exchange.clear
     InfoAggregator.clear
     MatchingEngine.clear
     Environment.clear
   }
 
-  def isCleared: Boolean = {
+  def isCleared: Boolean =
     (Account.isCleared
-    && DatabaseReaderBase.areReadersCleared
+    && DatabaseReader.areReadersCleared
     && Exchange.isCleared
     && InfoAggregator.isCleared
     && MatchingEngine.isCleared
     && Environment.isCleared)
-  }
 
   def restoreFromCheckpoint: Unit = {
     Account.restore(checkpointSnapshot.accountSnapshot)

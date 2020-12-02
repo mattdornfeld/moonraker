@@ -21,7 +21,7 @@ FAKBASE_SERVER_DEFAULT_PORT = 9090
 EMPTY_PROTO = Empty()
 DATABASE_BACKEND = DatabaseBackend.BigQuery
 JAVA_BIN = "/usr/lib/graalvm/graalvm-ce-java11-20.2.0/bin/java"
-# JAVA_BIN="/usr/lib/jvm/jdk-15.0.1/bin/java"
+# JAVA_BIN = "/usr/lib/jvm/jdk-15.0.1/bin/java"
 JVM_HEAP_MEMORY = "8G"
 
 # Coinbase configs

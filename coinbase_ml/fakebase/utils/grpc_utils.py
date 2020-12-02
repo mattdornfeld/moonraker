@@ -34,6 +34,7 @@ def start_fakebase_server(port: int, test_mode: bool) -> Popen:
     process = Popen(
         [
             c.JAVA_BIN,
+            f"-Xmx{c.JVM_HEAP_MEMORY}",
             "-XX:+UnlockExperimentalVMOptions",
             "-XX:+UseParallelOldGC",
             "-XX:+EnableJVMCI",

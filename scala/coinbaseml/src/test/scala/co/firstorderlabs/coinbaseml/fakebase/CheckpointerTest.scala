@@ -2,7 +2,7 @@ package co.firstorderlabs.coinbaseml.fakebase
 
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
-import co.firstorderlabs.coinbaseml.fakebase.sql.PostgresReader
+import co.firstorderlabs.coinbaseml.fakebase.sql.LocalStorage
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.protos.fakebase.{SimulationInfoRequest, StepRequest}
@@ -45,7 +45,6 @@ class CheckpointerTest extends AnyFunSpec {
       advanceExchange
       Exchange.stop(Constants.emptyProto)
       assert(Checkpointer.isCleared)
-      assert(PostgresReader.blockUntilWaiting)
     }
   }
   def advanceExchange: SimulationSnapshot = {

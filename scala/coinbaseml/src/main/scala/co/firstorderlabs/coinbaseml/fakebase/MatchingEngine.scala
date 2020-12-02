@@ -416,7 +416,9 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   ): Option[OrderEvent] = {
     orderBooks(cancellation.side)
       .getOrderByOrderId(cancellation.orderId)
-      .map { order => cancelOrder(order) }
+      .map { order =>
+        cancelOrder(order)
+      }
   }
 
   private def processMarketOrder(order: MarketOrderEvent): Unit = {

@@ -11,28 +11,14 @@ import doobie.implicits._
 import doobie.util.query.Query0
 import doobie.util.transactor.Strategy
 
-final class PostgresReader extends DatabaseReaderThread(
-  PostgresReader.buildQueryResult,
-  PostgresReader.queryResultMap,
-  PostgresReader.timeIntervalQueue
-)
-
 object PostgresReader
-    extends DatabaseReaderBase(
+    extends DatabaseReader(
       "org.postgresql.Driver",
       "jdbc:postgresql://" + SqlConfigs.postgresDbHost + "/" + SqlConfigs.postgresTable,
       SqlConfigs.postgresUsername,
       SqlConfigs.postgresPassword,
       Strategy.default
     ) {
-  protected val queryResultMap = new BoundedTrieMap[TimeInterval, QueryResult](
-    SqlConfigs.maxResultsQueueSize
-  )
-  protected val timeIntervalQueue = new LinkedBlockingQueue[TimeInterval]
-  protected val workers: Seq[PostgresReader] =
-    for (_ <- (1 to SqlConfigs.numDatabaseReaderThreads))
-      yield new PostgresReader
-  workers.foreach(w => w.start)
 
   protected def queryCancellations(
       productId: ProductId,
@@ -155,14 +141,4 @@ object PostgresReader
        """
       .query[SellMarketOrder]
   }
-
-  def queryResultMapMaxSize: Int = queryResultMap.maxSize
-
-  def setQueryResultMapMaxSize(maxSize: Int): Unit =
-    queryResultMap.maxSize = maxSize
-
-  def timeIntervalQueueElements: List[TimeInterval] =
-    timeIntervalQueue.toArray.toList.asInstanceOf[List[TimeInterval]]
-
-  def timeIntervalQueueSize: Int = timeIntervalQueue.size
 }
