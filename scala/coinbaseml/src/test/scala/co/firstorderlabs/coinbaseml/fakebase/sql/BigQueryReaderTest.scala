@@ -97,12 +97,12 @@ class BigQueryReaderTest extends AnyFunSpec {
       val endTime = Instant.parse("2020-11-09T02:00:00.0Z")
       BigQueryReader.start(startTime, endTime, timeDelta)
       Thread.sleep(1000)
-      assert(SQLConfigs.maxResultsQueueSize == BigQueryReader.queryResultMapKeys.size)
+      assert(SQLConfigs.maxQueryResultMapSize == BigQueryReader.queryResultMapKeys.size)
       assert(!BigQueryReader.streamFuture.get.isCompleted)
       val timeInterval = BigQueryReader.queryResultMapKeys.toList.head
       BigQueryReader.removeQueryResult(timeInterval)
       Thread.sleep(100)
-      assert(SQLConfigs.maxResultsQueueSize == BigQueryReader.queryResultMapKeys.size)
+      assert(SQLConfigs.maxQueryResultMapSize == BigQueryReader.queryResultMapKeys.size)
     }
   }
 }
