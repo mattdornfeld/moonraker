@@ -21,7 +21,7 @@ object Configs {
 
   //DatabaseReader configs
   val maxResultsQueueSize = envOrElse("MAX_RESULTS_QUEUE_SIZE", "50").toInt
-  val numDatabaseReaderThreads = envOrElse("NUM_DATABASE_READER_THREADS", "8").toInt
+  val numDatabaseReaderThreads = envOrElse("NUM_DATABASE_READER_THREADS", "20").toInt
   val numLocalStorageReaderThreads = envOrElse("NUM_LOCAL_STORAGE_READER_THREADS", "2").toInt
   var queryResultMapMaxOverflow = 20
 

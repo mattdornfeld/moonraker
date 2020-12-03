@@ -1,6 +1,6 @@
 job:
   memory: 12000Mi
-  num_cpus: 3.6
+  num_cpus: 3.5
   num_gpus: 1
   node_group: n1-standard-4-nvidia-tesla-p100
   sacred_config: staging
