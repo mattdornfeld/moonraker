@@ -73,7 +73,7 @@ abstract class DatabaseReader(
   protected val transactor =
     buildTransactor(driverClassName, url, user, password)
   protected val queryResultMap = new QueryResultMap(
-    SqlConfigs.maxResultsQueueSize
+    SqlConfigs.maxQueryResultMapSize
   )
   private val giveUpWhenStopped = RetryPolicy.lift[IO] { _ =>
     if (_shouldStop) {

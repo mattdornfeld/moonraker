@@ -16,7 +16,6 @@ FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:${RUNTIME_BASE
 
 ENV LANG=C.UTF-8 \
 	LD_BIND_NOW=1 \
-	NUM_DATABASE_READER_THREADS=2 \
 	PYTHONPATH=/app \
 	RAY_USE_MULTIPROCESSING_CPU_COUNT=1
 
