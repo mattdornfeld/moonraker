@@ -2,7 +2,8 @@ package co.firstorderlabs.coinbaseml.common.actions.actionizers
 
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{Action, BuyMarketOrderTransaction, NoTransaction, SellMarketOrderTransaction}
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
-import co.firstorderlabs.coinbaseml.common.utils.Utils.DoubleEquality
+import co.firstorderlabs.coinbaseml.common.utils.Utils.{DoubleUtils, Interval}
+import co.firstorderlabs.coinbaseml.common.utils.Utils.Interval.IntervalType
 import co.firstorderlabs.coinbaseml.fakebase.{MatchingEngine, Wallets}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.events.Liquidity
@@ -18,6 +19,9 @@ import co.firstorderlabs.common.protos.events.Liquidity
   */
 object SignalPositionSize extends Actionizer {
   val minimumValueDifferentialFraction = 0.05
+  val closeAllPositionsRange = Interval(0, 0.333, IntervalType.closed)
+  val noTransactionRange = Interval(0.333, 0.667)
+  val openNewPositionRange = Interval(0.667, 1)
 
   private def closeAllOpenPositions: Action = {
     val availableProduct =
@@ -76,14 +80,12 @@ object SignalPositionSize extends Actionizer {
 
   override def construct(actorOutput: Seq[Double]): Action = {
     require(actorOutput.size == 2)
-    val entrySignal = actorOutput.head
-    val positionSizeFraction = actorOutput(1)
-    require(entrySignal >= 0.0 && entrySignal <= 1.0)
-    require(positionSizeFraction >= 0.0 && positionSizeFraction <= 1.0)
+    val entrySignal = actorOutput.head.clamp(0, 1)
+    val positionSizeFraction = actorOutput(1).clamp(0, 1)
 
-    if (entrySignal === 1.0) {
+    if (openNewPositionRange.contains(entrySignal)) {
       updateOpenPositions(positionSizeFraction)
-    } else if (entrySignal === 0.0) {
+    } else if (closeAllPositionsRange.contains(entrySignal)) {
       closeAllOpenPositions
     } else {
       new NoTransaction

@@ -18,9 +18,9 @@ class TestSignalPositionSize extends AnyFunSpec {
   describe("SignalPositionSize") {
     it(
       "The SignalPositionSize Actionizer should create a NoTransaction Action when a value" +
-        "between 0 and 1 is in the 0th element of the input vector."
+        "in noTransactionRange is in the 0th element of the input vector."
     ) {
-      List(0.3, 0.5, 0.9).foreach { entrySignal =>
+      SignalPositionSize.noTransactionRange.iterator(0.1).foreach { entrySignal =>
         Exchange.start(simulationStartRequestWarmup)
         val action = SignalPositionSize.construct(List(entrySignal, 1.0))
         assert(action.isInstanceOf[NoTransaction])
@@ -28,7 +28,29 @@ class TestSignalPositionSize extends AnyFunSpec {
         assert(order.isEmpty)
         assert(Account.placedOrders.isEmpty)
       }
+    }
 
+    it(
+      "The SignalPositionSize Actionizer should create a SellMarketOrderTransaction Action when a value" +
+        "in closeAllPositionsRange is in the 0th element of the input vector."
+    ) {
+      SignalPositionSize.closeAllPositionsRange.iterator(0.1).foreach { entrySignal =>
+        Exchange.start(simulationStartRequestWarmup)
+        val action = SignalPositionSize.construct(List(entrySignal, 1.0))
+        assert(action.isInstanceOf[SellMarketOrderTransaction])
+      }
+    }
+
+    it(
+      "The SignalPositionSize Actionizer should create a BuyMarketOrderTransaction Action when a value" +
+        "in openNewPositionRange is in the 0th element of the input vector and the 1st element is larger than the " +
+        "current portfolio position."
+    ) {
+      SignalPositionSize.openNewPositionRange.iterator(0.1).foreach { entrySignal =>
+        Exchange.start(simulationStartRequestWarmup)
+        val action = SignalPositionSize.construct(List(entrySignal, 1.0))
+        assert(action.isInstanceOf[BuyMarketOrderTransaction])
+      }
     }
 
     it(
@@ -158,7 +180,7 @@ class TestSignalPositionSize extends AnyFunSpec {
     val expectedFunds = simulationStartRequest.initialQuoteFunds.subtractFees(Liquidity.taker)
     assert(Account.placedOrders.size == 1)
     val order = Account.placedOrders.values.toList(0)
-    assert(order.orderStatus.isreceived)
+    assert(order.orderStatus.isdone)
     order match {
       case order: BuyMarketOrder => assert(expectedFunds equalTo order.funds)
     }

@@ -27,9 +27,21 @@ object InfoDict {
 }
 
 final class InfoDict extends mutable.HashMap[InfoDictKey, Double] {
+  override def clone(): InfoDict = {
+    val infoDict = new InfoDict
+    foreach(item => infoDict.put(item._1, item._2))
+    infoDict
+  }
+
   def increment(key: InfoDictKey, incrementValue: Double): Unit = {
     val currentValue = getOrElse(key, 0.0)
     update(key, currentValue + incrementValue)
+  }
+
+  def incrementRunningMean(key: InfoDictKey, incrementValue: Double): Unit = {
+    val numSamples = getOrElse(InfoDictKey.numSamples, 0.0) + 1e-10
+    val currentValue = getOrElse(key, 0.0)
+    update(key, currentValue + (incrementValue - currentValue) / numSamples)
   }
 
   def instantiate: Unit =

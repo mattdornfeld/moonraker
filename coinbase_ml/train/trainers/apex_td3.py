@@ -31,7 +31,7 @@ def build_common_configs(
         },
         "evaluation_interval": 1,
         "evaluation_num_episodes": test_environment_configs.num_episodes,
-        "log_level": "INFO",
+        "log_level": "ERROR",
         "model": {
             "custom_model_config": {"hyper_params": hyper_params},
             "custom_model": "CustomModel0",
@@ -44,9 +44,7 @@ def build_common_configs(
     }
 
 
-def build_apex_configs(
-    hyper_params: HyperParameters, train_environment_configs: EnvironmentConfigs
-) -> Dict[str, Any]:
+def build_apex_configs(train_environment_configs: EnvironmentConfigs) -> Dict[str, Any]:
     """Build Ape-X specific config dict
 
     https://docs.ray.io/en/master/rllib-algorithms.html#distributed-prioritized-experience-replay-ape-x
@@ -58,7 +56,7 @@ def build_apex_configs(
             "debug": False,
         },
         "buffer_size": 100000,
-        "learning_starts": hyper_params.batch_size,
+        "learning_starts": 25000,
         "rollout_fragment_length": 10,
         "timesteps_per_iteration": train_environment_configs.timesteps_per_iteration,
         "worker_side_prioritization": True,
@@ -78,12 +76,9 @@ def build_td3_configs() -> Dict[str, Any]:
         "target_noise": 0.2,
         "target_noise_clip": 0.5,
         "exploration_config": {
-            "type": "GaussianNoise",
-            "random_timesteps": 100,
-            "stddev": 0.1,
-            "initial_scale": 1.0,
-            "final_scale": 1.0,
-            "scale_timesteps": 1,
+            "type": "ParameterNoise",
+            "random_timesteps": 0,
+            "initial_stddev": 0.1,
         },
         "n_step": 1,
         "gamma": 0.99,
@@ -109,7 +104,7 @@ def get_trainer_and_config(
             **build_common_configs(
                 hyper_params, test_environment_configs, train_environment_configs
             ),
-            **build_apex_configs(hyper_params, train_environment_configs),
+            **build_apex_configs(train_environment_configs),
             **build_td3_configs(),
         }
     )

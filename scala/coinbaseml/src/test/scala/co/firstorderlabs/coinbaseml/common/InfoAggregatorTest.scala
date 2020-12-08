@@ -8,7 +8,7 @@ import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.protos.environment.InfoDictKey
-import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest, SellLimitOrderRequest, SellMarketOrderRequest, SimulationInfoRequest, StepRequest}
+import co.firstorderlabs.common.protos.fakebase._
 import co.firstorderlabs.common.types.Events.OrderRequest
 import org.scalatest.funspec.AnyFunSpec
 
@@ -105,13 +105,13 @@ class InfoAggregatorTest extends AnyFunSpec {
       Seq(
         (
           buyLimitOrderRequest,
-          InfoDictKey.sellFeesPaid,
-          InfoDictKey.sellVolumeTraded
+          InfoDictKey.buyFeesPaid,
+          InfoDictKey.buyVolumeTraded
         ),
         (
           sellLimitOrderRequest,
-          InfoDictKey.buyFeesPaid,
-          InfoDictKey.buyVolumeTraded
+          InfoDictKey.sellFeesPaid,
+          InfoDictKey.sellVolumeTraded
         )
       ).foreach { item =>
         Exchange.start(simulationStartRequest)
@@ -134,20 +134,29 @@ class InfoAggregatorTest extends AnyFunSpec {
         Exchange.step(Constants.emptyStepRequest)
         val matches =
           getResult(Account.getMatches(Constants.emptyProto)).matchEvents
-        val expectedFeesPaid = matches.map(_.fee.toDouble).reduce(_ + _)
-        val expectedVolumeTraded = matches.map(_.size.toDouble).reduce(_ + _)
 
-        assert(expectedFeesPaid === InfoAggregator.getInfoDict.get(item._2).get)
+        val expectedFeesPaid = matches.map(_.fee.toDouble).reduce(_ + _)
+        val expectedVolumeTraded = matches.map(_.quoteVolume.toDouble).reduce(_ + _)
+
+        val infoDict = InfoAggregator.getInfoDict
+        assert(expectedFeesPaid === infoDict.get(item._2).get)
         assert(
-          expectedVolumeTraded === InfoAggregator.getInfoDict.get(item._3).get
+          expectedVolumeTraded === infoDict.get(item._3).get
         )
       }
     }
 
-    it("InfoAggregator should be cleared when Exchange is reset") {
+    it("InfoAggregator should be reset when Exchange is reset") {
       Exchange.start(simulationStartRequestWarmup)
-      assert(!InfoAggregator.getInfoDict.values.forall(_ === 0.0))
+      val infoDict = InfoAggregator.getInfoDict.clone
+      Exchange.step(Constants.emptyStepRequest)
       Exchange.reset(SimulationInfoRequest())
+      println(infoDict == InfoAggregator.getInfoDict)
+    }
+
+    it("InfoDict should be cleared when InfoAggregator is cleared") {
+      Exchange.start(simulationStartRequestWarmup)
+      InfoAggregator.clear
       assert(InfoAggregator.getInfoDict.values.forall(_ === 0.0))
     }
   }

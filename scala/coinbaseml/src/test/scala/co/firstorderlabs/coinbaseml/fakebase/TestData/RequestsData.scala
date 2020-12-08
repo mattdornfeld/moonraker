@@ -5,7 +5,7 @@ import java.time.{Duration, Instant}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.QuoteVolume
-import co.firstorderlabs.common.protos.environment.ObservationRequest
+import co.firstorderlabs.common.protos.environment.{ObservationRequest, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.protos.fakebase._
 
 object RequestsData {

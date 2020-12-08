@@ -76,11 +76,11 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         """
         super().__init__(end_dt, product_id, start_dt, time_delta)
 
-        self._simulation_id = ""
         self._simulation_info_request = SimulationInfoRequest()
         self._observation = ObservationProto()
         self._reward_strategy = RewardStrategy.Value(reward_strategy)
         self._actionizer = Actionizer.Value(actionizer)
+        self.simulation_id = ""
 
         if create_exchange_process:
             port = get_random_free_port()
@@ -189,7 +189,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         Args:
             exchange_info (ExchangeInfo): [description]
         """
-        self._simulation_id = exchange_info.simulationId
+        self.simulation_id = exchange_info.simulationId
         self.account.account_info = exchange_info.accountInfo
         self.interval_start_dt = parser.parse(exchange_info.intervalStartTime).replace(
             tzinfo=None
@@ -259,7 +259,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
     def observation(self) -> Observation:
         """Observation from latest step
         """
-        return Observation.from_arrow_sockets(self._simulation_id)
+        return Observation.from_arrow_sockets(self.simulation_id)
 
     @property
     def received_cancellations(self) -> List[CoinbaseCancellation]:

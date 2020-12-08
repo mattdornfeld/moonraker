@@ -41,10 +41,10 @@ final case class SimulationMetadata(
     TimeInterval(startTime.minus(timeDelta), startTime)
   var currentStep = 0L
 
-  private val progressBar: Option[ProgressBar] =
+  private val progressBar: Option[StepProgressLogger] =
     if (enableProgressBar)
       Some(
-        new ProgressBar(
+        new StepProgressLogger(
           s"${simulationType.name} simulation ${simulationId} progress",
           numSteps
         )
@@ -170,12 +170,12 @@ object Exchange
   override def reset(
       simulationInfoRequest: SimulationInfoRequest
   ): Future[SimulationInfo] = {
+    val simulationMetadata = getSimulationMetadata
     logger.info(
-      s"Resetting simulation to ${getSimulationMetadata.currentTimeInterval}"
+      s"Resetting simulation ${simulationMetadata.simulationId} to ${simulationMetadata.currentTimeInterval}"
     )
     getSimulationMetadata.reset
     Checkpointer.restoreFromCheckpoint
-    InfoAggregator.clear
 
     Future successful getSimulationInfo(Some(simulationInfoRequest))
   }
@@ -216,7 +216,7 @@ object Exchange
       )
     )
 
-    logger.info(s"starting simulation for parameters ${getSimulationMetadata}")
+    logger.info(s"starting simulation ${simulationMetadata.get.simulationId} for parameters ${simulationMetadata.get}")
     Checkpointer.start
     Environment.start(simulationStartRequest.snapshotBufferSize)
     getSimulationMetadata.databaseReader.start(
@@ -228,6 +228,7 @@ object Exchange
     Account.initializeWallets
     Account.addFunds(simulationStartRequest.initialQuoteFunds)
     Account.addFunds(simulationStartRequest.initialProductFunds)
+    MatchingEngine.start
 
     if (simulationStartRequest.numWarmUpSteps > 0) {
       (1 to simulationStartRequest.numWarmUpSteps) foreach (_ =>
@@ -253,8 +254,9 @@ object Exchange
       s"Stepped to ${getSimulationMetadata.currentTimeInterval}"
     )
 
-    InfoAggregator.preStep
     Account.step
+    Environment.preStep(stepRequest.actionRequest)
+    InfoAggregator.preStep
 
     val dataGetStartTime = System.nanoTime
     val queryResult = Exchange.getSimulationMetadata.databaseReader
@@ -285,13 +287,13 @@ object Exchange
     val matchingEngineDuration = (System.nanoTime - matchingEngineStartTime) / 1e6
 
     val environmentStartTime = System.nanoTime
-    Environment.step(stepRequest.actionRequest)
+    Environment.step
     val environmentDuration = (System.nanoTime - environmentStartTime) / 1e6
 
-    InfoAggregator.step
+    val stepDuration = (System.nanoTime - stepStartTime) / 1e6
+    InfoAggregator.step(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, receivedEvents.size)
 
     val simulationInfo = getSimulationInfo(stepRequest.simulationInfoRequest)
-    val stepDuration = (System.nanoTime - stepStartTime) / 1e6
 
     logger.fine(s"Exchange.step took ${stepDuration} ms")
     getSimulationMetadata.step(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, receivedEvents.size)

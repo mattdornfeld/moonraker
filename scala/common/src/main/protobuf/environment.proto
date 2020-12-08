@@ -24,6 +24,14 @@ enum InfoDictKey {
     sellFeesPaid = 5;
     sellOrdersPlaced = 6;
     sellVolumeTraded = 7;
+    simulationStepDuration = 8;
+    dataGetDuration = 9;
+    matchingEngineDuration = 10;
+    environmentDuration = 11;
+    numEvents = 12;
+    eventsPerMilliSecond = 13;
+    numSamples = 14;
+    numEpisodes = 15;
 }
 
 enum RewardStrategy {

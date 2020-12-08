@@ -1,9 +1,13 @@
 package co.firstorderlabs.coinbaseml.common.rewards
 
+import co.firstorderlabs.coinbaseml.common.InfoAggregator
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase._
+import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.fakebase.CancellationRequest
+import co.firstorderlabs.common.protos.environment.InfoDictKey
+import co.firstorderlabs.common.protos.events.OrderSide
+import co.firstorderlabs.common.protos.fakebase.{CancellationRequest, SimulationInfoRequest, StepRequest}
 import org.scalatest.funspec.AnyFunSpec
 
 class TestReturnRewardStrategy extends AnyFunSpec {
@@ -66,6 +70,30 @@ class TestReturnRewardStrategy extends AnyFunSpec {
 
       assert(expectedReward == ReturnRewardStrategy.calcReward)
       assert(expectedReward == -productValue)
+    }
+
+    it("") {
+      Exchange.start(simulationStartRequest)
+      TestReturnRewardStrategy.populateOrderBook
+      Exchange.checkpoint(Constants.emptyProto)
+      val portfolioValue = ReturnRewardStrategy.currentPortfolioValue
+      println(portfolioValue)
+
+      val buyOrders = TestUtils
+        .generateOrdersForRangeOfPrices(
+          new ProductPrice(Right("1.00")),
+          new ProductPrice(Right("1002.00")),
+          new ProductPrice(Right("1005.00")),
+          OrderSide.buy,
+          new ProductVolume(Right("1.00")),
+          Exchange.getSimulationMetadata.currentTimeInterval.endTime
+        )
+
+      Exchange.step(new StepRequest(insertOrders = buyOrders))
+      println(ReturnRewardStrategy.currentPortfolioValue)
+      Exchange.reset(new SimulationInfoRequest)
+      println(ReturnRewardStrategy.currentPortfolioValue)
+      println(InfoAggregator.getInfoDict(InfoDictKey.portfolioValue))
     }
   }
 }

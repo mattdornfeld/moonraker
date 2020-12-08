@@ -59,3 +59,6 @@ logs-train-driver:
 
 ui-ray:
 	chmod u+x bin/port_forward && bin/port_forward
+
+ui-sacred:
+	kubectl port-forward -n moonraker svc/sacred-sacredboard 5000:5000

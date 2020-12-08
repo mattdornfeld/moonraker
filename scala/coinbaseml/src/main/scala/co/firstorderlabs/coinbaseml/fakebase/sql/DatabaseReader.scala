@@ -64,8 +64,6 @@ abstract class DatabaseReader(
     password: String,
     strategy: Strategy
 ) extends Snapshotable[DatabaseReaderSnapshot] {
-  LocalStorage
-
   protected implicit val contextShift = IO.contextShift(ExecutionContext.global)
   private implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
 
@@ -84,9 +82,9 @@ abstract class DatabaseReader(
   }
   private val blockerResource = Blocker[IO]
   private val addRetryPolicy =
-    limitRetries[IO](100 * 60 * 5) join
       constantDelay[IO](10.milliseconds) join
       giveUpWhenStopped
+  private val removeRetryPolicyMaxRetries = 1000 * 60 * 5
   private val removeRetryPolicy =
     limitRetries[IO](1000 * 60 * 5) join
       constantDelay[IO](1.milliseconds) join
@@ -127,7 +125,17 @@ abstract class DatabaseReader(
   def removeQueryResult(timeInterval: TimeInterval): QueryResult = {
     retryingOnAllErrors[QueryResult](
       removeRetryPolicy,
-      (_: Throwable, _: RetryDetails) => IO {}
+      (throwable: Throwable, retryDetails: RetryDetails) =>
+        IO {
+          if (retryDetails.cumulativeDelay == 10.seconds) {
+            logger.info(
+              s"The QueryResult for ${timeInterval} was not found in queryResultMap. " +
+                s"Waiting for it to be retrieved from LocalStorage."
+            )
+          } else if (retryDetails.retriesSoFar >= removeRetryPolicyMaxRetries) {
+            throw throwable
+          } else {}
+        }
     )(
       removeFromQueryResultMap(timeInterval)
     ).unsafeRunSync
@@ -279,7 +287,7 @@ abstract class DatabaseReader(
       LocalStorage.recordQuerySuccess(timeInterval, timeDelta)
 
       logger.info(
-        s"Successfully wrote ${timeInterval.chunkBy(timeDelta).size} TimeInterval keys to queryResultMap"
+        s"Successfully wrote ${timeInterval.chunkBy(timeDelta).size} TimeInterval keys to LocalStorage"
       )
     }
   }
@@ -288,11 +296,13 @@ abstract class DatabaseReader(
     for {
       queryResult <- retryingOnAllErrors[QueryResult](
         addRetryPolicy,
-        (_: Throwable, _: RetryDetails) =>
+        (_: Throwable, retryDetails: RetryDetails) =>
           IO {
-            logger.fine(
-              s"Local storage does not contain QueryResult for ${timeInterval}. Trying again."
-            )
+            if (retryDetails.cumulativeDelay == 10.seconds) {
+              logger.info(
+                s"Local storage does not contain QueryResult for ${timeInterval}. Waiting for it to become available."
+              )
+            }
           }
       )(
         loadQueryResultToMemory(timeInterval)
@@ -300,12 +310,13 @@ abstract class DatabaseReader(
 
       _ <- retryingOnAllErrors[QueryResult](
         addRetryPolicy,
-        (_: Throwable, _: RetryDetails) =>
+        (_: Throwable, retryDetails: RetryDetails) =>
           IO {
-
-            logger.fine(
-              s"Could not add QueryResult for ${timeInterval} to queryResultMap because it's full. Trying again."
-            )
+            if (retryDetails.cumulativeDelay == 10.seconds) {
+              logger.fine(
+                s"Could not add QueryResult for ${timeInterval} to queryResultMap because it's full. Waiting for space to become available."
+              )
+            }
           }
       )(
         addToQueryResultMap(timeInterval, queryResult)

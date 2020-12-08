@@ -22,7 +22,7 @@ EMPTY_PROTO = Empty()
 DATABASE_BACKEND = DatabaseBackend.BigQuery
 JAVA_BIN = "/usr/lib/graalvm/graalvm-ce-java11-20.2.0/bin/java"
 # JAVA_BIN = "/usr/lib/jvm/jdk-15.0.1/bin/java"
-JVM_HEAP_MEMORY = "8G"
+JVM_HEAP_MEMORY = "6G"
 
 # Coinbase configs
 COINBASE_WEBSOCKET_API_URL = "wss://ws-feed.pro.coinbase.com"

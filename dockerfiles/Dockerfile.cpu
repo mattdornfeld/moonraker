@@ -17,6 +17,7 @@ RUN if [ "$TEST_MODE" = "true" ] ; then make build-scala test-scala ; else make 
 FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:${RUNTIME_BASE_IMAGE_VERSION}
 
 ENV LD_BIND_NOW=1 \
+	PYTHONUNBUFFERED=1 \
 	PYTHONPATH=/app \
 	RAY_USE_MULTIPROCESSING_CPU_COUNT=1
 

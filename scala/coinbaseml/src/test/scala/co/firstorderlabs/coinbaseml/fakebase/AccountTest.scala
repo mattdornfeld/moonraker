@@ -7,9 +7,21 @@ import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.common.protos.events._
-import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest, CancellationRequest, SellLimitOrderRequest, SellMarketOrderRequest, StepRequest, Wallets => _}
+import co.firstorderlabs.common.protos.fakebase.{
+  BuyLimitOrderRequest,
+  BuyMarketOrderRequest,
+  CancellationRequest,
+  SellLimitOrderRequest,
+  SellMarketOrderRequest,
+  SimulationInfoRequest,
+  StepRequest,
+  Wallets => _
+}
 import co.firstorderlabs.common.types.Events.{SellOrderRequest, _}
 import org.scalatest.funspec.AnyFunSpec
 
@@ -795,6 +807,55 @@ class AccountTest extends AnyFunSpec {
             assert(quoteWallet.holds equalTo QuoteVolume.zeroVolume)
         }
       }
+    }
+
+    it("Wallet state should be properly restored from snapshot.") {
+      Exchange.start(simulationStartRequestWarmup)
+      val walletsSnapshot =
+        Checkpointer.simulationSnapshot.get.accountSnapshot.walletsSnapshot
+      println(Wallets.createSnapshot)
+      for (_ <- 1 to 2) {
+        val stepRequest = new StepRequest(
+          insertOrders = OrdersData.insertSellOrders(
+            new ProductPrice(Right("1000.00")),
+            new ProductVolume(Right("0.5"))
+          )
+        )
+        Exchange.step(stepRequest)
+        Account.placeBuyMarketOrder(buyMarketOrderRequest)
+        Exchange.step(Constants.emptyStepRequest)
+        Exchange.reset(new SimulationInfoRequest)
+      }
+
+      assert(walletsSnapshot == Wallets.createSnapshot)
+      assert(
+        walletsSnapshot
+          .walletsMap(ProductVolume.currency)
+          .balance
+          .asInstanceOf[
+            ProductVolume
+          ] equalTo simulationStartRequest.initialProductFunds
+      )
+      assert(
+        walletsSnapshot
+          .walletsMap(ProductVolume.currency)
+          .holds
+          .asInstanceOf[ProductVolume] equalTo ProductVolume.zeroVolume
+      )
+      assert(
+        walletsSnapshot
+          .walletsMap(QuoteVolume.currency)
+          .balance
+          .asInstanceOf[
+            QuoteVolume
+          ] equalTo simulationStartRequest.initialQuoteFunds
+      )
+      assert(
+        walletsSnapshot
+          .walletsMap(QuoteVolume.currency)
+          .holds
+          .asInstanceOf[QuoteVolume] equalTo QuoteVolume.zeroVolume
+      )
     }
   }
 }
