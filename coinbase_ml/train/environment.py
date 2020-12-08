@@ -34,6 +34,7 @@ class Environment(Env):  # pylint: disable=W0223
         self._warmed_up = False
         self.action_space = ActionSpace()
         self.config = _config
+        self.episode_number = 0
         self.observation_space = ObservationSpace(
             shape=ObservationSpaceShape(
                 account_funds=(1, 4),
@@ -128,6 +129,7 @@ class Environment(Env):  # pylint: disable=W0223
         Returns:
             Observation: Description
         """
+        self.episode_number += 1
         if c.VERBOSE:
             LOGGER.info("Resetting the environment.")
 

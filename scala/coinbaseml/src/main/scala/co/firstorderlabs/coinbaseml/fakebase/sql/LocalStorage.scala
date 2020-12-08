@@ -49,7 +49,7 @@ object LocalStorage {
     .setCreateIfMissing(true)
     .setCreateMissingColumnFamilies(true)
 
-  val rocksDbDir = if (Configs.testMode) {
+  val rocksDbDir = if (Configs.testMode || Configs.localMode) {
     val dir = Files.createTempDirectory("coinbaseml_local_storage_").toFile
     dir.deleteOnExit
     dir.getAbsolutePath

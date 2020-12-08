@@ -1,8 +1,9 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-final case class ProgressBar(task: String, maxSteps: Long) {
+final case class StepProgressLogger(task: String, maxSteps: Long) {
   private def render(
       currentStep: Long,
+      portfolioValue: Option[Double],
       stepDuration: Option[Double] = None,
       dataGetDuration: Option[Double] = None,
       matchingEngineDuration: Option[Double] = None,
@@ -12,6 +13,7 @@ final case class ProgressBar(task: String, maxSteps: Long) {
   ): Unit = {
     println(
       s"${task}: ${currentStep} / ${maxSteps} steps (" +
+        s"portfolioValue = ${portfolioValue.getOrElse("")}, " +
         s"stepDuration = ${stepDuration.getOrElse("")} ms, " +
         s"dataGetDuration = ${dataGetDuration.getOrElse("")} ms, " +
         s"matchingEngineDuration = ${matchingEngineDuration.getOrElse("")} ms, " +
@@ -27,12 +29,13 @@ final case class ProgressBar(task: String, maxSteps: Long) {
       dataGetDuration: Double,
       matchingEngineDuration: Double,
       environmentDuration: Double,
-      numEvents: Int
+      numEvents: Int,
   ): Unit = {
     val eventsPerMillSecond =
       if (stepDuration > 0) numEvents / stepDuration else 0L
     render(
       currentStep,
+      MatchingEngine.currentPortfolioValue,
       Some(stepDuration),
       Some(dataGetDuration),
       Some(matchingEngineDuration),
@@ -43,6 +46,6 @@ final case class ProgressBar(task: String, maxSteps: Long) {
   }
 
   def resetTo(stepNum: Long): Unit = {
-    render(stepNum)
+    render(stepNum, MatchingEngine.currentPortfolioValue)
   }
 }

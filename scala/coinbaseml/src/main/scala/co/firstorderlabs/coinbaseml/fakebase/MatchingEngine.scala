@@ -345,6 +345,10 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
       throw new IllegalStateException
     }
 
+  def start: Unit = {
+    currentPortfolioValue = Some(calcPortfolioValue)
+  }
+
   @tailrec
   private def processBuyMarketOrder(order: BuyMarketOrder): Unit = {
     if (order.remainingFunds > QuoteVolume.zeroVolume) {

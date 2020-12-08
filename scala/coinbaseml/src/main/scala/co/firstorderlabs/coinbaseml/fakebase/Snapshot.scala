@@ -1,6 +1,6 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-import co.firstorderlabs.coinbaseml.common.{Environment, FeaturizerSnapshot, InfoAggregator}
+import co.firstorderlabs.coinbaseml.common.{Environment, FeaturizerSnapshot, InfoAggregator, InfoAggregatorSnapshot}
 import co.firstorderlabs.coinbaseml.fakebase.sql.{DatabaseReader, DatabaseReaderSnapshot}
 import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.CheckpointNotFound
 import co.firstorderlabs.common.types.Types.TimeInterval
@@ -34,6 +34,7 @@ trait Snapshotable[A <: Snapshot] {
   * @param exchangeSnapshot
   * @param matchingEngineSnapshot
   * @param featurizerSnapshot
+  * @param infoAggregatorSnapshot
   * @param timeInterval
   */
 final case class SimulationSnapshot(accountSnapshot: AccountSnapshot,
@@ -41,6 +42,7 @@ final case class SimulationSnapshot(accountSnapshot: AccountSnapshot,
                               exchangeSnapshot: ExchangeSnapshot,
                               matchingEngineSnapshot: MatchingEngineSnapshot,
                               featurizerSnapshot: FeaturizerSnapshot,
+                              infoAggregatorSnapshot: InfoAggregatorSnapshot,
                               timeInterval: TimeInterval)
     extends Snapshot
 
@@ -73,6 +75,7 @@ object Checkpointer {
       Exchange.createSnapshot,
       MatchingEngine.createSnapshot,
       Environment.createSnapshot,
+      InfoAggregator.createSnapshot,
       Exchange.getSimulationMetadata.currentTimeInterval
     )
 
@@ -80,9 +83,9 @@ object Checkpointer {
     Account.clear
     DatabaseReader.clearAllReaders
     Exchange.clear
-    InfoAggregator.clear
     MatchingEngine.clear
     Environment.clear
+    InfoAggregator.clear
   }
 
   def isCleared: Boolean =
@@ -91,7 +94,8 @@ object Checkpointer {
     && Exchange.isCleared
     && InfoAggregator.isCleared
     && MatchingEngine.isCleared
-    && Environment.isCleared)
+    && Environment.isCleared
+    && InfoAggregator.isCleared)
 
   def restoreFromCheckpoint: Unit = {
     Account.restore(checkpointSnapshot.accountSnapshot)
@@ -100,6 +104,7 @@ object Checkpointer {
     Exchange.restore(checkpointSnapshot.exchangeSnapshot)
     MatchingEngine.restore(checkpointSnapshot.matchingEngineSnapshot)
     Environment.restore(checkpointSnapshot.featurizerSnapshot)
+    InfoAggregator.restore(checkpointSnapshot.infoAggregatorSnapshot)
   }
 
   def start: Unit = simulationSnapshot = None

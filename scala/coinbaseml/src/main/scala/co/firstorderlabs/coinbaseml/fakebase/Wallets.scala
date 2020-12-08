@@ -3,41 +3,58 @@ package co.firstorderlabs.coinbaseml.fakebase
 import java.math.BigDecimal
 import java.util.UUID
 
-import co.firstorderlabs.coinbaseml.fakebase.Wallets.WalletMap
-import co.firstorderlabs.common.currency.{Constants => CurrencyConstants}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.QuoteVolume
 import co.firstorderlabs.common.currency.Volume.{Volume, VolumeCompanion}
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Liquidity}
-import co.firstorderlabs.common.protos.fakebase.{Currency, WalletProto, Wallets => WalletsProto}
+import co.firstorderlabs.common.currency.{Constants => CurrencyConstants}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  BuyMarketOrder,
+  Liquidity
+}
+import co.firstorderlabs.common.protos.fakebase.{
+  Currency,
+  WalletProto,
+  Wallets => WalletsProto
+}
 import co.firstorderlabs.common.types.Events.{SellOrderEvent, _}
 
 import scala.collection.mutable.HashMap
 
-final case class Wallet[A <: Volume[A]](id: String,
-                                  currency: Currency,
-                                  initialBalance: A,
-                                  initialHolds: A) {
-  var balance = initialBalance
-  var holds = initialHolds
+final case class Wallet[A <: Volume[A]](
+    id: String,
+    volume: VolumeCompanion[A],
+    var balance: A,
+    var holds: A
+) {
+  override def clone(): Wallet[A] = Wallet(id, volume, balance, holds)
 
   def setHolds(volume: A): Unit = {
     holds = volume
   }
 
   def toProto: WalletProto = {
-    new WalletProto(id, currency, balance.toPlainString, holds.toPlainString)
+    new WalletProto(
+      id,
+      volume.currency,
+      balance.toPlainString,
+      holds.toPlainString
+    )
   }
 
   override def toString: String = {
-    s"Wallet(${id}, ${currency}, ${balance}, ${holds})"
+    s"Wallet(${id}, ${volume.currency}, ${balance}, ${holds})"
   }
 }
 
-final case class WalletsSnapshot(walletsMap: WalletMap) extends Snapshot
+final case class WalletsSnapshot(
+    walletsMap: Map[Currency, Wallets.GenericWallet]
+) extends Snapshot
 
 object Wallets extends Snapshotable[WalletsSnapshot] {
-  type GenericWallet = Wallet[_ >: ProductVolume with QuoteVolume <: Volume[_ >: ProductVolume with QuoteVolume]]
+  type GenericWallet = Wallet[_ >: ProductVolume with QuoteVolume <: Volume[
+    _ >: ProductVolume with QuoteVolume
+  ]]
   type WalletMap = HashMap[Currency, GenericWallet]
   private val walletsMap: WalletMap = new HashMap
 
@@ -61,12 +78,18 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
     }
   }
 
-  def createSnapshot: WalletsSnapshot = WalletsSnapshot(walletsMap.clone)
+  def createSnapshot: WalletsSnapshot = {
+    val walletMap: Map[Currency, GenericWallet] = Map(
+      ProductVolume.currency -> getWallet(ProductVolume).clone,
+      QuoteVolume.currency -> getWallet(QuoteVolume).clone
+    )
+    WalletsSnapshot(walletMap)
+  }
 
   def clear: Unit = walletsMap.clear
 
   def getAvailableFunds[A <: Volume[A]](
-    volume: VolumeCompanion[A]
+      volume: VolumeCompanion[A]
   ): Volume[A] = {
     val wallet = getWallet(volume)
     wallet.balance - wallet.holds
@@ -93,15 +116,15 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
   def initializeWallets: Unit = {
     walletsMap(ProductVolume.currency) = Wallet(
       UUID.randomUUID().toString,
-      ProductVolume.currency,
+      ProductVolume,
       new ProductVolume(Right("0.0")),
       new ProductVolume(Right("0.0"))
     )
     walletsMap(QuoteVolume.currency) = Wallet(
       UUID.randomUUID().toString,
-      QuoteVolume.currency,
+      QuoteVolume,
       new QuoteVolume(Right("0.0")),
-      new QuoteVolume(Right("0.0")),
+      new QuoteVolume(Right("0.0"))
     )
   }
 
@@ -124,7 +147,8 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
         productWallet.balance = productWallet.balance - matchEvent.size
         productWallet.holds = productWallet.holds - matchEvent.size
         order.holds = order.holds - matchEvent.size
-        quoteWallet.balance = quoteWallet.balance + matchEvent.quoteVolume - matchEvent.fee
+        quoteWallet.balance =
+          quoteWallet.balance + matchEvent.quoteVolume - matchEvent.fee
       }
     }
   }
@@ -152,7 +176,7 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
 
   def restore(snapshot: WalletsSnapshot): Unit = {
     clear
-    walletsMap.addAll(snapshot.walletsMap.iterator)
+    snapshot.walletsMap.foreach(item => walletsMap.put(item._1, item._2.clone))
   }
 
   def toProto: WalletsProto =

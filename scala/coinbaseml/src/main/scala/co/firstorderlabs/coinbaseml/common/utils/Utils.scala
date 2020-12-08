@@ -1,14 +1,70 @@
 package co.firstorderlabs.coinbaseml.common.utils
 
+import co.firstorderlabs.coinbaseml.common.utils.Utils.Interval.IntervalType
 import fs2.{Pure, Stream}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 object Utils {
-  implicit class DoubleEquality(x: Double) {
+  case class Interval(
+      minValue: Double,
+      maxValue: Double,
+      intervalType: IntervalType.Value = IntervalType.halfOpenLeft
+  ) {
+    def contains(value: Double): Boolean = {
+      val minCompare = value.compareTo(minValue)
+      val maxCompare = value.compareTo(maxValue)
+      intervalType match {
+        case IntervalType.closed => minCompare >= 0 && maxCompare <= 0
+        case IntervalType.halfOpenLeft =>
+          minCompare > 0 && maxCompare <= 0
+        case IntervalType.halfOpenRight =>
+          minCompare >= 0 && maxCompare < 0
+        case IntervalType.open => minCompare > 0 && maxCompare < 0
+      }
+    }
+
+    def iterator(step: Double): Iterator[Double] = {
+      val leftClosed =
+        List(IntervalType.closed, IntervalType.halfOpenRight).contains(
+          intervalType
+        )
+
+      val rightClosed =
+        List(IntervalType.closed, IntervalType.halfOpenLeft).contains(
+          intervalType
+        )
+
+      val start =
+        if (leftClosed) BigDecimal(minValue) else BigDecimal(minValue) + step
+      val end =
+        if (rightClosed) BigDecimal(maxValue) else BigDecimal(maxValue) - step
+
+      (start to end by step)
+        .map(_.toDouble)
+        .iterator
+    }
+
+  }
+
+  object Interval {
+    object IntervalType extends Enumeration {
+      val closed = Value("closed")
+      val halfOpenLeft = Value("halfOpenLeft")
+      val halfOpenRight = Value("halfOpenRight")
+      val open = Value("open")
+    }
+  }
+
+  implicit class DoubleUtils(x: Double) {
     def ===(y: Double, tolerance: Double = 1e-10): Boolean =
       Math.abs(x - y) < tolerance
+
+    def clamp(minValue: Double, maxValue: Double): Double =
+      if (x < minValue) {minValue}
+      else if (x > maxValue) {maxValue}
+      else {x}
   }
 
   implicit class When[A, B](a: A) {

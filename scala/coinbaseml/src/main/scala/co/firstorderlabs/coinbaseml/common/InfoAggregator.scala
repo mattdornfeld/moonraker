@@ -1,20 +1,22 @@
 package co.firstorderlabs.coinbaseml.common
 
-import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
-import co.firstorderlabs.coinbaseml.fakebase.{Account, Constants, Exchange}
+import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.{InfoDict, InfoDictKey}
 import co.firstorderlabs.common.protos.events.Match
 import co.firstorderlabs.common.types.Events.OrderEvent
 
+final case class InfoAggregatorSnapshot(infoDict: InfoDict) extends Snapshot
 
-object InfoAggregator {
+object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
   private val infoDict = new InfoDict
   instantiateInfoDict
 
-  private val buyMatchFilter = (matchEvent: Match) => matchEvent.side.isbuy
+  private val buyMatchFilter = (matchEvent: Match) =>
+    matchEvent.side.isbuy && matchEvent.liquidity.ismaker || matchEvent.side.issell && matchEvent.liquidity.istaker
   private val buyOrderFilter = (orderEvent: OrderEvent) => orderEvent.side.isbuy
-  private val sellMatchFilter = (matchEvent: Match) => matchEvent.side.issell
+  private val sellMatchFilter = (matchEvent: Match) =>
+    matchEvent.side.issell && matchEvent.liquidity.ismaker || matchEvent.side.isbuy && matchEvent.liquidity.istaker
   private val sellOrderFilter = (orderEvent: OrderEvent) =>
     orderEvent.side.issell
 
@@ -66,7 +68,7 @@ object InfoAggregator {
       val volumeTraded =
         matches
           .filter(item._1)
-          .map(_.size.toDouble)
+          .map(_.quoteVolume.toDouble)
           .reduceOption(_ + _)
           .getOrElse(0.0)
       infoDict.increment(item._2, volumeTraded)
@@ -74,10 +76,9 @@ object InfoAggregator {
 
   private def updatePortfolioValue: Unit = {
     val simulationMetadata = Exchange.getSimulationMetadata
-    val portfolioValue =
-      if (simulationMetadata.currentStep > 0)
-        ReturnRewardStrategy.currentPortfolioValue
-      else simulationMetadata.initialQuoteFunds.toDouble
+    val portfolioValue = MatchingEngine.currentPortfolioValue.getOrElse(
+      simulationMetadata.initialQuoteFunds.toDouble
+    )
 
     infoDict.put(InfoDictKey.portfolioValue, portfolioValue)
   }
@@ -85,14 +86,31 @@ object InfoAggregator {
   def getInfoDict: InfoDict = infoDict
 
   def preStep: Unit = {
+    // These methods must be directly after orders are placed with Account
     incrementOrdersPlaced
     incrementOrdersRejected
   }
 
-  def step: Unit = {
+  def step(
+      stepDuration: Double,
+      dataGetDuration: Double,
+      matchingEngineDuration: Double,
+      environmentDuration: Double,
+      numEvents: Double
+  ): Unit = {
     val matches = getResult(
       Account.getMatches(Constants.emptyProto)
     ).matchEvents
+
+    // Make sure to increment numSamples for calling incrementRunningMean
+    infoDict.increment(InfoDictKey.numSamples, 1.0)
+    List(
+      (InfoDictKey.simulationStepDuration, stepDuration),
+      (InfoDictKey.dataGetDuration, dataGetDuration),
+      (InfoDictKey.matchingEngineDuration, matchingEngineDuration),
+      (InfoDictKey.environmentDuration, environmentDuration),
+      (InfoDictKey.numEvents, numEvents)
+    ).foreach { item => infoDict.incrementRunningMean(item._1, item._2) }
 
     incrementFeesPaid(matches)
     incrementVolumeTraded(matches)
@@ -107,4 +125,12 @@ object InfoAggregator {
   def isCleared: Boolean =
     (InfoDictKey.values.forall(key => infoDict.contains(key))
       && infoDict.values.forall(_ == 0.0))
+
+  override def createSnapshot: InfoAggregatorSnapshot =
+    InfoAggregatorSnapshot(infoDict.clone)
+
+  override def restore(snapshot: InfoAggregatorSnapshot): Unit = {
+    clear
+    snapshot.infoDict.foreach(item => infoDict.put(item._1, item._2))
+  }
 }

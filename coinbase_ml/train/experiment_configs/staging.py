@@ -28,14 +28,14 @@ def staging():
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
     actionizer = Actionizer.Name(Actionizer.SignalPositionSize)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
-    test_end_dt = "2020-11-19 16:00:00.00"
-    test_start_dt = "2020-11-19 12:00:00.00"
+    test_end_dt = "2020-11-20 12:00:00.00"
+    test_start_dt = "2020-11-20 00:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)
 
-    latest_train_end_dt = "2020-11-19 12:00:00.00"
+    latest_train_end_dt = "2020-11-20 00:00:00.00"
     latest_train_start_dt = "2020-11-19 00:00:00.00"
-    num_actors = 2
+    num_actors = 6
     train_time_intervals = num_actors * [
         TimeInterval(
             end_dt=parser.parse(latest_train_end_dt),
@@ -69,7 +69,7 @@ def staging():
         initial_btc=initial_btc,
         initial_usd=initial_usd,
         num_actors=num_actors,
-        num_episodes=1,
+        num_episodes=5,
         snapshot_buffer_size=snapshot_buffer_size,
         num_warmup_time_steps=num_warmup_time_steps,
         reward_strategy=reward_strategy,

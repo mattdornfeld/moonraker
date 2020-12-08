@@ -85,17 +85,19 @@ object Environment
   override def getInfoDict(request: Empty): Future[InfoDict] =
     Future.successful(InfoAggregator.getInfoDict)
 
+  def preStep(actionRequest: Option[ActionRequest]): Unit = {
+    actionRequest match {
+      case Some(actionRequest) => Environment.executeAction(actionRequest)
+      case None =>
+    }
+  }
+
   def start(snapshotBufferSize: Int): Unit = {
     OrderBookFeaturizer.start(snapshotBufferSize)
     TimeSeriesFeaturizer.start(snapshotBufferSize)
   }
 
-  def step(actionRequest: Option[ActionRequest]): Unit = {
-    actionRequest match {
-      case Some(actionRequest) => Environment.executeAction(actionRequest)
-      case None =>
-    }
-
+  def step: Unit = {
     OrderBookFeaturizer.step
     TimeSeriesFeaturizer.step
   }

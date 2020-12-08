@@ -30,13 +30,13 @@ def config():
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
     actionizer = Actionizer.Name(Actionizer.SignalPositionSize)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
-    test_end_dt = "2020-01-16 10:05:00.00"
-    test_start_dt = "2020-01-16 10:00:00.00"
+    test_end_dt = "2020-11-19 10:05:00.00"
+    test_start_dt = "2020-11-19 10:00:00.00"
     time_delta = timedelta(seconds=30)
     time_delta_str = str(time_delta)
 
-    latest_train_end_dt = "2020-01-17 09:15:00.00"
-    latest_train_start_dt = "2020-01-17 09:00:00.00"
+    latest_train_end_dt = "2020-11-19 09:15:00.00"
+    latest_train_start_dt = "2020-11-19 09:00:00.00"
     num_actors = 1
 
     train_time_intervals = generate_randomly_shifted_lookback_intervals(

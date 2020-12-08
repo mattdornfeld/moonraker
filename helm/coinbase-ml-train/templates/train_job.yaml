@@ -1,6 +1,6 @@
 ---
 {{$release_name := .Release.Name | trunc 14}}
-{{if gt .Values.job.num_cpus 0.0}}
+{{if gt .Values.job.resources.requests.cpu 0.0}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -54,7 +54,7 @@ spec:
                 key: mongodb-url
 
           - name: NUM_GPUS
-            value: {{.Values.job.num_gpus | quote}}
+            value: {{ index .Values.job.resources.requests "nvidia.com/gpu" | quote}}
 
           - name: POSTGRES_PASSWORD
             valueFrom:
@@ -80,17 +80,13 @@ spec:
           name: plasma
         {{- end}}
 
-        {{if gt .Values.job.num_gpus 0.0}}
+        {{if gt (index .Values.job.resources.requests "nvidia.com/gpu") 0.0}}
         image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{.Chart.Version}}"
         {{else}}
         image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{.Chart.Version}}"
         {{end}}
 
-        resources:
-          limits:
-            cpu: {{.Values.job.num_cpus}}
-            memory: {{.Values.job.memory}}
-            nvidia.com/gpu: {{.Values.job.num_gpus}}
+        resources: {{.Values.job.resources | toJson }}
 
         volumeMounts:
           - mountPath: /dev/shm
