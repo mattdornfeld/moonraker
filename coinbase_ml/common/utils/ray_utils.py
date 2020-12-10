@@ -22,6 +22,7 @@ from ray.rllib.utils.typing import PolicyID
 import coinbase_ml.common.constants as c
 from coinbase_ml.common.protos.environment_pb2 import InfoDictKey
 from coinbase_ml.fakebase.protos import fakebase_pb2
+from coinbase_ml.train.environment import Environment
 
 
 EVALUATION_EPISODES: List[MultiAgentEpisode] = []
@@ -89,6 +90,7 @@ class Callbacks(DefaultCallbacks):
         action_histogram: str,
         episode_number: int,
         episode_reward: float,
+        worker_index: int,
         simulation_duration: float,
         simulation_id: str,
         simulation_type: "fakebase_pb2.SimulationTypeValue",
@@ -99,6 +101,7 @@ class Callbacks(DefaultCallbacks):
         ]
         print(
             f"{_simulation_type} simulation {simulation_id} episode {episode_number} summary:\n"
+            f"\tworkerIndex={worker_index}\n"
             f"\tepisodeReward = {episode_reward}\n"
             f"\tsimulationDuration = {simulation_duration} s\n"
             f"\tavgSimulationStepDuration = {avg_simulation_step_duration} ms\n"
@@ -135,12 +138,13 @@ class Callbacks(DefaultCallbacks):
     ) -> None:
         """Add relevant values to the custom_metrics dict and print episode metrics
         """
-        env = base_env.get_unwrapped()[0]
+        env: Environment = base_env.get_unwrapped()[0]
         self._print_episode_metrics(
             episode.last_info_for(),
             self._format_action_histogram(),
             env.episode_number,
             episode.total_reward,
+            env.worker_index,
             time() - self._episode_start_time,
             env.exchange.simulation_id,
             env.config.simulation_type,

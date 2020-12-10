@@ -57,8 +57,11 @@ test-scala:
 logs-train-driver:
 	chmod u+x bin/view_logs && bin/view_logs
 
+ui-notbook:
+	chmod u+x bin/port_forward && bin/port_forward notbook-train 8888
+
 ui-ray:
-	chmod u+x bin/port_forward && bin/port_forward
+	chmod u+x bin/port_forward && bin/port_forward ray-head 8265
 
 ui-sacred:
 	kubectl port-forward -n moonraker svc/sacred-sacredboard 5000:5000
