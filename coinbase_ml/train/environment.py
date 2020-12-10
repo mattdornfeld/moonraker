@@ -35,6 +35,8 @@ class Environment(Env):  # pylint: disable=W0223
         self.action_space = ActionSpace()
         self.config = _config
         self.episode_number = 0
+        self.is_test_environment = _config.is_test_environment
+        self.worker_index = config.worker_index
         self.observation_space = ObservationSpace(
             shape=ObservationSpaceShape(
                 account_funds=(1, 4),
@@ -45,7 +47,6 @@ class Environment(Env):  # pylint: disable=W0223
                 ),
             )
         )
-        self.is_test_environment = _config.is_test_environment
 
         # Ray does something weird where it creates a local copy of the environment with
         # config.worker_index=0 but it doesn't seem to actually use it. This block of code

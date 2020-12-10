@@ -1,6 +1,6 @@
 ---
 {{$release_name := .Release.Name | trunc 14}}
-{{if gt .Values.notebook.num_cpus 0.0}}
+{{if gt .Values.notebook.resources.requests.cpu 0.0}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -55,7 +55,7 @@ spec:
                 key: mongodb-url
 
           - name: NUM_GPUS
-            value: {{.Values.notebook.num_gpus | quote}}
+            value: {{ index .Values.notebook.resources.requests "nvidia.com/gpu" | quote}}
 
           - name: POSTGRES_PASSWORD
             valueFrom:
@@ -69,7 +69,7 @@ spec:
           {{- end}}
 
         imagePullPolicy: Always
-        {{if gt .Values.notebook.num_gpus 0.0}}
+        {{if gt (index .Values.notebook.resources.requests "nvidia.com/gpu") 0.0}}
         image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{ .Chart.Version }}"
         {{else}}
         image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{ .Chart.Version }}"
@@ -87,11 +87,7 @@ spec:
           name: plasma
         {{- end}}
 
-        resources:
-          limits:
-            cpu: {{.Values.notebook.num_cpus}}
-            memory: {{.Values.notebook.memory}}
-            nvidia.com/gpu: {{.Values.notebook.num_gpus}}
+        resources: {{.Values.notebook.resources | toJson }}
 
         volumeMounts:
           - mountPath: /dev/shm

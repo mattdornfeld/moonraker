@@ -10,6 +10,7 @@ from coinbase_ml.common.utils.ray_utils import Callbacks
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.environment import Environment
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs, HyperParameters
+from coinbase_ml.train.utils.per_worker_gaussian_noise import PerWorkerGaussianNoise
 
 
 def build_common_configs(
@@ -56,7 +57,7 @@ def build_apex_configs(train_environment_configs: EnvironmentConfigs) -> Dict[st
             "debug": False,
         },
         "buffer_size": 100000,
-        "learning_starts": 25000,
+        "learning_starts": 10000,
         "rollout_fragment_length": 10,
         "timesteps_per_iteration": train_environment_configs.timesteps_per_iteration,
         "worker_side_prioritization": True,
@@ -76,9 +77,9 @@ def build_td3_configs() -> Dict[str, Any]:
         "target_noise": 0.2,
         "target_noise_clip": 0.5,
         "exploration_config": {
-            "type": "ParameterNoise",
-            "random_timesteps": 0,
-            "initial_stddev": 0.1,
+            "type": PerWorkerGaussianNoise,
+            "random_timesteps": 10000,
+            "stddev": 10,
         },
         "n_step": 1,
         "gamma": 0.99,
