@@ -6,6 +6,7 @@ import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData.{higherOrder, lowerOrder}
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
 import co.firstorderlabs.coinbaseml.fakebase.sql.TestData.{endTime, simulationStartRequest, startTime, timeDelta}
+import co.firstorderlabs.common.currency.Price.BtcUsdPrice.productId
 import co.firstorderlabs.common.types.Types.TimeInterval
 import org.scalatest.funspec.AnyFunSpec
 
@@ -24,16 +25,17 @@ class LocalStorageTest extends AnyFunSpec {
         simulationStartRequest.startTime,
         simulationStartRequest.endTime
       ).chunkBy(simulationStartRequest.timeDelta.get)
-      assert(LocalStorage.keys.size == expectedTimeIntervals.size)
+      assert(LocalStorage.QueryResults.keys.size == expectedTimeIntervals.size)
     }
 
     ignore("When recordQuerySuccess is called, containsDataForQuery should return true for that key") {
       LocalStorage.clear
       Exchange.start(simulationStartRequest)
       val timeInterval = TimeInterval(Instant.MIN, Instant.MIN.plus(timeDelta))
-      assert(!LocalStorage.containsDataForQuery(timeInterval, timeDelta))
-      LocalStorage.recordQuerySuccess(timeInterval, timeDelta)
-      assert(LocalStorage.containsDataForQuery(timeInterval, timeDelta))
+      val queryHistoryKey = QueryHistoryKey(productId, timeInterval, timeDelta)
+      assert(!LocalStorage.QueryHistory.contains(queryHistoryKey))
+      LocalStorage.QueryHistory.put(queryHistoryKey)
+      assert(LocalStorage.QueryHistory.contains(queryHistoryKey))
     }
 
     ignore(
@@ -42,14 +44,14 @@ class LocalStorageTest extends AnyFunSpec {
     ) {
       LocalStorage.clear
       Exchange.start(simulationStartRequest)
-      LocalStorage.put(presentKey, queryResult)
-      assert(LocalStorage.get(presentKey).get == queryResult)
+      LocalStorage.QueryResults.put(presentKey, queryResult)
+      assert(LocalStorage.QueryResults.get(presentKey).get == queryResult)
     }
 
     ignore("If a key is not present in LocalStorage get should return empty.") {
       LocalStorage.clear
       Exchange.start(simulationStartRequest)
-      assert(LocalStorage.get(notPresentKey).isEmpty)
+      assert(LocalStorage.QueryResults.get(notPresentKey).isEmpty)
     }
   }
 }
