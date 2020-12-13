@@ -173,6 +173,7 @@ message SimulationStartRequest {
     bool enableProgressBar = 10;
     SimulationType simulationType = 11;
     DatabaseBackend databaseBackend = 12;
+    bool backupToCloudStorage = 13;
 }
 
 message StepRequest {

@@ -222,7 +222,8 @@ object Exchange
     getSimulationMetadata.databaseReader.start(
       getSimulationMetadata.startTime,
       getSimulationMetadata.endTime,
-      getSimulationMetadata.timeDelta
+      getSimulationMetadata.timeDelta,
+      simulationStartRequest.backupToCloudStorage,
     )
 
     Account.initializeWallets

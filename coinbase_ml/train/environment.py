@@ -111,6 +111,9 @@ class Environment(Env):  # pylint: disable=W0223
                 "Exchange stepped to %s-%s.", interval_start_dt, interval_end_dt
             )
 
+    def _should_backup_to_cloud_storage(self) -> bool:
+        return self.worker_index in [0, 1]
+
     def close(self) -> None:
         """Summary
         """
@@ -142,6 +145,7 @@ class Environment(Env):  # pylint: disable=W0223
                 snapshot_buffer_size=self.config.snapshot_buffer_size,
                 enable_progress_bar=self.config.enable_progress_bar,
                 simulation_type=self.config.simulation_type,
+                backup_to_cloud_storage=self._should_backup_to_cloud_storage(),
             )
 
             self._warmed_up = True

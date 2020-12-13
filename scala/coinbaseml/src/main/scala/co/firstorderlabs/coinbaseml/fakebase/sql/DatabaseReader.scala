@@ -144,7 +144,8 @@ abstract class DatabaseReader(
   def start(
       startTime: Instant,
       endTime: Instant,
-      timeDelta: Duration
+      timeDelta: Duration,
+      backupToCloudStorage: Boolean = false,
   ): Unit = {
     clear
     val readFromDatabase: Stream[IO, Option[(File, QueryHistoryKey)]] = TimeInterval(startTime, endTime)
@@ -153,7 +154,7 @@ abstract class DatabaseReader(
       .map { stream: Stream[Pure, TimeInterval] =>
         stream.evalMap(timeInterval =>
           IO {
-            populateLocalStorage(timeInterval, timeDelta)
+            populateLocalStorage(timeInterval, timeDelta, backupToCloudStorage)
           }
         )
       }
@@ -240,7 +241,8 @@ abstract class DatabaseReader(
 
   private def populateLocalStorage(
       timeInterval: TimeInterval,
-      timeDelta: Duration
+      timeDelta: Duration,
+      backupToCloudStorage: Boolean,
   ): Option[(File, QueryHistoryKey)] = {
     val queryHistoryKey = QueryHistoryKey(productId, timeInterval, timeDelta)
     if (LocalStorage.QueryHistory.contains(queryHistoryKey) && !SqlConfigs.forcePullFromDatabase) {
@@ -287,7 +289,7 @@ abstract class DatabaseReader(
       )
       queryResultsSstFileWriter.finish
 
-      if (!Configs.testMode) {
+      if (!Configs.testMode && backupToCloudStorage) {
         logger.info(s"Backing up sst file for ${queryHistoryKey} to cloud storage")
         CloudStorage.put(queryHistoryKey, queryResultsSstFileWriter.sstFile)
       }

@@ -303,6 +303,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         initial_quote_funds: QuoteVolume,
         num_warmup_time_steps: int,
         snapshot_buffer_size: int,
+        backup_to_cloud_storage: bool = False,
         enable_progress_bar: bool = False,
         simulation_type: "fakebase_pb2.SimulationTypeValue" = SimulationType.evaluation,
     ) -> None:
@@ -323,6 +324,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
             enableProgressBar=enable_progress_bar,
             simulationType=simulation_type,
             databaseBackend=c.DATABASE_BACKEND,
+            backupToCloudStorage=backup_to_cloud_storage,
         )
 
         simulation_info: SimulationInfo = self.stub.start(simulation_start_request)
