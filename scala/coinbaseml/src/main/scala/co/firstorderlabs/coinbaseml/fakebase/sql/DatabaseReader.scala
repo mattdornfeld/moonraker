@@ -1,4 +1,5 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
+import java.io.File
 import java.time.{Duration, Instant}
 import java.util.logging.Logger
 
@@ -28,9 +29,8 @@ import retry.RetryPolicies.{constantDelay, limitRetries}
 import retry.{PolicyDecision, RetryDetails, RetryPolicy, retryingOnAllErrors}
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.duration
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, duration}
 
 final class QueryResultMap(
     maxSize: Int,
@@ -82,7 +82,7 @@ abstract class DatabaseReader(
   }
   private val blockerResource = Blocker[IO]
   private val addRetryPolicy =
-      constantDelay[IO](10.milliseconds) join
+    constantDelay[IO](10.milliseconds) join
       giveUpWhenStopped
   private val removeRetryPolicyMaxRetries = 1000 * 60 * 5
   private val removeRetryPolicy =
@@ -147,19 +147,24 @@ abstract class DatabaseReader(
       timeDelta: Duration
   ): Unit = {
     clear
-
-    val readFromDatabase: Stream[IO, Unit] = TimeInterval(startTime, endTime)
+    val readFromDatabase: Stream[IO, Option[(File, QueryHistoryKey)]] = TimeInterval(startTime, endTime)
       .chunkBy(SqlConfigs.bigQueryReadTimeDelta)
       .toStreams(SqlConfigs.numDatabaseReaderThreads)
       .map { stream: Stream[Pure, TimeInterval] =>
         stream.evalMap(timeInterval =>
-          IO { populateLocalStorage(timeInterval, timeDelta) }
+          IO {
+            populateLocalStorage(timeInterval, timeDelta)
+          }
         )
       }
       .reduce(_ merge _)
 
-    readFromDatabase.compile.drain.unsafeRunSync
-    LocalStorage.compact
+    val sstFiles: Seq[(File, QueryHistoryKey)] = readFromDatabase.compile.toList.unsafeRunSync.flatten
+    if (sstFiles.size > 0) {
+      LocalStorage.QueryResults.bulkIngest(sstFiles.map(_._1))
+      LocalStorage.QueryHistory.addAll(sstFiles.map(_._2).iterator)
+      LocalStorage.compact
+    }
 
     startPopulateQueryResultMapStream(
       TimeInterval(startTime, endTime),
@@ -228,7 +233,7 @@ abstract class DatabaseReader(
   private def loadQueryResultToMemory(
       timeInterval: TimeInterval
   ): IO[QueryResult] =
-    LocalStorage.get(timeInterval) match {
+    LocalStorage.QueryResults.get(timeInterval) match {
       case Some(queryResult) => IO(queryResult)
       case None              => IO.raiseError(new NoSuchElementException)
     }
@@ -236,20 +241,27 @@ abstract class DatabaseReader(
   private def populateLocalStorage(
       timeInterval: TimeInterval,
       timeDelta: Duration
-  ): Unit = {
-    if (LocalStorage.containsDataForQuery(timeInterval, timeDelta)) {
+  ): Option[(File, QueryHistoryKey)] = {
+    val queryHistoryKey = QueryHistoryKey(productId, timeInterval, timeDelta)
+    if (LocalStorage.QueryHistory.contains(queryHistoryKey) && !SqlConfigs.forcePullFromDatabase) {
       logger.info(
-        s"Data for (${timeInterval}, ${timeDelta}) found locally. Skipping read from database."
+        s"Data for ${queryHistoryKey} found locally. Skipping database query."
       )
+      None
+    } else if (!Configs.testMode && !SqlConfigs.forcePullFromDatabase && CloudStorage.contains(queryHistoryKey)) {
+      logger.info(
+        s"Data for ${queryHistoryKey} found in cloud storage backup. Downloading and skipping database query."
+      )
+      Some((CloudStorage.get(queryHistoryKey), queryHistoryKey))
     } else {
-      logger.info(s"Querying database for events in ${timeInterval}")
+      logger.info(s"Querying database for events in ${queryHistoryKey}")
 
-      if (Configs.testMode) {
-        QueryResult(List(), timeInterval)
-          .chunkByTimeDelta(timeDelta)
-          .foreach { queryResult =>
-            LocalStorage.put(queryResult.timeInterval, queryResult)
-          }
+      val queryResultsSstFileWriter = new QueryResultSstFileWriter(
+        queryHistoryKey
+      )
+
+      val queryResults = if (Configs.testMode) {
+        QueryResult(List(), timeInterval).chunkByTimeDelta(timeDelta)
       } else {
         val events: List[Event] = transactor
           .use { xa =>
@@ -265,30 +277,35 @@ abstract class DatabaseReader(
           .unsafeRunSync
           .sortBy(_.time)
 
-        val queryResults =
-          QueryResult(events, timeInterval).chunkByTimeDelta(timeDelta)
-
-        LocalStorage.addAll(
-          queryResults
-            .map(queryResult => (queryResult.timeInterval, queryResult))
-            .iterator
-        )
-
-        val numEmptyTimeIntervals =
-          queryResults.map(_.events.size).count(_ == 0)
-
-        if (numEmptyTimeIntervals > 0) {
-          logger.warning(
-            s"There were ${numEmptyTimeIntervals} empty time intervals returned in this query"
-          )
-        }
+        QueryResult(events, timeInterval).chunkByTimeDelta(timeDelta)
       }
 
-      LocalStorage.recordQuerySuccess(timeInterval, timeDelta)
+      queryResultsSstFileWriter.addAll(
+        queryResults
+          .map(queryResult => (queryResult.timeInterval, queryResult))
+          .iterator
+      )
+      queryResultsSstFileWriter.finish
+
+      if (!Configs.testMode) {
+        logger.info(s"Backing up sst file for ${queryHistoryKey} to cloud storage")
+        CloudStorage.put(queryHistoryKey, queryResultsSstFileWriter.sstFile)
+      }
+
+      val numEmptyTimeIntervals =
+        queryResults.map(_.events.size).count(_ == 0)
+
+      if (numEmptyTimeIntervals > 0) {
+        logger.warning(
+          s"There were ${numEmptyTimeIntervals} empty time intervals returned in this query"
+        )
+      }
 
       logger.info(
         s"Successfully wrote ${timeInterval.chunkBy(timeDelta).size} TimeInterval keys to LocalStorage"
       )
+
+      Some((queryResultsSstFileWriter.sstFile, queryHistoryKey))
     }
   }
 

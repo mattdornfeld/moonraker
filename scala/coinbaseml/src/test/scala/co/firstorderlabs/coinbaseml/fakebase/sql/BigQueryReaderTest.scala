@@ -41,7 +41,7 @@ class BigQueryReaderTest extends AnyFunSpec {
     ) {
       LocalStorage.clear
       BigQueryReader.start(startTime, endTime, timeDelta)
-      assert(expectedTimeIntervals.toSet == LocalStorage.keys.toSet)
+      assert(expectedTimeIntervals.toSet == LocalStorage.QueryResults.keys.toSet)
       BigQueryReader.streamFuture.get.await(1000.milliseconds)
       println(expectedTimeIntervals.size)
       println(BigQueryReader.queryResultMapKeys.size)
@@ -69,7 +69,7 @@ class BigQueryReaderTest extends AnyFunSpec {
         !BigQueryReader.queryResultMapKeys.toSet
           .contains(queryResult.timeInterval)
       )
-      assert(expectedTimeIntervals.toSet == LocalStorage.keys.toSet)
+      assert(expectedTimeIntervals.toSet == LocalStorage.QueryResults.keys.toSet)
     }
 
     it("When clear is called the state should be cleared") {

@@ -1,6 +1,6 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 
-import java.io.{ByteArrayInputStream, ObjectInputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 import java.math.BigDecimal
 import java.time.Duration
 import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
@@ -159,4 +159,14 @@ object Implicits {
     Meta[String].timap(_ => new BuyLimitOrderRequest)(_ => "")
   implicit val buyMarketOrderRequestConverter: Meta[BuyMarketOrderRequest] =
     Meta[String].timap(_ => new BuyMarketOrderRequest())(_ => "")
+
+  implicit class Serializer(obj: Object) {
+    def serialize: Array[Byte] = {
+      val stream = new ByteArrayOutputStream()
+      val objectOutputStream = new ObjectOutputStream(stream)
+      objectOutputStream.writeObject(obj)
+      objectOutputStream.close
+      stream.toByteArray
+    }
+  }
 }

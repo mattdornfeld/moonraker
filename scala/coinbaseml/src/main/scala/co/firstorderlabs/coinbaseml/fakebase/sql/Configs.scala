@@ -2,6 +2,8 @@ package co.firstorderlabs.coinbaseml.fakebase.sql
 
 import java.time.Duration
 
+import co.firstorderlabs.coinbaseml.common.{Configs => CommonConfigs}
+
 import scala.util.Properties.envOrElse
 
 object Configs {
@@ -26,5 +28,9 @@ object Configs {
   var queryResultMapMaxOverflow = 20
 
   //LocalStorage configs
+  val forcePullFromDatabase = List("True", "TRUE", "true").contains(envOrElse("FORCE_PULL_FROM_DATABASE", "false"))
   val localStoragePath = "/tmp/moonraker/coinbaseml/local_storage"
+  val sstFilesPath = "/tmp/moonraker/coinbaseml/sst_files"
+  val sstBackupGcsBucket = "coinbaseml-train-sst-backup"
+  val sstBackupBasePath = s"${CommonConfigs.environment}/query-results"
 }
