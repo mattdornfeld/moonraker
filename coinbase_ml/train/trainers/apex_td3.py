@@ -79,7 +79,7 @@ def build_td3_configs() -> Dict[str, Any]:
         "exploration_config": {
             "type": PerWorkerGaussianNoise,
             "random_timesteps": 10000,
-            "stddev": 10,
+            "stddev": 20,
         },
         "n_step": 1,
         "gamma": 0.99,
