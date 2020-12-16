@@ -1,5 +1,4 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
-import java.io.File
 import java.time.{Duration, Instant}
 import java.util.logging.Logger
 
@@ -10,13 +9,7 @@ import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange, Snapshotable}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.productId
-import co.firstorderlabs.common.protos.events.{
-  BuyLimitOrder,
-  BuyMarketOrder,
-  Cancellation,
-  SellLimitOrder,
-  SellMarketOrder
-}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, SellLimitOrder, SellMarketOrder}
 import co.firstorderlabs.common.types.Events.Event
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
@@ -148,7 +141,7 @@ abstract class DatabaseReader(
       backupToCloudStorage: Boolean = false,
   ): Unit = {
     clear
-    val readFromDatabase: Stream[IO, Option[(File, QueryHistoryKey)]] = TimeInterval(startTime, endTime)
+    val readFromDatabase: Stream[IO, Option[QueryResultSstFileWriter]] = TimeInterval(startTime, endTime)
       .chunkBy(SqlConfigs.bigQueryReadTimeDelta)
       .toStreams(SqlConfigs.numDatabaseReaderThreads)
       .map { stream: Stream[Pure, TimeInterval] =>
@@ -160,10 +153,9 @@ abstract class DatabaseReader(
       }
       .reduce(_ merge _)
 
-    val sstFiles: Seq[(File, QueryHistoryKey)] = readFromDatabase.compile.toList.unsafeRunSync.flatten
+    val sstFiles: Seq[QueryResultSstFileWriter] = readFromDatabase.compile.toList.unsafeRunSync.flatten
     if (sstFiles.size > 0) {
-      LocalStorage.QueryResults.bulkIngest(sstFiles.map(_._1))
-      LocalStorage.QueryHistory.addAll(sstFiles.map(_._2).iterator)
+      LocalStorage.QueryResults.bulkIngest(sstFiles)
       LocalStorage.compact
     }
 
@@ -243,18 +235,19 @@ abstract class DatabaseReader(
       timeInterval: TimeInterval,
       timeDelta: Duration,
       backupToCloudStorage: Boolean,
-  ): Option[(File, QueryHistoryKey)] = {
+  ): Option[QueryResultSstFileWriter] = {
     val queryHistoryKey = QueryHistoryKey(productId, timeInterval, timeDelta)
     if (LocalStorage.QueryHistory.contains(queryHistoryKey) && !SqlConfigs.forcePullFromDatabase) {
       logger.info(
         s"Data for ${queryHistoryKey} found locally. Skipping database query."
       )
       None
-    } else if (!Configs.testMode && !SqlConfigs.forcePullFromDatabase && CloudStorage.contains(queryHistoryKey)) {
+    } else if (!SqlConfigs.forcePullFromDatabase && CloudStorage.contains(queryHistoryKey)) {
       logger.info(
         s"Data for ${queryHistoryKey} found in cloud storage backup. Downloading and skipping database query."
       )
-      Some((CloudStorage.get(queryHistoryKey), queryHistoryKey))
+      CloudStorage.get(queryHistoryKey)
+      Some(QueryResultSstFileWriter(queryHistoryKey))
     } else {
       logger.info(s"Querying database for events in ${queryHistoryKey}")
 
@@ -289,7 +282,7 @@ abstract class DatabaseReader(
       )
       queryResultsSstFileWriter.finish
 
-      if (!Configs.testMode && backupToCloudStorage) {
+      if (backupToCloudStorage) {
         logger.info(s"Backing up sst file for ${queryHistoryKey} to cloud storage")
         CloudStorage.put(queryHistoryKey, queryResultsSstFileWriter.sstFile)
       }
@@ -307,7 +300,7 @@ abstract class DatabaseReader(
         s"Successfully wrote ${timeInterval.chunkBy(timeDelta).size} TimeInterval keys to LocalStorage"
       )
 
-      Some((queryResultsSstFileWriter.sstFile, queryHistoryKey))
+      Some(queryResultsSstFileWriter)
     }
   }
 
