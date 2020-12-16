@@ -2,17 +2,16 @@ package co.firstorderlabs.coinbaseml.fakebase.sql
 
 import java.io._
 import java.nio.file.Files
-import java.time.Duration
 import java.util
 import java.util.logging.Logger
 
-import co.firstorderlabs.coinbaseml.common.utils.Utils.When
 import co.firstorderlabs.coinbaseml.fakebase.Configs
-import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits.Serializer
+import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits.TimeIntervalSerializer
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SQLConfigs}
-import co.firstorderlabs.common.types.Types.{ProductId, TimeInterval}
+import co.firstorderlabs.common.types.Types.TimeInterval
 import com.google.auth.oauth2.GoogleCredentials
-import com.google.cloud.storage.{BlobId, BlobInfo, StorageOptions}
+import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper
+import com.google.cloud.storage.{BlobInfo, StorageOptions}
 import org.rocksdb.{
   ColumnFamilyDescriptor,
   ColumnFamilyHandle,
@@ -27,50 +26,42 @@ import org.rocksdb.{
 
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
-case class QueryHistoryKey(
-    productId: ProductId,
-    timeInterval: TimeInterval,
-    timeDelta: Duration
-) {
-  override def toString: String = s"${productId}-${timeInterval}-${timeDelta}"
-
-  def getBlobId: BlobId =
-    BlobId.of(
-      SQLConfigs.sstBackupGcsBucket,
-      s"${SQLConfigs.sstBackupBasePath}/${toString}.sst"
-    )
-
-  def getSstFile: File = {
-    val file = new File(getSstFilePath)
-    file.getParentFile.mkdirs
-    file.createNewFile
-    file
-  }
-
-  def getSstFilePath: String =
-    s"${SQLConfigs.sstFilesPath}/${toString}.sst"
-}
-
-object QueryHistoryKey extends Deserializer[QueryHistoryKey]
-
 /**
   * Used to upload and retrieve backups of SST files created by LocalStorage. This is useful so the database backend
   * only needs to be queried once, which decreases costs for backends like BigQuery.
   */
 object CloudStorage {
-  private val gcsStorage = StorageOptions.newBuilder
-    .when(!Configs.testMode)(
-      _.setCredentials(
-        GoogleCredentials.fromStream(
-          new FileInputStream(SQLConfigs.serviceAccountJsonPath)
+  private val gcsStorage =
+    if (Configs.testMode) LocalStorageHelper.getOptions.getService
+    else
+      StorageOptions.newBuilder
+        .setCredentials(
+          GoogleCredentials.fromStream(
+            new FileInputStream(SQLConfigs.serviceAccountJsonPath)
+          )
         )
-      )
-    )
-    .setProjectId(SQLConfigs.gcpProjectId)
-    .build
-    .getService
+        .setProjectId(SQLConfigs.gcpProjectId)
+        .build
+        .getService
 
-  /** Contains (timeInterval, timeDelta) key
+  /**
+    * This method deletes all contents of the cloud storage bucket. This is necessary for unit tests to function properly
+    * with the mock bucket. Will throw an exception if run outside of test mode.
+    */
+  @throws[IllegalStateException]
+  def clear: Unit = {
+    if (!Configs.testMode)
+      throw new IllegalStateException(
+        "This method can only be called by unit tests. Do you really want to delete prod data? " +
+          "This is how you delete prod data."
+      )
+    gcsStorage
+      .list(SQLConfigs.sstBackupGcsBucket)
+      .iterateAll
+      .forEach(blob => blob.delete())
+  }
+
+  /** Contains queryHistoryKey key
     *
     * @param queryHistoryKey
     * @return
@@ -78,6 +69,11 @@ object CloudStorage {
   def contains(queryHistoryKey: QueryHistoryKey): Boolean =
     gcsStorage.get(queryHistoryKey.getBlobId) != null
 
+  /** Get File associated with queryHistoryKey
+    *
+    * @param queryHistoryKey
+    * @return
+    */
   def get(queryHistoryKey: QueryHistoryKey): File = {
     val sstFile = queryHistoryKey.getSstFile
     val fileOutputStream = new FileOutputStream(sstFile)
@@ -86,7 +82,7 @@ object CloudStorage {
     sstFile
   }
 
-  /** Uploads sstFiles to
+  /** Uploads sstFile to queryHistoryKey
     *
     * @param queryHistoryKey timeInterval and timeDelta for which the query was executed
     * @param sstFile sstFile containing the results of the query
@@ -219,14 +215,18 @@ object LocalStorage {
 
     /** Bulk ingest the contents of a list of sstFiles
       *
-      * @param sstFiles
+      * @param sstFileWriters
       */
-    def bulkIngest(sstFiles: Seq[File]): Unit =
+    def bulkIngest(sstFileWriters: Seq[QueryResultSstFileWriter]): Unit = {
       database.ingestExternalFile(
         queryResults,
-        sstFiles.map(_.getAbsolutePath).asJava,
+        sstFileWriters.map(_.sstFile.getAbsolutePath).asJava,
         ingestExternalFileOptions
       )
+      sstFileWriters.foreach(sstFileWriter =>
+        LocalStorage.QueryHistory.put(sstFileWriter.queryHistoryKey)
+      )
+    }
 
     /**
       * Get value from timeInterval Key
@@ -254,7 +254,8 @@ object LocalStorage {
           rocksIterator.isValid
 
         override def next(): TimeInterval = {
-          val timeInterval = TimeInterval.deserialize(rocksIterator.key)
+          val timeInterval =
+            TimeIntervalDeserializer.deserialize(rocksIterator.key)
           rocksIterator.next
           timeInterval
         }
@@ -330,17 +331,19 @@ object LocalStorage {
   }
 }
 
-class QueryResultSstFileWriter(queryHistoryKey: QueryHistoryKey)
+case class QueryResultSstFileWriter(queryHistoryKey: QueryHistoryKey)
     extends SstFileWriter(
       (new EnvOptions).setUseDirectWrites(true),
-      new Options(LocalStorage.dBOptions, LocalStorage.columnFamilyOptions)
+      (new Options(LocalStorage.dBOptions, LocalStorage.columnFamilyOptions))
+        .setComparator(org.rocksdb.BuiltinComparator.BYTEWISE_COMPARATOR)
     ) {
   val sstFile = queryHistoryKey.getSstFile
   open(sstFile.getAbsolutePath)
 
-  def addAll(iterator: Iterator[(TimeInterval, QueryResult)]): Unit = {
-    iterator.foreach(item => put(item._1.serialize, item._2.serialize))
-  }
+  def addAll(iterator: Iterator[(TimeInterval, QueryResult)]): Unit =
+    iterator.foreach { item =>
+      put(item._1.serialize, item._2.serialize)
+    }
 
   def put(key: TimeInterval, value: QueryResult): Unit =
     super.put(key.serialize, value.serialize)

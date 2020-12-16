@@ -1,17 +1,23 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.io.File
 import java.math.BigDecimal
-import java.time.Duration
+import java.nio.ByteBuffer
+import java.time.{Duration, Instant}
 import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
 
+import boopickle.Default._
+import boopickle.UnpickleImpl
 import co.firstorderlabs.coinbaseml.fakebase.Snapshot
+import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
+import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SQLConfigs}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.events.{DoneReason, MatchEvents, OrderSide, OrderStatus, RejectReason}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, MatchEvents, OrderSide, OrderStatus, RejectReason, SellLimitOrder, SellMarketOrder}
 import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest}
 import co.firstorderlabs.common.types.Events.Event
 import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, ProductId, TimeInterval}
+import com.google.cloud.storage.BlobId
 import doobie.implicits.legacy.instant.JavaTimeInstantMeta
 import doobie.util.meta.Meta
 
@@ -39,29 +45,71 @@ final case class QueryResult(
     }
   }
 
+  def serialize: Array[Byte] = {
+    eventPickler
+    Pickle.intoBytes(this).array
+  }
+
   override def toString: String = s"<QueryResult(${timeInterval})"
 }
 
-trait Deserializer[A] {
-  private type resultType = A
-  def deserialize(bytes: Array[Byte]): A = {
-    val objectInputStream = new ObjectInputStream(
-      new ByteArrayInputStream(bytes)
+final case class QueryHistoryKey(
+    productId: ProductId,
+    timeInterval: TimeInterval,
+    timeDelta: Duration
+) {
+  override def toString: String = s"${productId}-${timeInterval}-${timeDelta}"
+
+  def getBlobId: BlobId =
+    BlobId.of(
+      SQLConfigs.sstBackupGcsBucket,
+      s"${SQLConfigs.sstBackupBasePath}/${toString}.sst"
     )
-    val value = objectInputStream.readObject.asInstanceOf[resultType]
-    objectInputStream.close
-    value
+
+  def getSstFile: File = {
+    val file = new File(getSstFilePath)
+    file.getParentFile.mkdirs
+    file.createNewFile
+    file.deleteOnExit
+    file
+  }
+
+  def getSstFilePath: String =
+    s"${SQLConfigs.sstFilesPath}/${toString}.sst"
+
+  def serialize: Array[Byte] = {
+    durationPickler
+    Pickle.intoBytes(this).array
   }
 }
 
-object QueryResult extends Deserializer[QueryResult]
+object QueryHistoryKey {
+ def deserialize(bytes: Array[Byte]): QueryHistoryKey = {
+    UnpickleImpl[QueryHistoryKey].fromBytes(ByteBuffer.wrap(bytes))
+  }
+}
 
+object QueryResult {
+ def deserialize(bytes: Array[Byte]): QueryResult = {
+    UnpickleImpl[QueryResult].fromBytes(ByteBuffer.wrap(bytes))
+  }
+}
+
+object TimeIntervalDeserializer {
+  def deserialize(bytes: Array[Byte]): TimeInterval = {
+    val stringEncoding = UnpickleImpl[String].fromBytes(ByteBuffer.wrap(bytes)).split("-")
+    val startTime = Instant.ofEpochSecond(stringEncoding(0).toLong, stringEncoding(1).toInt)
+    val endTime = Instant.ofEpochSecond(stringEncoding(2).toLong, stringEncoding(3).toInt)
+    TimeInterval(startTime, endTime)
+  }
+}
 
 case class BoundedTrieMap[K, V](
     var maxSize: Int,
     trieMap: Option[TrieMap[K, V]] = None
 ) extends mutable.AbstractMap[K, V] {
-  protected val _trieMap = if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
+  protected val _trieMap =
+    if (trieMap.isEmpty) new TrieMap[K, V] else trieMap.get
 
   override def addOne(elem: (K, V)): BoundedTrieMap.this.type = {
     _trieMap.addOne(elem)
@@ -88,7 +136,7 @@ case class BoundedTrieMap[K, V](
     }
   }
 
-  override def size: Int = synchronized{_trieMap.size}
+  override def size: Int = synchronized { _trieMap.size }
 
   override def clone: BoundedTrieMap[K, V] = {
     BoundedTrieMap(maxSize, Some(_trieMap.clone))
@@ -154,19 +202,44 @@ object Implicits {
     Meta[Int].timap(value => RejectReason.fromValue(value))(value =>
       value.value
     )
-
   implicit val buyLimitOrderRequestConverter: Meta[BuyLimitOrderRequest] =
     Meta[String].timap(_ => new BuyLimitOrderRequest)(_ => "")
   implicit val buyMarketOrderRequestConverter: Meta[BuyMarketOrderRequest] =
     Meta[String].timap(_ => new BuyMarketOrderRequest())(_ => "")
 
-  implicit class Serializer(obj: Object) {
+  // BooPickle serializers used for serializing data to LocalStorage
+  implicit val productIdPickler = transformPickler((productId: String) => ProductId.fromString(productId))(_.toString)
+  implicit val productPricePickler = transformPickler((productPrice: String) =>
+    new ProductPrice(Right(productPrice))
+  )(_.toPlainString)
+  implicit val productVolumePickler =
+    transformPickler((productVolume: String) =>
+      new ProductVolume(Right(productVolume))
+    )(_.toPlainString)
+  implicit val quoteVolumePickler = transformPickler((quoteVolume: String) =>
+    new QuoteVolume(Right(quoteVolume))
+  )(_.toPlainString)
+  implicit val instantPickler = transformPickler((instant: (Long, Long)) =>
+    Instant.ofEpochSecond(instant._1, instant._2)
+  )(instant => (instant.getEpochSecond, instant.getNano))
+  implicit val matchEventsPickler = transformPickler(
+    ((_: Unit) => None): Unit => Option[MatchEvents]
+  )(_ => None)
+  implicit val customDurationPickler =
+    transformPickler((nanos: Long) => Duration.ofNanos(nanos))(_.toNanos)
+
+  implicit val eventPickler = compositePickler[Event]
+    .addConcreteType[BuyLimitOrder]
+    .addConcreteType[BuyMarketOrder]
+    .addConcreteType[Cancellation]
+    .addConcreteType[SellLimitOrder]
+    .addConcreteType[SellMarketOrder]
+
+  implicit class TimeIntervalSerializer(timeInterval: TimeInterval) {
     def serialize: Array[Byte] = {
-      val stream = new ByteArrayOutputStream()
-      val objectOutputStream = new ObjectOutputStream(stream)
-      objectOutputStream.writeObject(obj)
-      objectOutputStream.close
-      stream.toByteArray
+      // For some reason the ordering of TimeInterval classes causes an error when inserted into RocksDB
+      // So here they are converted to a string encoding before converting to bytes
+      Pickle.intoBytes(timeInterval.toStringEncoding).array
     }
   }
 }

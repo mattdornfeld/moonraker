@@ -1,6 +1,5 @@
 package co.firstorderlabs.common.types
 
-import java.io.{ByteArrayInputStream, ObjectInputStream}
 import java.time.{Duration, Instant}
 
 import co.firstorderlabs.common.protos.fakebase.Currency
@@ -59,6 +58,9 @@ object Types {
         .dividedBy(timeDelta)
         .toInt
 
+    def toStringEncoding: String =
+      s"${startTime.getEpochSecond}-${startTime.getNano}-${endTime.getEpochSecond}-${endTime.getNano}"
+
     private def getTimeIntervalOffsetFromStart(
         offset: Int,
         timeDelta: Duration
@@ -69,17 +71,6 @@ object Types {
       )
 
     def size: Duration = Duration.between(startTime, endTime)
-  }
-
-  object TimeInterval {
-    def deserialize(bytes: Array[Byte]): TimeInterval = {
-      val objectInputStream = new ObjectInputStream(
-        new ByteArrayInputStream(bytes)
-      )
-      val value = objectInputStream.readObject.asInstanceOf[TimeInterval]
-      objectInputStream.close
-      value
-    }
   }
 
   object OrderId {

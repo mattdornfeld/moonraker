@@ -47,7 +47,7 @@ ray:
       memory_per_replica: 13000Mi
       num_cpus_per_replica: 3.6
       num_gpus_per_replica: 0
-      num_replicas: 5
+      num_replicas: 0
       node_group: c2-standard-4
 
 # Add in dummy values for secrets so linting passes
