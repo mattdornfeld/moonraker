@@ -9,7 +9,13 @@ import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange, Snapshotable}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.productId
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  BuyMarketOrder,
+  Cancellation,
+  SellLimitOrder,
+  SellMarketOrder
+}
 import co.firstorderlabs.common.types.Events.Event
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
@@ -113,6 +119,32 @@ abstract class DatabaseReader(
 
   def getResultMapSize: Int = queryResultMap.size
 
+  def createSstFiles(
+      timeInterval: TimeInterval,
+      timeDelta: Duration,
+      backupToCloudStorage: Boolean,
+  ): Seq[QueryResultSstFileWriter] = {
+    clear
+    val readFromDatabase: Stream[IO, Option[QueryResultSstFileWriter]] =
+      timeInterval
+        .chunkBy(SqlConfigs.bigQueryReadTimeDelta)
+        .toStreams(SqlConfigs.numDatabaseReaderThreads)
+        .map { stream: Stream[Pure, TimeInterval] =>
+          stream.evalMap(subTimeInterval =>
+            IO {
+              createSstFile(
+                subTimeInterval,
+                timeDelta,
+                backupToCloudStorage
+              )
+            }
+          )
+        }
+        .reduce(_ merge _)
+
+    readFromDatabase.compile.toList.unsafeRunSync.flatten
+  }
+
   def queryResultMapKeys: Iterable[TimeInterval] = queryResultMap.keys
 
   def removeQueryResult(timeInterval: TimeInterval): QueryResult = {
@@ -138,24 +170,13 @@ abstract class DatabaseReader(
       startTime: Instant,
       endTime: Instant,
       timeDelta: Duration,
-      backupToCloudStorage: Boolean = false,
+      backupToCloudStorage: Boolean = false
   ): Unit = {
     clear
-    val readFromDatabase: Stream[IO, Option[QueryResultSstFileWriter]] = TimeInterval(startTime, endTime)
-      .chunkBy(SqlConfigs.bigQueryReadTimeDelta)
-      .toStreams(SqlConfigs.numDatabaseReaderThreads)
-      .map { stream: Stream[Pure, TimeInterval] =>
-        stream.evalMap(timeInterval =>
-          IO {
-            populateLocalStorage(timeInterval, timeDelta, backupToCloudStorage)
-          }
-        )
-      }
-      .reduce(_ merge _)
-
-    val sstFiles: Seq[QueryResultSstFileWriter] = readFromDatabase.compile.toList.unsafeRunSync.flatten
-    if (sstFiles.size > 0) {
-      LocalStorage.QueryResults.bulkIngest(sstFiles)
+    val timeInterval = TimeInterval(startTime, endTime)
+    val sstFileWriters = createSstFiles(timeInterval, timeDelta, backupToCloudStorage)
+    if (sstFileWriters.size > 0) {
+      LocalStorage.QueryResults.bulkIngest(sstFileWriters)
       LocalStorage.compact
     }
 
@@ -231,18 +252,26 @@ abstract class DatabaseReader(
       case None              => IO.raiseError(new NoSuchElementException)
     }
 
-  private def populateLocalStorage(
+  private def createSstFile(
       timeInterval: TimeInterval,
       timeDelta: Duration,
-      backupToCloudStorage: Boolean,
+      backupToCloudStorage: Boolean
   ): Option[QueryResultSstFileWriter] = {
     val queryHistoryKey = QueryHistoryKey(productId, timeInterval, timeDelta)
-    if (LocalStorage.QueryHistory.contains(queryHistoryKey) && !SqlConfigs.forcePullFromDatabase) {
+    if (
+      LocalStorage.QueryHistory.contains(
+        queryHistoryKey
+      ) && !SqlConfigs.forcePullFromDatabase
+    ) {
       logger.info(
         s"Data for ${queryHistoryKey} found locally. Skipping database query."
       )
       None
-    } else if (!SqlConfigs.forcePullFromDatabase && CloudStorage.contains(queryHistoryKey)) {
+    } else if (
+      !SqlConfigs.forcePullFromDatabase && CloudStorage.contains(
+        queryHistoryKey
+      )
+    ) {
       logger.info(
         s"Data for ${queryHistoryKey} found in cloud storage backup. Downloading and skipping database query."
       )
@@ -283,7 +312,9 @@ abstract class DatabaseReader(
       queryResultsSstFileWriter.finish
 
       if (backupToCloudStorage) {
-        logger.info(s"Backing up sst file for ${queryHistoryKey} to cloud storage")
+        logger.info(
+          s"Backing up sst file for ${queryHistoryKey} to cloud storage"
+        )
         CloudStorage.put(queryHistoryKey, queryResultsSstFileWriter.sstFile)
       }
 

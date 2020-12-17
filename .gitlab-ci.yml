@@ -42,7 +42,7 @@ helm_charts:
   extends: .package_helm_chart
 
   variables:
-    CHART_NAME: bqwriter,coinbase-ml-train,coinbase-ml-serve,coinbase-kafka-producer
+    CHART_NAME: bqwriter,coinbase-ml-train,coinbase-ml-serve,coinbaseml-storagewriter,coinbase-kafka-producer
 
 .bqwriter_files: &bqwriter_files
   - dockerfiles/Dockerfile.bqwriter
@@ -287,3 +287,45 @@ delete_coinbase_kafka_producer:
 
   variables:
     RELEASE_NAME: coinbase-kafka-producer-$CI_COMMIT_REF_NAME
+
+.storagewriter_deploy_args: &storagewriter_deploy_args |
+  HELM_ARGS="--set gitlab-registry-secret.registry.username=${CI_USERNAME}
+  --set gitlab-registry-secret.registry.password=${CI_TOKEN}
+  --set gcp-service-account-secret.service_account_json=${SERVICE_ACCOUNT_JSON}"
+
+storagewriter:
+  before_script:
+    - *version_tag_script
+    - *storagewriter_deploy_args
+
+  environment:
+    name: storagewriter/$CI_COMMIT_REF_NAME
+    on_stop: delete_storagewriter
+
+  extends: .deploy_helm_chart
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
+
+  variables:
+    CHART_NAME: coinbaseml-storagewriter
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-storagewriter
+
+delete_storagewriter:
+  environment:
+    name: storagewriter/$CI_COMMIT_REF_NAME
+    action: stop
+
+  extends: .delete_helm_release
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
+
+  variables:
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-storagewriter

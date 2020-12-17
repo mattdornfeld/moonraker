@@ -19,7 +19,8 @@ FROM registry.gitlab.com/moonraker/base_images/coinbase_train_cpu:${RUNTIME_BASE
 ENV LD_BIND_NOW=1 \
 	PYTHONUNBUFFERED=1 \
 	PYTHONPATH=/app \
-	RAY_USE_MULTIPROCESSING_CPU_COUNT=1
+	RAY_USE_MULTIPROCESSING_CPU_COUNT=1 \
+	PATH="/usr/lib/graalvm/graalvm-ce-java11-20.2.0/bin/:${PATH}"
 
 ADD ./ /app
 
