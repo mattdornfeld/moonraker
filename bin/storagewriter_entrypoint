@@ -1,0 +1,2 @@
+#!/bin/bash
+java -Xmx10G -cp /tmp/moonraker/coinbaseml/coinbaseml.jar co.firstorderlabs.coinbaseml.fakebase.sql.StorageWriter

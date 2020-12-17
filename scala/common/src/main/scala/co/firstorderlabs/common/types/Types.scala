@@ -73,6 +73,11 @@ object Types {
     def size: Duration = Duration.between(startTime, endTime)
   }
 
+  object TimeInterval {
+    def fromStrings(startTime: String, endTime: String): TimeInterval =
+      TimeInterval(Instant.parse(startTime), Instant.parse(endTime))
+  }
+
   object OrderId {
     implicit val typeMapper =
       TypeMapper[String, OrderId](value => OrderId(value))(orderId =>

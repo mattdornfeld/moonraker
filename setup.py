@@ -52,6 +52,7 @@ SCRIPTS = [
     "bin/clean_local_storage",
     "bin/notebook_entrypoint",
     "bin/start_jupyter_lab",
+    "bin/storagewriter_entrypoint",
     "bin/serve_job_entrypoint",
     "bin/train_job_entrypoint",
 ]

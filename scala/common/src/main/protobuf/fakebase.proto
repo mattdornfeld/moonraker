@@ -115,13 +115,15 @@ message Wallets {
 }
 
 service ExchangeService {
-    rpc checkpoint (google.protobuf.Empty) returns (google.protobuf.Empty){
+    rpc checkpoint (google.protobuf.Empty) returns (google.protobuf.Empty) {
     }
     rpc getExchangeInfo (google.protobuf.Empty) returns (ExchangeInfo) {
     }
     rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
     }
     rpc getOrderBooks (OrderBooksRequest) returns (OrderBooks) {
+    }
+    rpc populateStorage (PopulateStorageRequest) returns (google.protobuf.Empty) {
     }
     rpc reset (SimulationInfoRequest) returns (SimulationInfo) {
     }
@@ -145,10 +147,21 @@ message OrderBooksRequest {
 }
 
 message OrderBooks {
-    map<string, string> buyOrderBook = 1 [(scalapb.field).key_type = "co.firstorderlabs.common.currency.Configs.ProductPrice",
-                                          (scalapb.field).value_type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
-    map<string, string> sellOrderBook = 2 [(scalapb.field).key_type = "co.firstorderlabs.common.currency.Configs.ProductPrice",
-                                           (scalapb.field).value_type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
+    map<string, string> buyOrderBook = 1 [(scalapb.field).key_type = "co.firstorderlabs.common.currency.Configs.ProductPrice", (scalapb.field).value_type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
+    map<string, string> sellOrderBook = 2 [(scalapb.field).key_type = "co.firstorderlabs.common.currency.Configs.ProductPrice", (scalapb.field).value_type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
+}
+
+message PopulateStorageParameters {
+    string startTime = 1 [(scalapb.field).type = "java.time.Instant"];
+    string endTime = 2 [(scalapb.field).type = "java.time.Instant"];
+    google.protobuf.Duration timeDelta = 3 [(scalapb.field).type = "java.time.Duration"];
+}
+
+message PopulateStorageRequest {
+    repeated PopulateStorageParameters populateStorageParameters = 1;
+    bool ingestToLocalStorage = 2;
+    bool backupToCloudStorage = 3;
+    DatabaseBackend databaseBackend = 4;
 }
 
 message SimulationInfo {

@@ -4,18 +4,39 @@ import java.time.{Duration, Instant}
 import java.util.UUID.randomUUID
 import java.util.logging.Logger
 
-import co.firstorderlabs.coinbaseml.common.utils.Utils.{getResult, getResultOptional}
+import co.firstorderlabs.coinbaseml.common.utils.Utils.{
+  getResult,
+  getResultOptional
+}
 import co.firstorderlabs.coinbaseml.common.{Environment, InfoAggregator}
-import co.firstorderlabs.coinbaseml.fakebase.sql.{BigQueryReader, DatabaseReader, PostgresReader}
-import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.{SimulationNotStarted, SnapshotBufferNotFull}
+import co.firstorderlabs.coinbaseml.fakebase.sql.{
+  BigQueryReader,
+  DatabaseReader,
+  LocalStorage,
+  PostgresReader
+}
+import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.{
+  SimulationNotStarted,
+  SnapshotBufferNotFull
+}
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.events.{MatchEvents, OrderSide}
-import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{BigQuery, Postgres}
+import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{
+  BigQuery,
+  Postgres
+}
 import co.firstorderlabs.common.protos.fakebase._
 import co.firstorderlabs.common.protos.{events, fakebase}
-import co.firstorderlabs.common.types.Events.{Event, LimitOrderEvent, OrderEvent}
+import co.firstorderlabs.common.types.Events.{
+  Event,
+  LimitOrderEvent,
+  OrderEvent
+}
 import co.firstorderlabs.common.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
 
@@ -24,18 +45,18 @@ import scala.concurrent.Future
 final case class ExchangeSnapshot(receivedEvents: List[Event]) extends Snapshot
 
 final case class SimulationMetadata(
-                                     startTime: Instant,
-                                     endTime: Instant,
-                                     timeDelta: Duration,
-                                     numWarmUpSteps: Int,
-                                     initialProductFunds: ProductVolume,
-                                     initialQuoteFunds: QuoteVolume,
-                                     simulationId: String,
-                                     observationRequest: ObservationRequest,
-                                     enableProgressBar: Boolean,
-                                     simulationType: SimulationType,
-                                     databaseReader: DatabaseReader,
-                                     snapshotBufferSize: Int,
+    startTime: Instant,
+    endTime: Instant,
+    timeDelta: Duration,
+    numWarmUpSteps: Int,
+    initialProductFunds: ProductVolume,
+    initialQuoteFunds: QuoteVolume,
+    simulationId: String,
+    observationRequest: ObservationRequest,
+    enableProgressBar: Boolean,
+    simulationType: SimulationType,
+    databaseReader: DatabaseReader,
+    snapshotBufferSize: Int
 ) {
   var currentTimeInterval =
     TimeInterval(startTime.minus(timeDelta), startTime)
@@ -70,11 +91,25 @@ final case class SimulationMetadata(
     }
   }
 
-  def step(stepDuration: Double, dataGetDuration: Double, matchingEngineDuration: Double, environmentDuration: Double, numEvents: Int): Unit = {
+  def step(
+      stepDuration: Double,
+      dataGetDuration: Double,
+      matchingEngineDuration: Double,
+      environmentDuration: Double,
+      numEvents: Int
+  ): Unit = {
     currentStep += 1
     progressBar match {
-      case Some(progressBar) => progressBar.step(currentStep, stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, numEvents)
-      case None              =>
+      case Some(progressBar) =>
+        progressBar.step(
+          currentStep,
+          stepDuration,
+          dataGetDuration,
+          matchingEngineDuration,
+          environmentDuration,
+          numEvents
+        )
+      case None =>
     }
   }
 
@@ -167,6 +202,33 @@ object Exchange
     Future.successful(orderBooks)
   }
 
+  override def populateStorage(
+      populateStorageRequest: PopulateStorageRequest
+  ): Future[Empty] = {
+    require(
+      populateStorageRequest.ingestToLocalStorage || populateStorageRequest.backupToCloudStorage,
+      "Either ingestToLocalStorage or backupToCloudStorage must be true."
+    )
+    val databaseReader = getDatabaseReader(populateStorageRequest.databaseBackend)
+    val sstFileWriters = populateStorageRequest.populateStorageParameters.map {
+      populateStorageParameter =>
+        val timeInterval = TimeInterval(
+          populateStorageParameter.startTime,
+          populateStorageParameter.endTime
+        )
+        databaseReader.createSstFiles(
+          timeInterval,
+          populateStorageParameter.timeDelta.get,
+          populateStorageRequest.backupToCloudStorage
+        )
+    }.flatten
+
+    if (populateStorageRequest.ingestToLocalStorage) {
+      LocalStorage.QueryResults.bulkIngest(sstFileWriters)
+    }
+    Future.successful(Constants.emptyProto)
+  }
+
   override def reset(
       simulationInfoRequest: SimulationInfoRequest
   ): Future[SimulationInfo] = {
@@ -190,15 +252,6 @@ object Exchange
     )
     if (simulationInProgress) stop(Constants.emptyProto)
 
-    val databaseReader = simulationStartRequest.databaseBackend match {
-      case Postgres => PostgresReader
-      case BigQuery => BigQueryReader
-      case _ =>
-        throw new IllegalArgumentException(
-          s"${simulationStartRequest.databaseBackend} is not a valid instance of DatabaseBackend"
-        )
-    }
-
     simulationMetadata = Some(
       SimulationMetadata(
         simulationStartRequest.startTime,
@@ -211,19 +264,21 @@ object Exchange
         simulationStartRequest.observationRequest.get,
         simulationStartRequest.enableProgressBar,
         simulationStartRequest.simulationType,
-        databaseReader,
+        getDatabaseReader(simulationStartRequest.databaseBackend),
         simulationStartRequest.snapshotBufferSize
       )
     )
 
-    logger.info(s"starting simulation ${simulationMetadata.get.simulationId} for parameters ${simulationMetadata.get}")
+    logger.info(
+      s"starting simulation ${simulationMetadata.get.simulationId} for parameters ${simulationMetadata.get}"
+    )
     Checkpointer.start
     Environment.start(simulationStartRequest.snapshotBufferSize)
     getSimulationMetadata.databaseReader.start(
       getSimulationMetadata.startTime,
       getSimulationMetadata.endTime,
       getSimulationMetadata.timeDelta,
-      simulationStartRequest.backupToCloudStorage,
+      simulationStartRequest.backupToCloudStorage
     )
 
     Account.initializeWallets
@@ -285,19 +340,32 @@ object Exchange
 
     val matchingEngineStartTime = System.nanoTime
     matchingEngine.step(receivedEvents)
-    val matchingEngineDuration = (System.nanoTime - matchingEngineStartTime) / 1e6
+    val matchingEngineDuration =
+      (System.nanoTime - matchingEngineStartTime) / 1e6
 
     val environmentStartTime = System.nanoTime
     Environment.step
     val environmentDuration = (System.nanoTime - environmentStartTime) / 1e6
 
     val stepDuration = (System.nanoTime - stepStartTime) / 1e6
-    InfoAggregator.step(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, receivedEvents.size)
+    InfoAggregator.step(
+      stepDuration,
+      dataGetDuration,
+      matchingEngineDuration,
+      environmentDuration,
+      receivedEvents.size
+    )
 
     val simulationInfo = getSimulationInfo(stepRequest.simulationInfoRequest)
 
     logger.fine(s"Exchange.step took ${stepDuration} ms")
-    getSimulationMetadata.step(stepDuration, dataGetDuration, matchingEngineDuration, environmentDuration, receivedEvents.size)
+    getSimulationMetadata.step(
+      stepDuration,
+      dataGetDuration,
+      matchingEngineDuration,
+      environmentDuration,
+      receivedEvents.size
+    )
 
     Future successful simulationInfo
   }
@@ -308,6 +376,18 @@ object Exchange
     simulationMetadata = None
     Future.successful(Constants.emptyProto)
   }
+
+  private def getDatabaseReader(
+      databaseBackend: DatabaseBackend
+  ): DatabaseReader =
+    databaseBackend match {
+      case Postgres => PostgresReader
+      case BigQuery => BigQueryReader
+      case _ =>
+        throw new IllegalArgumentException(
+          s"${databaseBackend} is not a valid instance of DatabaseBackend"
+        )
+    }
 
   private def getExchangeInfoHelper: ExchangeInfo = {
     if (simulationMetadata.isDefined) {

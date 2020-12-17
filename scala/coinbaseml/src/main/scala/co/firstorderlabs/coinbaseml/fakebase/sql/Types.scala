@@ -46,7 +46,6 @@ final case class QueryResult(
   }
 
   def serialize: Array[Byte] = {
-    eventPickler
     Pickle.intoBytes(this).array
   }
 

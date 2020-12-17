@@ -1,0 +1,55 @@
+---
+{{$release_name := .Release.Name | trunc 14}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{$release_name}}-{{randAlphaNum 10 | lower}}
+  labels:
+    app: storagewriter
+spec:
+  template:
+    metadata:
+      labels:
+        pod-selector: {{$release_name}}-storagewriter
+
+    spec:
+      {{- if .Values.node_group}}
+      nodeSelector:
+        node-group: {{.Values.node_group}}
+      {{- end}}
+
+      {{- if .Values.node_group}}
+      tolerations:
+      - key: node-group
+        operator: "Equal"
+        effect: "NoSchedule"
+        value: {{.Values.node_group}}
+      {{- end}}
+
+      imagePullSecrets:
+      - name: {{$release_name}}-registry-credentials
+
+      restartPolicy: OnFailure
+
+      containers:
+      - name: storagewriter
+
+        command: ["storagewriter_entrypoint"]
+
+        env:
+          - name: ENVIRONMENT
+            value: {{.Values.environment}}
+
+        image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{.Chart.Version}}"
+
+        resources: {{.Values.resources | toJson }}
+
+        volumeMounts:
+          - mountPath: {{.Values.gcp_service_account_secret.mount_path}}
+            name: service-account-json
+            readOnly: true
+
+      volumes:
+      - name: service-account-json
+        secret:
+          secretName: {{$release_name}}-service-account-json
