@@ -65,11 +65,13 @@ final case class QueryHistoryKey(
       s"${SQLConfigs.sstBackupBasePath}/${toString}.sst"
     )
 
-  def getSstFile: File = {
+  def getSstFile(shouldCreate: Boolean): File = {
     val file = new File(getSstFilePath)
-    file.getParentFile.mkdirs
-    file.createNewFile
-    file.deleteOnExit
+    if (shouldCreate) {
+      file.getParentFile.mkdirs
+      file.createNewFile
+      file.deleteOnExit
+    }
     file
   }
 
@@ -77,7 +79,6 @@ final case class QueryHistoryKey(
     s"${SQLConfigs.sstFilesPath}/${toString}.sst"
 
   def serialize: Array[Byte] = {
-    durationPickler
     Pickle.intoBytes(this).array
   }
 }
@@ -91,15 +92,6 @@ object QueryHistoryKey {
 object QueryResult {
  def deserialize(bytes: Array[Byte]): QueryResult = {
     UnpickleImpl[QueryResult].fromBytes(ByteBuffer.wrap(bytes))
-  }
-}
-
-object TimeIntervalDeserializer {
-  def deserialize(bytes: Array[Byte]): TimeInterval = {
-    val stringEncoding = UnpickleImpl[String].fromBytes(ByteBuffer.wrap(bytes)).split("-")
-    val startTime = Instant.ofEpochSecond(stringEncoding(0).toLong, stringEncoding(1).toInt)
-    val endTime = Instant.ofEpochSecond(stringEncoding(2).toLong, stringEncoding(3).toInt)
-    TimeInterval(startTime, endTime)
   }
 }
 
@@ -233,12 +225,4 @@ object Implicits {
     .addConcreteType[Cancellation]
     .addConcreteType[SellLimitOrder]
     .addConcreteType[SellMarketOrder]
-
-  implicit class TimeIntervalSerializer(timeInterval: TimeInterval) {
-    def serialize: Array[Byte] = {
-      // For some reason the ordering of TimeInterval classes causes an error when inserted into RocksDB
-      // So here they are converted to a string encoding before converting to bytes
-      Pickle.intoBytes(timeInterval.toStringEncoding).array
-    }
-  }
 }

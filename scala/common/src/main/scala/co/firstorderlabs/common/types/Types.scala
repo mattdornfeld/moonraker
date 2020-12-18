@@ -1,5 +1,6 @@
 package co.firstorderlabs.common.types
 
+import java.nio.ByteBuffer
 import java.time.{Duration, Instant}
 
 import co.firstorderlabs.common.protos.fakebase.Currency
@@ -58,8 +59,14 @@ object Types {
         .dividedBy(timeDelta)
         .toInt
 
-    def toStringEncoding: String =
-      s"${startTime.getEpochSecond}-${startTime.getNano}-${endTime.getEpochSecond}-${endTime.getNano}"
+    def serialize: Array[Byte] = {
+      val byteBuffer = java.nio.ByteBuffer.allocate(4 * 8)
+      byteBuffer.putLong(startTime.getEpochSecond)
+      byteBuffer.putLong(startTime.getNano)
+      byteBuffer.putLong(endTime.getEpochSecond)
+      byteBuffer.putLong(endTime.getNano)
+      byteBuffer.array
+    }
 
     private def getTimeIntervalOffsetFromStart(
         offset: Int,
@@ -74,6 +81,13 @@ object Types {
   }
 
   object TimeInterval {
+  def deserialize(bytes: Array[Byte]): TimeInterval = {
+    val byteBuffer = ByteBuffer.wrap(bytes)
+    val startTime = Instant.ofEpochSecond(byteBuffer.getLong, byteBuffer.getLong)
+    val endTime = Instant.ofEpochSecond(byteBuffer.getLong, byteBuffer.getLong)
+    TimeInterval(startTime, endTime)
+  }
+
     def fromStrings(startTime: String, endTime: String): TimeInterval =
       TimeInterval(Instant.parse(startTime), Instant.parse(endTime))
   }
