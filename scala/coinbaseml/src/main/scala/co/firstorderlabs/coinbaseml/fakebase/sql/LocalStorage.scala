@@ -6,23 +6,12 @@ import java.util
 import java.util.logging.Logger
 
 import co.firstorderlabs.coinbaseml.fakebase.Configs
-import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits.TimeIntervalSerializer
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SQLConfigs}
 import co.firstorderlabs.common.types.Types.TimeInterval
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper
 import com.google.cloud.storage.{BlobInfo, StorageOptions}
-import org.rocksdb.{
-  ColumnFamilyDescriptor,
-  ColumnFamilyHandle,
-  ColumnFamilyOptions,
-  DBOptions,
-  EnvOptions,
-  IngestExternalFileOptions,
-  Options,
-  RocksDB,
-  SstFileWriter
-}
+import org.rocksdb.{ColumnFamilyDescriptor, ColumnFamilyHandle, ColumnFamilyOptions, DBOptions, EnvOptions, IngestExternalFileOptions, Options, RocksDB, SstFileWriter}
 
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
@@ -75,7 +64,7 @@ object CloudStorage {
     * @return
     */
   def get(queryHistoryKey: QueryHistoryKey): File = {
-    val sstFile = queryHistoryKey.getSstFile
+    val sstFile = queryHistoryKey.getSstFile(true)
     val fileOutputStream = new FileOutputStream(sstFile)
     gcsStorage.get(queryHistoryKey.getBlobId).downloadTo(fileOutputStream)
     fileOutputStream.close
@@ -255,7 +244,7 @@ object LocalStorage {
 
         override def next(): TimeInterval = {
           val timeInterval =
-            TimeIntervalDeserializer.deserialize(rocksIterator.key)
+            TimeInterval.deserialize(rocksIterator.key)
           rocksIterator.next
           timeInterval
         }
@@ -331,19 +320,20 @@ object LocalStorage {
   }
 }
 
-case class QueryResultSstFileWriter(queryHistoryKey: QueryHistoryKey)
-    extends SstFileWriter(
+case class QueryResultSstFileWriter(
+    queryHistoryKey: QueryHistoryKey,
+    writeMode: Boolean
+) extends SstFileWriter(
       (new EnvOptions).setUseDirectWrites(true),
-      (new Options(LocalStorage.dBOptions, LocalStorage.columnFamilyOptions))
-        .setComparator(org.rocksdb.BuiltinComparator.BYTEWISE_COMPARATOR)
+      new Options(LocalStorage.dBOptions, LocalStorage.columnFamilyOptions)
     ) {
-  val sstFile = queryHistoryKey.getSstFile
-  open(sstFile.getAbsolutePath)
+  val sstFile = queryHistoryKey.getSstFile(writeMode)
+  if (writeMode) {
+    open(sstFile.getAbsolutePath)
+  }
 
   def addAll(iterator: Iterator[(TimeInterval, QueryResult)]): Unit =
-    iterator.foreach { item =>
-      put(item._1.serialize, item._2.serialize)
-    }
+    iterator.foreach { item => put(item._1, item._2) }
 
   def put(key: TimeInterval, value: QueryResult): Unit =
     super.put(key.serialize, value.serialize)

@@ -28,7 +28,7 @@ class LocalStorageTest extends AnyFunSpec {
   SqlConfigs.queryResultMapMaxOverflow = 0
 
   def createSstFileWriter: QueryResultSstFileWriter = {
-    val sstFileWriter = QueryResultSstFileWriter(queryHistoryKey)
+    val sstFileWriter = QueryResultSstFileWriter(queryHistoryKey, true)
     sstFileWriter.put(presentKey, queryResult)
     sstFileWriter.finish
     sstFileWriter

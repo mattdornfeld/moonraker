@@ -122,7 +122,7 @@ abstract class DatabaseReader(
   def createSstFiles(
       timeInterval: TimeInterval,
       timeDelta: Duration,
-      backupToCloudStorage: Boolean,
+      backupToCloudStorage: Boolean
   ): Seq[QueryResultSstFileWriter] = {
     clear
     val readFromDatabase: Stream[IO, Option[QueryResultSstFileWriter]] =
@@ -174,7 +174,8 @@ abstract class DatabaseReader(
   ): Unit = {
     clear
     val timeInterval = TimeInterval(startTime, endTime)
-    val sstFileWriters = createSstFiles(timeInterval, timeDelta, backupToCloudStorage)
+    val sstFileWriters =
+      createSstFiles(timeInterval, timeDelta, backupToCloudStorage)
     if (sstFileWriters.size > 0) {
       LocalStorage.QueryResults.bulkIngest(sstFileWriters)
       LocalStorage.compact
@@ -276,13 +277,11 @@ abstract class DatabaseReader(
         s"Data for ${queryHistoryKey} found in cloud storage backup. Downloading and skipping database query."
       )
       CloudStorage.get(queryHistoryKey)
-      Some(QueryResultSstFileWriter(queryHistoryKey))
+      Some(QueryResultSstFileWriter(queryHistoryKey, false))
     } else {
       logger.info(s"Querying database for events in ${queryHistoryKey}")
 
-      val queryResultsSstFileWriter = new QueryResultSstFileWriter(
-        queryHistoryKey
-      )
+      val queryResultsSstFileWriter = QueryResultSstFileWriter(queryHistoryKey, true)
 
       val queryResults = if (Configs.testMode) {
         QueryResult(List(), timeInterval).chunkByTimeDelta(timeDelta)
