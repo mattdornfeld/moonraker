@@ -215,6 +215,7 @@ object LocalStorage {
       sstFileWriters.foreach(sstFileWriter =>
         LocalStorage.QueryHistory.put(sstFileWriter.queryHistoryKey)
       )
+      logger.info(s"Successfully ingested ${sstFileWriters.size} sst files to LocalStorage")
     }
 
     /**

@@ -1,6 +1,7 @@
 import CommonDependencies.commonDependencies
 import BqWriterDependencies.bqWriterDependencies
 import CoinbasemlDependencies.coinbasemlDependencies
+import InteractiveDependencies.interactiveDependencies
 
 organization in ThisBuild := "co.firstorderlabs"
 scalaVersion in ThisBuild := "2.13.1"
@@ -51,6 +52,17 @@ lazy val coinbaseml = project
     )
   )
   .dependsOn(common)
+
+lazy val interactive = project
+  .settings(
+    name := "interactive",
+    commonSettings,
+    libraryDependencies ++= interactiveDependencies,
+    assemblyOutputPath in assembly := file(
+      "/tmp/moonraker/interactive/interactive.jar"
+    )
+  )
+  .dependsOn(coinbaseml)
 
 lazy val commonSettings = Seq(
   version := "0.1.0-SNAPSHOT",

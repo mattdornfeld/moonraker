@@ -125,7 +125,7 @@ abstract class DatabaseReader(
       backupToCloudStorage: Boolean
   ): Seq[QueryResultSstFileWriter] = {
     clear
-    val readFromDatabase: Stream[IO, Option[QueryResultSstFileWriter]] =
+    val createSstFiles: Stream[IO, Option[QueryResultSstFileWriter]] =
       timeInterval
         .chunkBy(SqlConfigs.bigQueryReadTimeDelta)
         .toStreams(SqlConfigs.numDatabaseReaderThreads)
@@ -142,7 +142,7 @@ abstract class DatabaseReader(
         }
         .reduce(_ merge _)
 
-    readFromDatabase.compile.toList.unsafeRunSync.flatten
+    createSstFiles.compile.toList.unsafeRunSync.flatten
   }
 
   def queryResultMapKeys: Iterable[TimeInterval] = queryResultMap.keys
@@ -327,7 +327,7 @@ abstract class DatabaseReader(
       }
 
       logger.info(
-        s"Successfully wrote ${timeInterval.chunkBy(timeDelta).size} TimeInterval keys to LocalStorage"
+        s"Successfully wrote ${timeInterval.chunkBy(timeDelta).size} TimeInterval keys to sst file"
       )
 
       Some(queryResultsSstFileWriter)
