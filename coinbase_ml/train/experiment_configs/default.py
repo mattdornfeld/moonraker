@@ -28,7 +28,7 @@ def config():
     snapshot_buffer_size = 3
     num_warmup_time_steps = snapshot_buffer_size
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
-    actionizer = Actionizer.Name(Actionizer.SignalPositionSize)
+    actionizer = Actionizer.Name(Actionizer.PositionSize)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
     test_end_dt = "2020-11-19 10:05:00.00"
     test_start_dt = "2020-11-19 10:00:00.00"

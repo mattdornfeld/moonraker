@@ -85,6 +85,8 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
 
   def getInfoDict: InfoDict = infoDict
 
+  def increment(key: InfoDictKey): Unit = infoDict(key) += 1
+
   def preStep: Unit = {
     // These methods must be directly after orders are placed with Account
     incrementOrdersPlaced
@@ -111,6 +113,8 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
       (InfoDictKey.environmentDuration, environmentDuration),
       (InfoDictKey.numEvents, numEvents)
     ).foreach { item => infoDict.incrementRunningMean(item._1, item._2) }
+
+
 
     incrementFeesPaid(matches)
     incrementVolumeTraded(matches)

@@ -297,7 +297,8 @@ class TD3ActorCritic(DDPGTFModel):
         self, input_dict: Dict[str, Any], state: List, seq_lens: tf.Tensor
     ) -> Tuple[tf.Tensor, List]:
         """
-        forward [summary]
+        forward The Policy will directly call policy_model to get an action.
+        So just return flattened observation here.
 
         Args:
             input_dict (Dict[str, Any]): [description]
@@ -307,7 +308,4 @@ class TD3ActorCritic(DDPGTFModel):
         Returns:
             Tuple[tf.Tensor, List]: [description]
         """
-        # action: tf.Tensor
-        # action = self.policy_model(input_dict["obs_flat"])
-
         return input_dict["obs_flat"], state

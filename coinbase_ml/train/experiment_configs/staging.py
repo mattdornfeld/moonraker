@@ -21,12 +21,12 @@ def staging():
     """
     custom_model_names = ["TD3ActorCritic"]
     trainer_name = "apex_td3"
-    initial_btc = "1.000000"
+    initial_btc = "0.000000"
     initial_usd = "10000.00"
     snapshot_buffer_size = 100
     num_warmup_time_steps = 100
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
-    actionizer = Actionizer.Name(Actionizer.SignalPositionSize)
+    actionizer = Actionizer.Name(Actionizer.PositionSize)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
     test_end_dt = "2020-11-20 12:00:00.00"
     test_start_dt = "2020-11-20 00:00:00.00"
@@ -35,7 +35,7 @@ def staging():
 
     latest_train_end_dt = "2020-11-20 00:00:00.00"
     latest_train_start_dt = "2020-11-19 00:00:00.00"
-    num_actors = 1
+    num_actors = 6
     train_time_intervals = num_actors * [
         TimeInterval(
             end_dt=parser.parse(latest_train_end_dt),

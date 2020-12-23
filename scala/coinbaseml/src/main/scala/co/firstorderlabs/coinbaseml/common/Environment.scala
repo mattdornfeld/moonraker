@@ -2,7 +2,8 @@ package co.firstorderlabs.coinbaseml.common
 
 import java.util.logging.Logger
 
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.SignalPositionSize
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, LimitOrderTransaction, SellMarketOrderTransaction}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.{PositionSize, SignalPositionSize}
 import co.firstorderlabs.coinbaseml.common.featurizers._
 import co.firstorderlabs.coinbaseml.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.{UnrecognizedActionizer, UnrecognizedRewardStrategy}
@@ -11,7 +12,7 @@ import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.coinbaseml.fakebase.{Snapshot, Snapshotable}
 import co.firstorderlabs.common.protos.environment.EnvironmentServiceGrpc.EnvironmentService
-import co.firstorderlabs.common.protos.environment.{ActionRequest, Actionizer, Features, InfoDict, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
+import co.firstorderlabs.common.protos.environment.{ActionRequest, Actionizer, Features, InfoDict, InfoDictKey, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.protos.events.{Order, OrderMessage}
 import com.google.protobuf.empty.Empty
 
@@ -30,7 +31,16 @@ object Environment
   override def executeAction(request: ActionRequest): Future[Order] = {
     val action = request.actionizer match {
       case Actionizer.SignalPositionSize => SignalPositionSize.construct(request.actorOutput)
+      case Actionizer.PositionSize => PositionSize.construct(request.actorOutput)
       case _ => throw new UnrecognizedActionizer
+    }
+
+    action match {
+      case action: LimitOrderTransaction if action.side.isbuy => InfoAggregator.increment(InfoDictKey.buyOrdersPlaced)
+      case action: LimitOrderTransaction if action.side.issell => InfoAggregator.increment(InfoDictKey.sellOrdersPlaced)
+      case _: BuyMarketOrderTransaction => InfoAggregator.increment(InfoDictKey.buyOrdersPlaced)
+      case _: SellMarketOrderTransaction => InfoAggregator.increment(InfoDictKey.sellOrdersPlaced)
+      case _ =>
     }
 
     val order = action.execute match {

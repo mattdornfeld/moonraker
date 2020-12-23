@@ -20,7 +20,7 @@ from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.rllib.utils.typing import PolicyID
 
 import coinbase_ml.common.constants as c
-from coinbase_ml.common.protos.environment_pb2 import InfoDictKey
+from coinbase_ml.common.protos.environment_pb2 import Actionizer, InfoDictKey
 from coinbase_ml.fakebase.protos import fakebase_pb2
 from coinbase_ml.train.environment import Environment
 
@@ -45,9 +45,12 @@ class Callbacks(DefaultCallbacks):
     """Callback methods run by RLLib jobs
     """
 
-    _bins_lookup = {
-        0: np.array([0.0, 0.333, 0.667, 1.0]),
-        1: np.arange(0.0, 1.1, 0.1),
+    _action_bins_lookup = {
+        Actionizer.SignalPositionSize: {
+            0: np.array([0.0, 0.333, 0.667, 1.0]),
+            1: np.arange(0.0, 1.1, 0.1),
+        },
+        Actionizer.PositionSize: {0: np.arange(0.0, 1.1, 0.1)},
     }
 
     def __init__(self, legacy_callbacks_dict: Dict[str, Callable] = None):
@@ -73,12 +76,13 @@ class Callbacks(DefaultCallbacks):
 
         return {**episode_values_mean, **episode_values_max, **episode_values_min}
 
-    def _format_action_histogram(self) -> str:
+    def _format_action_histogram(self, actionizer: str) -> str:
         action_dim = self._actions[0].shape[0]
         action_histogram = "\n"
         for i in range(action_dim):
             hist = np.histogram(
-                np.array(self._actions)[:, i], bins=self._bins_lookup[i]
+                np.array(self._actions)[:, i],
+                bins=self._action_bins_lookup[Actionizer.Value(actionizer)][i],
             )[0]
             action_histogram += f"\t\t{i}: {hist}\n"
 
@@ -141,7 +145,7 @@ class Callbacks(DefaultCallbacks):
         env: Environment = base_env.get_unwrapped()[0]
         self._print_episode_metrics(
             episode.last_info_for(),
-            self._format_action_histogram(),
+            self._format_action_histogram(env.config.actionizer),
             env.episode_number,
             episode.total_reward,
             env.worker_index,

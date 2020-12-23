@@ -8,7 +8,7 @@ from typing import Dict
 
 from coinbase_ml.fakebase.types import Currency, ProductId, ProductVolume, QuoteVolume
 
-ACTOR_OUTPUT_DIMENSION = 2
+ACTOR_OUTPUT_DIMENSION = 1
 ENVIRONMENT = os.environ.get("ENVIRONMENT", platform.node())
 NUM_CHANNELS_IN_TIME_SERIES = 26
 ORDER_BOOK_DEPTH = 10
