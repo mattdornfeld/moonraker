@@ -13,6 +13,7 @@ option (scalapb.options) = {
 
 enum Actionizer {
     SignalPositionSize = 0;
+    PositionSize = 1;
 }
 
 enum InfoDictKey {
