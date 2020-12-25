@@ -4,39 +4,18 @@ import java.time.{Duration, Instant}
 import java.util.UUID.randomUUID
 import java.util.logging.Logger
 
-import co.firstorderlabs.coinbaseml.common.utils.Utils.{
-  getResult,
-  getResultOptional
-}
+import co.firstorderlabs.coinbaseml.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.coinbaseml.common.{Environment, InfoAggregator}
-import co.firstorderlabs.coinbaseml.fakebase.sql.{
-  BigQueryReader,
-  DatabaseReader,
-  LocalStorage,
-  PostgresReader
-}
-import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.{
-  SimulationNotStarted,
-  SnapshotBufferNotFull
-}
+import co.firstorderlabs.coinbaseml.fakebase.sql.{BigQueryReader, DatabaseReader, LocalStorage, PostgresReader}
+import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.SimulationNotStarted
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.events.{MatchEvents, OrderSide}
-import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{
-  BigQuery,
-  Postgres
-}
+import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{BigQuery, Postgres}
 import co.firstorderlabs.common.protos.fakebase._
 import co.firstorderlabs.common.protos.{events, fakebase}
-import co.firstorderlabs.common.types.Events.{
-  Event,
-  LimitOrderEvent,
-  OrderEvent
-}
+import co.firstorderlabs.common.types.Events.{Event, LimitOrderEvent, OrderEvent}
 import co.firstorderlabs.common.types.Types.TimeInterval
 import com.google.protobuf.empty.Empty
 
@@ -168,7 +147,6 @@ object Exchange
     }
   }
 
-  @throws[SnapshotBufferNotFull]
   override def checkpoint(request: Empty): Future[Empty] = {
     logger.info(
       s"creating checkpoint at timeInterval ${Exchange.getSimulationMetadata.currentTimeInterval}"

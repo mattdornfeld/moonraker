@@ -37,6 +37,7 @@ final case class MatchingEngineSnapshot(
 
 object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   private val logger = Logger.getLogger(this.toString)
+  var checkpointPortfolioValue: Option[Double] = None
   var currentPortfolioValue: Option[Double] = None
   var previousPortfolioValue: Option[Double] = None
   val matches = new ListBuffer[Match]
@@ -60,7 +61,8 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
       OrderUtils.setOrderStatusToDone(order, DoneReason.canceled)
   }
 
-  override def createSnapshot: MatchingEngineSnapshot =
+  override def createSnapshot: MatchingEngineSnapshot = {
+    checkpointPortfolioValue = currentPortfolioValue
     MatchingEngineSnapshot(
       orderBooks(OrderSide.buy).createSnapshot,
       matches.clone,
@@ -68,6 +70,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
       currentPortfolioValue,
       previousPortfolioValue
     )
+  }
 
   def checkIsTaker(order: LimitOrderEvent): Boolean = {
     order match {

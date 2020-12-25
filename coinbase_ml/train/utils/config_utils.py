@@ -30,6 +30,7 @@ class EnvironmentConfigs:
     time_delta: timedelta
     is_test_environment: bool = False
     enable_progress_bar: bool = False
+    max_negative_roi: float = 0.99
 
     @staticmethod
     def _time_delta_key(time_interval: TimeInterval) -> timedelta:

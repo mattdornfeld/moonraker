@@ -78,6 +78,7 @@ def config():
         num_warmup_time_steps=num_warmup_time_steps,
         reward_strategy=reward_strategy,
         time_delta=time_delta,
+        max_negative_roi=0.1,
     )
 
     test_environment_configs = dict(
