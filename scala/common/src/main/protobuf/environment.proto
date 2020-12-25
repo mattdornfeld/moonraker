@@ -33,6 +33,7 @@ enum InfoDictKey {
     eventsPerMilliSecond = 13;
     numSamples = 14;
     numEpisodes = 15;
+    roi = 16;
 }
 
 enum RewardStrategy {

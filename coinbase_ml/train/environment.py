@@ -15,6 +15,7 @@ from coinbase_ml.common.observations import (
     ObservationSpace,
     ObservationSpaceShape,
 )
+from coinbase_ml.common.protos.environment_pb2 import InfoDictKey
 from coinbase_ml.fakebase.exchange import Exchange
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.utils.config_utils import EnvironmentConfigs
@@ -30,7 +31,6 @@ class Environment(Env):  # pylint: disable=W0223
 
     def __init__(self, config: EnvContext) -> None:
         _config = EnvironmentConfigs(**config)
-        self._made_illegal_transaction = False
         self._warmed_up = False
         self.action_space = ActionSpace()
         self.config = _config
@@ -78,23 +78,6 @@ class Environment(Env):  # pylint: disable=W0223
             )
             self.reset()
 
-    def _check_is_out_of_funds(self) -> bool:
-        """Summary
-
-        Returns:
-            bool: Description
-        """
-        out_of_product = (
-            self.exchange.account.funds[cc.PRODUCT_CURRENCY].balance
-            <= cc.PRODUCT_ID.product_volume_type.get_zero_volume()
-        )
-        out_of_quote = (
-            self.exchange.account.funds[cc.QUOTE_CURRENCY].balance
-            <= cc.PRODUCT_ID.quote_volume_type.get_zero_volume()
-        )
-
-        return out_of_product and out_of_quote
-
     def _exchange_step(self, action: NDArray[float]) -> None:
         """
         _exchange_step [summary]
@@ -114,6 +97,18 @@ class Environment(Env):  # pylint: disable=W0223
     def _should_backup_to_cloud_storage(self) -> bool:
         return self.worker_index in [0, 1]
 
+    def _should_end_early(self) -> bool:
+        """Summary
+
+        Returns:
+            bool: Description
+        """
+        return (
+            not self.is_test_environment
+            and self.exchange.info_dict[InfoDictKey.Name(InfoDictKey.roi)]
+            < -self.config.max_negative_roi
+        )
+
     def close(self) -> None:
         """Summary
         """
@@ -125,7 +120,7 @@ class Environment(Env):  # pylint: disable=W0223
         Returns:
             bool: True if training episode is finished.
         """
-        return self.exchange.finished or self._made_illegal_transaction
+        return self.exchange.finished or self._should_end_early()
 
     def reset(self) -> Observation:
         """Summary
@@ -151,8 +146,6 @@ class Environment(Env):  # pylint: disable=W0223
             self._warmed_up = True
         else:
             self.exchange.reset()
-
-        self._made_illegal_transaction = False
 
         observation = self.exchange.observation
 
@@ -182,7 +175,6 @@ class Environment(Env):  # pylint: disable=W0223
 
         observation = self.exchange.observation
         reward = self.exchange.reward
-        self._made_illegal_transaction = self._check_is_out_of_funds()
 
         if c.VERBOSE:
             LOGGER.info("reward = %s", reward)

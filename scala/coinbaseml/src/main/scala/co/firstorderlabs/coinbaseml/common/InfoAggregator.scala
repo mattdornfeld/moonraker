@@ -83,6 +83,15 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
     infoDict.put(InfoDictKey.portfolioValue, portfolioValue)
   }
 
+  private def updateRoi: Unit = {
+    MatchingEngine.checkpointPortfolioValue
+      .zip(MatchingEngine.currentPortfolioValue)
+      .map { item =>
+        val roi = (item._2 - item._1) / item._1
+        infoDict.put(InfoDictKey.roi, roi)
+      }
+  }
+
   def getInfoDict: InfoDict = infoDict
 
   def increment(key: InfoDictKey): Unit = infoDict(key) += 1
@@ -104,7 +113,7 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
       Account.getMatches(Constants.emptyProto)
     ).matchEvents
 
-    // Make sure to increment numSamples for calling incrementRunningMean
+    // Make sure to increment numSamples before calling incrementRunningMean
     infoDict.increment(InfoDictKey.numSamples, 1.0)
     List(
       (InfoDictKey.simulationStepDuration, stepDuration),
@@ -114,11 +123,10 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
       (InfoDictKey.numEvents, numEvents)
     ).foreach { item => infoDict.incrementRunningMean(item._1, item._2) }
 
-
-
     incrementFeesPaid(matches)
     incrementVolumeTraded(matches)
     updatePortfolioValue
+    updateRoi
   }
 
   def clear: Unit = {
