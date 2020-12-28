@@ -3,63 +3,42 @@
 import logging
 from pathlib import Path
 from shutil import rmtree
-from typing import Any, Dict, List
-
+from typing import List
 
 import ray
 from ray import tune
 from ray.tune.checkpoint_manager import Checkpoint
 from ray.tune.trial import Trial
-from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from sacred.run import Run
 
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common import models
 from coinbase_ml.common.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
-from coinbase_ml.common.utils.ray_utils import register_custom_models
+from coinbase_ml.common.utils.ray_utils import get_trainer, register_custom_model
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
-from coinbase_ml.train.trainers import get_trainer_and_config
-from coinbase_ml.train.utils.config_utils import EnvironmentConfigs, HyperParameters
 from coinbase_ml.train.utils.sacred_logger import SacredLogger
 
 
 LOGGER = logging.getLogger(__name__)
 
 
+def _get_result_metric_key(result_metric: str, aggregator: str = "mean") -> str:
+    if aggregator not in ["mean", "min", "max"]:
+        raise ValueError
+
+    return f"{result_metric}_{aggregator}"
+
+
 @SACRED_EXPERIMENT.main
 def main(
     _run: Run,
-    custom_model_names: List[str],
-    hyper_params: Dict[str, Any],
+    model_name: str,
+    num_train_iterations: int,
     result_metric: str,
-    test_environment_configs: Dict[str, Any],
-    train_environment_configs: Dict[str, Any],
     trainer_name: str,
+    trainer_configs: dict,
 ) -> float:
-    """
-    main builds an agent, trains on the train environment, evaluates on the test
-    environment, saves artifacts to gcs. Logs results to Sacred.
-
-    Args:
-        _run (Run): [description]
-        hyper_params (dict): [description]
-        result_metric (str): Metric recorded as result in Sacred.
-            Note that what's actually recorded is the mean of that metric,
-            averaged over all episodes in an iteration.
-        seed (int): [description]
-        test_environment_configs (Dict[str, Any]): [description]
-        train_environment_configs (Dict[str, Any]): [description]
-
-    Returns:
-        float: [description]
-    """
     result_metric_key = f"{result_metric}_mean"
-
-    for configs in [test_environment_configs, train_environment_configs]:
-        configs["reward_strategy"] = configs.pop("reward_strategy")
-        configs["initial_usd"] = cc.PRODUCT_ID.quote_volume_type(configs["initial_usd"])
-        configs["initial_btc"] = cc.PRODUCT_ID.quote_volume_type(configs["initial_btc"])
 
     ray.init(
         address=c.RAY_REDIS_ADDRESS,
@@ -67,30 +46,20 @@ def main(
         local_mode=c.LOCAL_MODE,
     )
 
-    custom_models: List[TFModelV2] = [
-        models.__dict__[model_name] for model_name in custom_model_names
-    ]
-    register_custom_models(custom_models)
-
-    trainer, trainer_config = get_trainer_and_config(
-        hyper_params=HyperParameters(**hyper_params),
-        test_environment_configs=EnvironmentConfigs(
-            is_test_environment=True, **test_environment_configs
-        ),
-        train_environment_configs=EnvironmentConfigs(**train_environment_configs),
-        trainer_name=trainer_name,
-    )
-
     sacred_logger = SacredLogger()
     sacred_logger.start()
 
+    register_custom_model(model_name)
+    trainer = get_trainer(trainer_name)
+    result_metric_key = _get_result_metric_key(result_metric)
+
     experiment_analysis = tune.run(
         checkpoint_freq=1,
-        config=trainer_config,
+        config=trainer_configs,
         metric=result_metric_key,
         mode="max",
         run_or_experiment=trainer,
-        stop={"training_iteration": hyper_params["num_iterations"]},
+        stop={"training_iteration": num_train_iterations},
     )
 
     trial: Trial = experiment_analysis.trials[0]

@@ -53,7 +53,7 @@ TEST_ORDER_PRICE = TEST_PRICE_TYPE("10000.00")
 TEST_ORDER_SIZE = TEST_PRODUCT_TYPE("1.000000")
 TEST_WALLET_PRODUCT_FUNDS = TEST_PRODUCT_TYPE("10.0")
 TEST_WALLET_QUOTE_FUNDS = TEST_QUOTE_TYPE("100000.00")
-ACTIONIZER = Actionizer.Name(Actionizer.SignalPositionSize)
+ACTIONIZER = Actionizer.SignalPositionSize
 REWARD_STRATEGY = RewardStrategy.Name(RewardStrategy.ReturnRewardStrategy)
 
 POSTGRES_CONTAINER_NAME = "coinbase_ml_tests_postgres"

@@ -11,18 +11,16 @@ from ray.rllib.env.env_context import EnvContext
 from ray.tune.registry import register_env
 
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common.models import MODELS
 from coinbase_ml.common.observations import (
     ActionSpace,
     ObservationSpace,
     ObservationSpaceShape,
 )
 from coinbase_ml.common.utils.gcs_utils import download_file_from_gcs
-from coinbase_ml.common.utils.ray_utils import register_custom_models
+from coinbase_ml.common.utils.ray_utils import get_trainer, register_custom_model
 from coinbase_ml.common.utils.sacred_utils import get_sacred_experiment_results
 from coinbase_ml.serve.environment import Environment
 from coinbase_ml.serve.experiment_configs.default import config
-from coinbase_ml.serve.trainers import TRAINERS
 
 
 def env_creator(env_config: EnvContext) -> Environment:
@@ -61,10 +59,8 @@ def serve() -> None:
     checkpoint_gcs_key = sacred_experiment.info["checkpoint_gcs_key"]
     checkpoint_metadata_gcs_key = sacred_experiment.info["checkpoint_metadata_gcs_key"]
     trainer_config_gcs_key = sacred_experiment.info["trainer_config_gcs_key"]
-    trainer_class = TRAINERS[sacred_experiment.config["trainer_name"]]
-    custom_models = [
-        MODELS[name] for name in sacred_experiment.config["custom_model_names"]
-    ]
+    trainer_class = get_trainer(sacred_experiment.config["trainer_name"])
+    model_name = sacred_experiment.config["model_name"]
 
     with TemporaryFile() as file:
         download_file_from_gcs(
@@ -83,7 +79,7 @@ def serve() -> None:
     trainer_config["num_workers"] = 0
 
     ray.init()
-    register_custom_models(custom_models)
+    register_custom_model(model_name)
     register_env("ServingEnvironment", env_creator)
     trainer = trainer_class(config=trainer_config, env="ServingEnvironment")
 

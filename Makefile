@@ -7,7 +7,8 @@ PYTEST_IGNORE = --ignore=fakebase_pb2.py \
 	--ignore=environment_pb2_grpc.py \
 	--ignore=environment_pb2.py \
 	--ignore=environment_pb2_grpc.py \
-	--ignore=scalapb
+	--ignore=scalapb \
+	--ignore=scala
 
 build:
 	make build-scala build-python-protos

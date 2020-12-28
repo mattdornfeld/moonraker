@@ -3,9 +3,10 @@
 """
 import json
 from functools import singledispatch
+from importlib import import_module
 from statistics import mean
 from time import time
-from typing import Any, Callable, DefaultDict, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, DefaultDict, Dict, List, Optional, Type
 
 import numpy as np
 import requests
@@ -14,15 +15,22 @@ from ray.rllib.agents import Trainer
 from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.env import BaseEnv
 from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
-from ray.rllib.policy import Policy
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
+from ray.rllib.policy import Policy
 from ray.rllib.utils.typing import PolicyID
 
 import coinbase_ml.common.constants as c
-from coinbase_ml.common.protos.environment_pb2 import Actionizer, InfoDictKey
+from coinbase_ml.common.actionizers import Actionizer
+from coinbase_ml.common.protos.environment_pb2 import (
+    Actionizer as ActionizerProto,
+    InfoDictKey,
+)
 from coinbase_ml.fakebase.protos import fakebase_pb2
-from coinbase_ml.train.environment import Environment
+
+if TYPE_CHECKING:
+    import coinbase_ml.common.protos.environment_pb2 as environment_pb2
+    import coinbase_ml.train.environment as environment
 
 
 EVALUATION_EPISODES: List[MultiAgentEpisode] = []
@@ -46,11 +54,11 @@ class Callbacks(DefaultCallbacks):
     """
 
     _action_bins_lookup = {
-        Actionizer.SignalPositionSize: {
+        ActionizerProto.SignalPositionSize: {
             0: np.array([0.0, 0.333, 0.667, 1.0]),
             1: np.arange(0.0, 1.1, 0.1),
         },
-        Actionizer.PositionSize: {0: np.arange(0.0, 1.1, 0.1)},
+        ActionizerProto.PositionSize: {0: np.arange(0.0, 1.1, 0.1)},
     }
 
     def __init__(self, legacy_callbacks_dict: Dict[str, Callable] = None):
@@ -76,13 +84,15 @@ class Callbacks(DefaultCallbacks):
 
         return {**episode_values_mean, **episode_values_max, **episode_values_min}
 
-    def _format_action_histogram(self, actionizer: str) -> str:
+    def _format_action_histogram(
+        self, actionizer: "environment_pb2.ActionizerValue"
+    ) -> str:
         action_dim = self._actions[0].shape[0]
         action_histogram = "\n"
         for i in range(action_dim):
             hist = np.histogram(
                 np.array(self._actions)[:, i],
-                bins=self._action_bins_lookup[Actionizer.Value(actionizer)][i],
+                bins=self._action_bins_lookup[actionizer][i],
             )[0]
             action_histogram += f"\t\t{i}: {hist}\n"
 
@@ -144,10 +154,10 @@ class Callbacks(DefaultCallbacks):
     ) -> None:
         """Add relevant values to the custom_metrics dict and print episode metrics
         """
-        env: Environment = base_env.get_unwrapped()[0]
+        env: "environment.Environment" = base_env.get_unwrapped()[0]
         self._print_episode_metrics(
             episode.last_info_for(),
-            self._format_action_histogram(env.config.actionizer),
+            self._format_action_histogram(env.config.actionizer.value),
             env.episode_number,
             episode.total_reward,
             env.worker_index,
@@ -192,14 +202,21 @@ class Callbacks(DefaultCallbacks):
 
 
 # pylint: enable=unused-argument
+def _import_object(path: str) -> Any:
+    module_name = ".".join(path.split(".")[:-1])
+    object_name = path.split(".")[-1]
+
+    return getattr(import_module(module_name), object_name)
 
 
-def register_custom_models(custom_models: List[TFModelV2]) -> None:
-    """
-    register_custom_models [summary]
+def get_actionizer(actionizer_name: str) -> Actionizer:
+    return _import_object(actionizer_name)
 
-    Args:
-        custom_models (List[TFModelV2]): [description]
-    """
-    for i, model in enumerate(custom_models):
-        ModelCatalog.register_custom_model(f"CustomModel{i}", model)
+
+def get_trainer(trainer_name: str) -> Trainer:
+    return _import_object(trainer_name)
+
+
+def register_custom_model(model_name: str) -> None:
+    model: Type[TFModelV2] = _import_object(model_name)
+    ModelCatalog.register_custom_model(model_name, model)
