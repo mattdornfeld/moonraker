@@ -6,6 +6,8 @@ Attributes:
     ORDER_BOOK (tf.Tensor): Description
     ORDERS (tf.Tensor): Description
 """
+from __future__ import annotations
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from funcy import compose
@@ -31,30 +33,45 @@ from tensorflow.keras.models import Model
 from ray.rllib.agents.ddpg.ddpg_tf_model import DDPGTFModel
 
 from coinbase_ml.common import layers as l
-from coinbase_ml.common.observations import ActionSpace, ObservationSpace
+from coinbase_ml.common.observations import ObservationSpace
 from coinbase_ml.common.utils import prod
-from coinbase_ml.train.utils.config_utils import HyperParameters
+
+
+@dataclass
+class ModelConfigs:
+    """ModelConfigs class for apex-td3 model
+    """
+
+    account_funds_num_units: int
+    account_funds_tower_depth: int
+    deep_lob_tower_attention_dim: int
+    deep_lob_tower_conv_block_num_filters: int
+    deep_lob_tower_leaky_relu_slope: float
+    output_tower_depth: int
+    output_tower_num_units: int
+    time_series_tower_attention_dim: int
+    time_series_tower_depth: int
+    time_series_tower_num_filters: int
+    time_series_tower_num_stacks: int
+
+    @classmethod
+    def from_sacred_config(cls, model_configs: dict) -> ModelConfigs:
+        return cls(**model_configs)
 
 
 # pylint: disable=abstract-method, unused-argument
 class TD3ActorCritic(DDPGTFModel):
-    """
-    Attributes:
-        account_funds (tf.Tensor): Description
-        actor (Model): Description
-        critic (Model): Description
-        order_book (tf.Tensor): Description
-        time_series (tf.Tensor): Description
+    """Model for use with TD3
     """
 
     def __init__(
         self,
         obs_space: Box,
-        action_space: ActionSpace,
+        action_space: Box,
         num_outputs: int,
         model_config: Dict[str, Any],
         name: str,
-        hyper_params: HyperParameters,
+        model_configs: ModelConfigs,
         twin_q: bool = True,
         **kwargs: Dict[str, Any],
     ):
@@ -63,12 +80,21 @@ class TD3ActorCritic(DDPGTFModel):
 
         Args:
             obs_space (Box): [description]
-            action_space (ActionSpace): [description]
+            action_space (Box): [description]
             num_outputs (int): [description]
             model_config (Dict[str, Any]): [description]
             name (str): [description]
+            model_configs (ModelConfigs): [description]
+            twin_q (bool, optional): [description]. Defaults to True.
+
+        Returns:
+            [type]: [description]
         """
-        super().__init__(obs_space, action_space, num_outputs, model_config, name)
+        # from IPython import embed; embed()
+        self.action_dim = action_space.shape[0]
+        super(DDPGTFModel, self).__init__(  # pylint: disable=bad-super-call
+            obs_space, action_space, num_outputs, model_config, name
+        )
 
         self.value: Optional[tf.Tensor] = None
 
@@ -126,64 +152,64 @@ class TD3ActorCritic(DDPGTFModel):
         self.order_book = Reshape(self._obs_space.order_book_space.shape)(order_book)
         self.time_series = Reshape(self._obs_space.time_series_space.shape)(time_series)
 
-        self.policy_model = self._build_policy_model(hyper_params, num_outputs)
+        self.policy_model = self._build_policy_model(model_configs, num_outputs)
         self.register_variables(self.policy_model.variables)
 
-        self.q_model = self._build_q_model(hyper_params)
+        self.q_model = self._build_q_model(model_configs)
         self.register_variables(self.q_model.variables)
 
         if twin_q:
-            self.twin_q_model = self._build_q_model(hyper_params)
+            self.twin_q_model = self._build_q_model(model_configs)
             self.register_variables(self.twin_q_model.variables)
         else:
             self.twin_q_model = None
 
-    def _build_base(self, hyper_params: HyperParameters) -> tf.Tensor:
+    def _build_base(self, model_configs: ModelConfigs) -> tf.Tensor:
         account_funds_branch = self._build_account_funds_tower(
-            depth=hyper_params.account_funds_tower_depth,
-            num_units=hyper_params.account_funds_num_units,
+            depth=model_configs.account_funds_tower_depth,
+            num_units=model_configs.account_funds_num_units,
         )(self.account_funds)
 
         deep_lob_branch = self._build_deep_lob_tower(
-            attention_dim=hyper_params.deep_lob_tower_attention_dim,
-            conv_block_num_filters=hyper_params.deep_lob_tower_conv_block_num_filters,
-            leaky_relu_slope=hyper_params.deep_lob_tower_leaky_relu_slope,
+            attention_dim=model_configs.deep_lob_tower_attention_dim,
+            conv_block_num_filters=model_configs.deep_lob_tower_conv_block_num_filters,
+            leaky_relu_slope=model_configs.deep_lob_tower_leaky_relu_slope,
         )(self.order_book)
 
         time_series_branch = self._build_time_series_tower(
-            attention_dim=hyper_params.time_series_tower_attention_dim,
-            depth=hyper_params.time_series_tower_depth,
-            num_filters=hyper_params.time_series_tower_num_filters,
-            num_stacks=hyper_params.time_series_tower_num_stacks,
+            attention_dim=model_configs.time_series_tower_attention_dim,
+            depth=model_configs.time_series_tower_depth,
+            num_filters=model_configs.time_series_tower_num_filters,
+            num_stacks=model_configs.time_series_tower_num_stacks,
         )([deep_lob_branch, self.time_series])
 
         return Concatenate(axis=-1)([account_funds_branch, time_series_branch])
 
     def _build_policy_model(
-        self, hyper_params: HyperParameters, num_outputs: int
+        self, model_configs: ModelConfigs, num_outputs: int
     ) -> Model:
-        merged_output_branch = self._build_base(hyper_params)
+        merged_output_branch = self._build_base(model_configs)
 
         actions = compose(
             Dense(self.action_dim, activation=sigmoid),
             l.DenseBlock(
-                depth=hyper_params.output_tower_depth,
-                units=hyper_params.output_tower_num_units,
+                depth=model_configs.output_tower_depth,
+                units=model_configs.output_tower_num_units,
             ),
         )(merged_output_branch)
 
         return Model(inputs=self.input_tensor, outputs=[actions])
 
-    def _build_q_model(self, hyper_params: HyperParameters) -> Model:
+    def _build_q_model(self, model_configs: ModelConfigs) -> Model:
         merged_output_branch = Concatenate(axis=-1)(
-            [self._build_base(hyper_params), self.actions_input]
+            [self._build_base(model_configs), self.actions_input]
         )
 
         q_score = compose(
             Dense(1, activation=linear),
             l.DenseBlock(
-                depth=hyper_params.output_tower_depth,
-                units=hyper_params.output_tower_num_units,
+                depth=model_configs.output_tower_depth,
+                units=model_configs.output_tower_num_units,
             ),
         )(merged_output_branch)
 

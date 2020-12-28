@@ -3,7 +3,7 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
 from time import sleep
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from dateutil import parser
 from google.protobuf.duration_pb2 import Duration
@@ -19,7 +19,7 @@ from coinbase_ml.common.protos.environment_pb2 import (
     RewardStrategy,
 )
 from coinbase_ml.common.observations import Observation
-from coinbase_ml.common.protos.environment_pb2 import ActionRequest, Actionizer
+from coinbase_ml.common.protos.environment_pb2 import ActionRequest
 from coinbase_ml.fakebase.protos import fakebase_pb2  # pylint: disable=unused-import
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     ExchangeInfo,
@@ -48,6 +48,9 @@ from coinbase_ml.fakebase.utils.grpc_utils import (
     start_fakebase_server,
 )
 
+if TYPE_CHECKING:
+    import coinbase_ml.common.protos.environment_pb2 as environment_pb2
+
 
 class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
     """Summary
@@ -60,7 +63,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         start_dt: datetime,
         time_delta: timedelta,
         reward_strategy: str,
-        actionizer: str,
+        actionizer: "environment_pb2.ActionizerValue",
         create_exchange_process: bool = True,
         test_mode: bool = False,
     ) -> None:
@@ -79,7 +82,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         self._simulation_info_request = SimulationInfoRequest()
         self._observation = ObservationProto()
         self._reward_strategy = RewardStrategy.Value(reward_strategy)
-        self._actionizer = Actionizer.Value(actionizer)
+        self._actionizer = actionizer
         self.simulation_id = ""
 
         if create_exchange_process:

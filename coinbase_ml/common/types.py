@@ -6,7 +6,6 @@ from typing import Deque, List
 
 import numpy as np
 
-from coinbase_ml.common.action import ActionBase
 from coinbase_ml.common.utils.time_utils import TimeInterval
 from coinbase_ml.fakebase.orm import CoinbaseMatch
 
@@ -21,7 +20,6 @@ class StateAtTime:
 
     account_funds: np.ndarray
     account_matches: List[CoinbaseMatch]
-    action: ActionBase
     buy_order_book: np.ndarray
     normalized_account_funds: np.ndarray
     sell_order_book: np.ndarray

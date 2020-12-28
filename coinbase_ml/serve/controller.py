@@ -9,12 +9,12 @@ import logging
 from time import sleep
 from typing import Optional, Type
 
+import numpy as np
 import requests
 from ray.rllib.utils.policy_client import PolicyClient
 
 import coinbase_ml.common.constants as cc
 from coinbase_ml.common.action import ActionBase
-from coinbase_ml.common.actionizers import Actionizer
 from coinbase_ml.common.featurizers import Featurizer
 from coinbase_ml.serve.metrics_recorder import (
     Metrics,
@@ -34,6 +34,15 @@ from coinbase_ml.serve.exchange import Exchange
 from coinbase_ml.serve.experiment_configs.common import SACRED_EXPERIMENT
 
 LOGGER = logging.getLogger(__name__)
+
+
+class LegacyActionizer:
+    def __init__(self, prediction: np.ndarray = None):
+        pass
+
+    @staticmethod
+    def get_action() -> ActionBase:
+        return ActionBase()
 
 
 class Controller:
@@ -102,7 +111,7 @@ class Controller:
         LOGGER.info(
             "Warming up the Exchange for %s time steps.", self.num_warmup_time_steps
         )
-        actionizer = Actionizer[Account](self.exchange.account)
+        actionizer = LegacyActionizer()
         no_transaction = actionizer.get_action()
         for _ in range(self.num_warmup_time_steps):
             self._step(no_transaction)
@@ -136,7 +145,7 @@ class Controller:
                 observation = self.featurizer.get_observation()
 
                 prediction = self.client.get_action(episode_id, observation)
-                actionizer = Actionizer[Account](self.exchange.account, prediction)
+                actionizer = LegacyActionizer(prediction)
                 action = actionizer.get_action()
                 action.cancel_expired_orders(self.exchange.interval_start_dt)
                 action.execute()
