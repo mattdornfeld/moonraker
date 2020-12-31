@@ -43,7 +43,7 @@ def main(
     ray.init(
         address=c.RAY_REDIS_ADDRESS,
         object_store_memory=c.RAY_OBJECT_STORE_MEMORY,
-        local_mode=c.LOCAL_MODE,
+        # local_mode=c.LOCAL_MODE,
     )
 
     sacred_logger = SacredLogger()

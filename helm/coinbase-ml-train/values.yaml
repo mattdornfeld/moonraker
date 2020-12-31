@@ -9,7 +9,7 @@ job:
       cpu: 3.5
       nvidia.com/gpu: 1
   node_group: n1-highmem-4-nvidia-tesla-p100
-  sacred_config: staging
+  sacred_config: impala_staging
 
 notebook:
   resources:

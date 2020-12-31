@@ -5,8 +5,9 @@ from collections.abc import ItemsView
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
+import numpy as np
 from gym import Env
 from nptyping import NDArray
 from ray.rllib.env.env_context import EnvContext
@@ -181,7 +182,7 @@ class Environment(Env):  # pylint: disable=W0223
                 start_dt=self._start_dt,
                 time_delta=self.config.time_delta,
                 reward_strategy=self.config.reward_strategy,
-                actionizer=self.actionizer.value,
+                actionizer=self.actionizer.proto_value,
             )
             self.reset()
 
@@ -262,7 +263,7 @@ class Environment(Env):  # pylint: disable=W0223
         return observation
 
     def step(
-        self, action: NDArray[float]
+        self, action: Union[NDArray[float], np.int64]
     ) -> Tuple[Observation, float, bool, Dict[str, float]]:
         """Summary
 
@@ -278,7 +279,9 @@ class Environment(Env):  # pylint: disable=W0223
         if self.episode_finished:
             raise EnvironmentFinishedException
 
-        self._exchange_step(action)
+        _action = np.array([action]) if isinstance(action, np.int64) else action
+        # from IPython import embed; embed()
+        self._exchange_step(_action)
 
         observation = self.exchange.observation
         reward = self.exchange.reward
