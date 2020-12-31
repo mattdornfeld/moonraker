@@ -59,6 +59,7 @@ class Callbacks(DefaultCallbacks):
             1: np.arange(0.0, 1.1, 0.1),
         },
         ActionizerProto.PositionSize: {0: np.arange(0.0, 1.1, 0.1)},
+        ActionizerProto.EntrySignal: {0: np.array([0.0, 0.5, 1.0])},
     }
 
     def __init__(self, legacy_callbacks_dict: Dict[str, Callable] = None):
@@ -157,7 +158,7 @@ class Callbacks(DefaultCallbacks):
         env: "environment.Environment" = base_env.get_unwrapped()[0]
         self._print_episode_metrics(
             episode.last_info_for(),
-            self._format_action_histogram(env.config.actionizer.value),
+            self._format_action_histogram(env.config.actionizer.proto_value),
             env.episode_number,
             episode.total_reward,
             env.worker_index,
@@ -182,7 +183,11 @@ class Callbacks(DefaultCallbacks):
     ) -> None:
         """Record step action
         """
-        self._actions.append(episode.last_action_for())
+        action = episode.last_action_for()
+        _action: NDArray[float] = np.expand_dims(action, 0) if len(
+            action.shape
+        ) == 0 else action
+        self._actions.append(_action)
 
     def on_train_result(
         self, *, trainer: Trainer, result: dict, **kwargs: dict

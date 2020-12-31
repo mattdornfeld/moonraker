@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from dateutil import parser
 
-from coinbase_ml.common.models.td3_actor_critic import ModelConfigs
+from coinbase_ml.common.models.actor_value import ModelConfigs
 from coinbase_ml.common.protos.environment_pb2 import (
     InfoDictKey,
     RewardStrategy,
@@ -15,92 +15,6 @@ from coinbase_ml.common.utils.time_utils import TimeInterval
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.environment import Environment, EnvironmentConfigs
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
-from coinbase_ml.train.utils.per_worker_gaussian_noise import PerWorkerGaussianNoise
-
-
-def build_common_configs(
-    model_name: str,
-    model_configs: dict,
-    test_environment_configs: dict,
-    train_environment_configs: dict,
-) -> dict:
-    """Build configs dict for options common to all trainers
-
-    https://docs.ray.io/en/latest/rllib-training.html#common-parameters
-    """
-    return {
-        "callbacks": Callbacks,
-        "env_config": train_environment_configs,
-        "evaluation_config": {
-            "env_config": test_environment_configs,
-            # "timesteps_per_iteration": test_environment_configs.timesteps_per_iteration,
-            "worker_side_prioritization": False,
-        },
-        "evaluation_interval": 1,
-        "evaluation_num_episodes": test_environment_configs["num_episodes"],
-        "log_level": "ERROR",
-        "model": {
-            "custom_model_config": {
-                "model_configs": ModelConfigs.from_sacred_config(model_configs)
-            },
-            "custom_model": model_name,
-        },
-        "num_cpus_for_driver": 4,
-        "num_cpus_per_worker": 4,
-        "num_gpus": c.NUM_GPUS,
-        "num_workers": train_environment_configs["num_actors"],
-        "train_batch_size": 2 ** 7,
-    }
-
-
-def build_apex_configs(train_environment_configs: dict) -> dict:
-    """Build Ape-X specific config dict
-
-    https://docs.ray.io/en/master/rllib-algorithms.html#distributed-prioritized-experience-replay-ape-x
-    """
-    _train_environment_configs = EnvironmentConfigs.from_sacred_config(
-        train_environment_configs
-    )
-    return {
-        "optimizer": {
-            "max_weight_sync_delay": 100,
-            "num_replay_buffer_shards": 2,
-            "debug": False,
-        },
-        "buffer_size": 100000,
-        "learning_starts": 10000,
-        "rollout_fragment_length": 10,
-        "timesteps_per_iteration": _train_environment_configs.timesteps_per_iteration,
-        "worker_side_prioritization": True,
-        "min_iter_time_s": 30,
-    }
-
-
-def build_td3_configs() -> dict:
-    """Build TD3 specific config dict
-
-    https://docs.ray.io/en/latest/rllib-algorithms.html#deep-deterministic-policy-gradients-ddpg-td3
-    """
-    return {
-        "twin_q": True,
-        "policy_delay": 2,
-        "smooth_target_policy": True,
-        "target_noise": 0.2,
-        "target_noise_clip": 0.5,
-        "exploration_config": {
-            "type": PerWorkerGaussianNoise,
-            "random_timesteps": 10000,
-            "stddev": 20,
-        },
-        "n_step": 1,
-        "gamma": 0.99,
-        "actor_lr": 1e-3,
-        "critic_lr": 1e-3,
-        "l2_reg": 0.0,
-        "tau": 5e-3,
-        "use_huber": False,
-        "target_network_update_freq": 0,
-    }
 
 
 def build_trainer_config(
@@ -109,37 +23,60 @@ def build_trainer_config(
     test_environment_configs: dict,
     train_environment_configs: dict,
 ) -> dict:
+    _train_environment_configs = EnvironmentConfigs.from_sacred_config(
+        train_environment_configs
+    )
+
     return {
         "env": Environment,
-        **build_common_configs(
-            model_name,
-            model_configs,
-            test_environment_configs,
-            train_environment_configs,
-        ),
-        **build_apex_configs(train_environment_configs),
-        **build_td3_configs(),
+        "callbacks": Callbacks,
+        "env_config": train_environment_configs,
+        "evaluation_config": {
+            "env_config": test_environment_configs,
+            "worker_side_prioritization": False,
+        },
+        "evaluation_interval": 1,
+        "evaluation_num_episodes": test_environment_configs["num_episodes"],
+        "log_level": "INFO",
+        "model": {
+            "custom_model_config": {
+                "model_configs": ModelConfigs.from_sacred_config(model_configs)
+            },
+            "custom_model": model_name,
+        },
+        "num_cpus_for_driver": 2,
+        "num_cpus_per_worker": 2,
+        "num_gpus": c.NUM_GPUS,
+        "num_workers": train_environment_configs["num_actors"],
+        "rollout_fragment_length": 10,
+        "train_batch_size": 2 ** 3,
+        "num_sgd_iter": 2,
+        "minibatch_buffer_size": 1000,
+        "learner_queue_size": 1000,
+        "replay_proportion": 0.5,
+        "replay_buffer_num_slots": 1000,
+        "timesteps_per_iteration": _train_environment_configs.timesteps_per_iteration,
     }
 
 
 # pylint: disable=unused-variable
 @SACRED_EXPERIMENT.named_config
-def apex_td3_staging():
-    actionizer_name = "coinbase_ml.common.actionizers.PositionSize"
-    model_name = "coinbase_ml.common.models.td3_actor_critic.TD3ActorCritic"
+def impala_dev():
+    actionizer_name = "coinbase_ml.common.actionizers.EntrySignal"
+    model_name = "coinbase_ml.common.models.actor_value.ActorValue"
     initial_product_funds = "0.000000"
     initial_quote_funds = "10000.00"
-    num_warmup_time_steps = 100
-    num_train_iterations = 10
+    num_warmup_time_steps = 3
+    num_train_iterations = 3
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
-    test_end_dt = "2020-11-20 12:00:00.00"
-    test_start_dt = "2020-11-20 00:00:00.00"
+    test_end_dt = "2020-11-19 10:05:00.00"
+    test_start_dt = "2020-11-19 10:00:00.00"
     time_delta = 30  # in seconds
-    trainer_name = "ray.rllib.agents.ddpg.ApexDDPGTrainer"
-    train_latest_end_dt = "2020-11-20 00:00:00.00"
-    train_latest_start_dt = "2020-11-19 00:00:00.00"
-    train_num_actors = 6
+    trainer_name = "ray.rllib.agents.impala.ImpalaTrainer"
+    train_latest_end_dt = "2020-11-19 09:15:00.00"
+    train_latest_start_dt = "2020-11-19 09:00:00.00"
+    train_num_actors = 1
     train_time_intervals = train_num_actors * [
         TimeInterval(
             end_dt=parser.parse(train_latest_end_dt),
@@ -168,7 +105,7 @@ def apex_td3_staging():
         initial_quote_funds=initial_quote_funds,
         max_negative_roi=0.1,
         num_actors=train_num_actors,
-        num_episodes=5,
+        num_episodes=10,
         num_warmup_time_steps=num_warmup_time_steps,
         reward_strategy=reward_strategy,
         time_delta=timedelta(seconds=time_delta),

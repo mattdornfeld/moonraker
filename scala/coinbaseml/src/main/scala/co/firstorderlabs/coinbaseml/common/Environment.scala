@@ -3,7 +3,7 @@ package co.firstorderlabs.coinbaseml.common
 import java.util.logging.Logger
 
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, LimitOrderTransaction, SellMarketOrderTransaction}
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.{PositionSize, SignalPositionSize}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.{EntrySignal, PositionSize, SignalPositionSize}
 import co.firstorderlabs.coinbaseml.common.featurizers._
 import co.firstorderlabs.coinbaseml.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.{UnrecognizedActionizer, UnrecognizedRewardStrategy}
@@ -32,6 +32,7 @@ object Environment
     val action = request.actionizer match {
       case Actionizer.SignalPositionSize => SignalPositionSize.construct(request.actorOutput)
       case Actionizer.PositionSize => PositionSize.construct(request.actorOutput)
+      case Actionizer.EntrySignal => EntrySignal.construct(request.actorOutput)
       case _ => throw new UnrecognizedActionizer
     }
 

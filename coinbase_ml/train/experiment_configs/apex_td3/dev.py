@@ -125,8 +125,6 @@ def build_trainer_config(
 # pylint: disable=unused-variable
 @SACRED_EXPERIMENT.named_config
 def apex_td3_dev():
-    """Dev config for apex_td3
-    """
     actionizer_name = "coinbase_ml.common.actionizers.PositionSize"
     model_name = "coinbase_ml.common.models.td3_actor_critic.TD3ActorCritic"
     initial_product_funds = "0.000000"
@@ -186,6 +184,7 @@ def apex_td3_dev():
         ],
         initial_product_funds=initial_product_funds,
         initial_quote_funds=initial_quote_funds,
+        is_test_environment=True,
         num_actors=1,
         num_episodes=1,
         num_warmup_time_steps=num_warmup_time_steps,
