@@ -280,7 +280,6 @@ class Environment(Env):  # pylint: disable=W0223
             raise EnvironmentFinishedException
 
         _action = np.array([action]) if isinstance(action, np.int64) else action
-        # from IPython import embed; embed()
         self._exchange_step(_action)
 
         observation = self.exchange.observation
