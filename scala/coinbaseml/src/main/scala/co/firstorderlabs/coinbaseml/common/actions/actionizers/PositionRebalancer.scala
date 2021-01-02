@@ -19,6 +19,16 @@ trait PositionRebalancer {
   private def getNewPositionValue(positionSizeFraction: Double): Double =
     ReturnRewardStrategy.currentPortfolioValue * positionSizeFraction
 
+  protected def closeAllOpenPositions: Action = {
+    val availableProduct =
+      Wallets.getAvailableFunds(ProductVolume).asInstanceOf[ProductVolume]
+    if (availableProduct.isZero) {
+      new NoTransaction
+    } else {
+      SellMarketOrderTransaction(availableProduct)
+    }
+  }
+
   protected def updateOpenPositions(positionSizeFraction: Double): Action = {
     val currentPositionValue = getCurrentPositionValue
     val newPositionValue = getNewPositionValue(positionSizeFraction)

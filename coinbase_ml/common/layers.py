@@ -273,43 +273,24 @@ class Attention(Layer):
 
 
 class DenseBlock:
-
-    """Summary
-
-    Attributes:
-        Dense (TYPE): Description
-        depth (int): Description
-        time_distributed (bool): Description
-        units (int): Description
-    """
-
-    def __init__(self, depth: int, units: int, time_distributed: bool = False) -> None:
-        """
-        __init__ [summary]
-
-        Args:
-            depth (int): [description]
-            units (int): [description]
-            time_distributed (bool, optional): [description]. Defaults to False.
-
-        Returns:
-            None: [description]
-        """
+    def __init__(
+        self,
+        depth: int,
+        units: int,
+        time_distributed: bool = False,
+        activation: str = "relu",
+    ) -> None:
+        self.activation = activation
         self.depth = depth
         self.units = units
         self.time_distributed = time_distributed
         self.Dense = TDDense if time_distributed else Dense  # pylint: disable=C0103
 
     def __call__(self, input_tensor: tf.Tensor) -> tf.Tensor:
-        """Summary
-
-        Args:
-            input_tensor (tf.Tensor): Description
-
-        Returns:
-            Union[tf.Tensor, TimeDistributed]: Description
-        """
-        layers = [self.Dense(units=self.units) for _ in range(self.depth)]
+        layers = [
+            self.Dense(units=self.units, activation=self.activation)
+            for _ in range(self.depth)
+        ]
 
         return compose(*layers)(input_tensor)
 

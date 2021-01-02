@@ -1,23 +1,24 @@
 package co.firstorderlabs.coinbaseml.common.actions.actionizers
 
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{Action, NoTransaction, SellMarketOrderTransaction}
-import co.firstorderlabs.coinbaseml.common.utils.Utils.{DoubleUtils, Interval}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{Action, NoTransaction}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.Interval.IntervalType
-import co.firstorderlabs.coinbaseml.fakebase.Wallets
-import co.firstorderlabs.common.currency.Price.BtcUsdPrice.ProductVolume
+import co.firstorderlabs.coinbaseml.common.utils.Utils.{DoubleUtils, Interval}
 
 sealed trait Actionizer {
   def construct(actorOutput: Seq[Double]): Action
 }
 
 object EntrySignal extends Actionizer with PositionRebalancer {
+  val validEntrySignalValues = List(0, 1)
   val positionSizeFraction = 0.1
   override def construct(actorOutput: Seq[Double]): Action = {
     require(actorOutput.size == 1)
-    val entrySignal = actorOutput(0).clamp(0, 1)
+    val entrySignal = actorOutput(0).toInt
+    require(validEntrySignalValues.contains(entrySignal))
     if (entrySignal == 0) {
-      updateOpenPositions(0.0)
-    } else if (entrySignal == 1) {
+      closeAllOpenPositions
+    }
+    else if (entrySignal == 1) {
       updateOpenPositions(positionSizeFraction)
     } else {
       throw new IllegalArgumentException
@@ -51,16 +52,6 @@ object SignalPositionSize extends Actionizer with PositionRebalancer {
   val closeAllPositionsRange = Interval(0, 0.333, IntervalType.closed)
   val noTransactionRange = Interval(0.333, 0.667)
   val openNewPositionRange = Interval(0.667, 1)
-
-  private def closeAllOpenPositions: Action = {
-    val availableProduct =
-      Wallets.getAvailableFunds(ProductVolume).asInstanceOf[ProductVolume]
-    if (availableProduct.isZero) {
-      new NoTransaction
-    } else {
-      SellMarketOrderTransaction(availableProduct)
-    }
-  }
 
   override def construct(actorOutput: Seq[Double]): Action = {
     require(actorOutput.size == 2)
