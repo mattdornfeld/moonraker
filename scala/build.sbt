@@ -5,12 +5,12 @@ import InteractiveDependencies.interactiveDependencies
 
 organization in ThisBuild := "co.firstorderlabs"
 scalaVersion in ThisBuild := "2.13.1"
-scalacOptions in ThisBuild := Seq()
-//  "-opt:l:method",
-//  "-opt:l:inline",
-//  "-opt-inline-from:co.firstorderlabs.**",
-//  "-opt-warnings"
-//)
+scalacOptions in ThisBuild := Seq(
+  "-opt:l:method",
+  "-opt:l:inline",
+  "-opt-inline-from:co.firstorderlabs.**",
+  "-opt-warnings"
+)
 
 lazy val global = project
   .in(file("."))
