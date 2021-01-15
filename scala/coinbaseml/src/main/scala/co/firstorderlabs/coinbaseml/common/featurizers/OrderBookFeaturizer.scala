@@ -7,16 +7,46 @@ import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.ObservationRequest
-import co.firstorderlabs.common.protos.events.OrderSide
 
-final case class OrderBookFeaturizerSnapshot(featureBuffer: List[OrderBookFeature])
-    extends Snapshot
+final case class OrderBookFeaturizerState(
+    featureBuffer: FiniteQueue[OrderBookFeature]
+) extends State[OrderBookFeaturizerState] {
+  override val companion = OrderBookFeaturizerState
 
-object OrderBookFeaturizer
-    extends FeaturizerBase
-    with Snapshotable[OrderBookFeaturizerSnapshot] {
+  override def createSnapshot(implicit
+      simulationMetadata: SimulationMetadata
+  ): OrderBookFeaturizerState = {
+    val orderBookFeaturizerState = OrderBookFeaturizerState.create
+    orderBookFeaturizerState.featureBuffer.addAll(featureBuffer.iterator)
+    orderBookFeaturizerState
+  }
+
+}
+
+object OrderBookFeaturizerState
+    extends StateCompanion[OrderBookFeaturizerState] {
+  override def create(implicit
+      simulationMetadata: SimulationMetadata
+  ): OrderBookFeaturizerState =
+    OrderBookFeaturizerState(
+      new FiniteQueue[OrderBookFeature](simulationMetadata.featureBufferSize)
+    )
+
+  override def fromSnapshot(
+      snapshot: OrderBookFeaturizerState
+  ): OrderBookFeaturizerState = {
+    val orderBookFeaturizerState = OrderBookFeaturizerState(
+      new FiniteQueue[OrderBookFeature](snapshot.featureBuffer.getMaxSize)
+    )
+    snapshot.featureBuffer.foreach(feature =>
+      orderBookFeaturizerState.featureBuffer.enqueue(feature)
+    )
+    orderBookFeaturizerState
+  }
+}
+
+object OrderBookFeaturizer extends FeaturizerBase {
   type OrderBookFeature = List[List[Double]]
-  private val featureBuffer = new FiniteQueue[OrderBookFeature](0)
   private val logger = Logger.getLogger(OrderBookFeaturizer.toString)
 
   def getArrayOfZeros(height: Int, width: Int): OrderBookFeature = {
@@ -25,29 +55,30 @@ object OrderBookFeaturizer
 
   def getBestBidsAsksArrayOverTime(
       orderBookDepth: Int
+  )(implicit
+      featurizerState: OrderBookFeaturizerState
   ): List[OrderBookFeature] = {
     val zerosArray = getArrayOfZeros(orderBookDepth, 4)
-    featureBuffer.toList.padTo(featureBuffer.getMaxSize, zerosArray)
+    featurizerState.featureBuffer.toList
+      .padTo(featurizerState.featureBuffer.getMaxSize, zerosArray)
   }
 
   def getBestBidsAsksArray(
       orderBookDepth: Int,
       normalize: Boolean = false
-  ): OrderBookFeature = {
+  )(implicit matchingEngineState: MatchingEngineState): OrderBookFeature = {
     val bestAsks =
       getBestPriceVolumes(
-        Exchange.getOrderBook(OrderSide.sell),
         orderBookDepth,
         false,
         normalize
-      )
+      )(matchingEngineState.sellOrderBookState)
     val bestBids =
       getBestPriceVolumes(
-        Exchange.getOrderBook(OrderSide.buy),
         orderBookDepth,
         true,
         normalize
-      )
+      )(matchingEngineState.buyOrderBookState)
 
     bestAsks
       .zip(bestBids)
@@ -55,12 +86,11 @@ object OrderBookFeaturizer
   }
 
   def getBestPriceVolumes(
-      orderBook: OrderBook,
       orderBookDepth: Int,
       reverse: Boolean,
       normalize: Boolean = false
-  ): List[(Double, Double)] = {
-    orderBook
+  )(implicit orderBookState: OrderBookState): List[(Double, Double)] = {
+    OrderBook
       .aggregateToMap(orderBookDepth, reverse)
       .toList
       .sortBy(item => item._1)
@@ -71,38 +101,23 @@ object OrderBookFeaturizer
       .padTo(orderBookDepth, (0.0, 0.0))
   }
 
-  def construct(observationRequest: ObservationRequest): List[Double] = {
+  override def construct(
+      observationRequest: ObservationRequest
+  )(implicit simulationState: SimulationState): List[Double] = {
     getBestBidsAsksArrayOverTime(
       observationRequest.orderBookDepth
-    ).flatten.flatten
+    )(simulationState.environmentState.orderBookFeaturizerState).flatten.flatten
   }
 
-  def start(snapshotBufferSize: Int): Unit = {
-    clear
-    featureBuffer.setMaxSize(snapshotBufferSize)
-  }
-
-  def step: Unit = {
-    val observationRequest = Exchange.getSimulationMetadata.observationRequest
+  override def step(implicit simulationState: SimulationState): Unit = {
+    val observationRequest = simulationState.simulationMetadata.observationRequest
     val startTime = System.currentTimeMillis
-    featureBuffer enqueue getBestBidsAsksArray(
+    simulationState.environmentState.orderBookFeaturizerState.featureBuffer enqueue getBestBidsAsksArray(
       observationRequest.orderBookDepth,
       observationRequest.normalize
-    )
+    )(simulationState.matchingEngineState)
     val endTime = System.currentTimeMillis
 
     logger.fine(s"OrderBookFeaturizer.step took ${endTime - startTime} ms")
-  }
-
-  override def clear: Unit = featureBuffer.clear
-
-  override def createSnapshot: OrderBookFeaturizerSnapshot =
-    OrderBookFeaturizerSnapshot(featureBuffer.toList)
-
-  override def isCleared: Boolean = featureBuffer.isEmpty
-
-  override def restore(snapshot: OrderBookFeaturizerSnapshot): Unit = {
-    clear
-    snapshot.featureBuffer.foreach(feature => featureBuffer.enqueue(feature))
   }
 }

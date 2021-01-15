@@ -2,6 +2,7 @@ package co.firstorderlabs.coinbaseml.fakebase.sql
 
 import java.time.{Duration, Instant}
 
+import co.firstorderlabs.coinbaseml.fakebase.SimulationMetadata
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.fakebase.SimulationStartRequest
@@ -24,4 +25,6 @@ object TestData {
     snapshotBufferSize = 3,
     observationRequest = Some(new ObservationRequest(10)),
   )
+
+  implicit val simulationMetadata = SimulationMetadata.fromSimulationStartRequest(simulationStartRequest)
 }

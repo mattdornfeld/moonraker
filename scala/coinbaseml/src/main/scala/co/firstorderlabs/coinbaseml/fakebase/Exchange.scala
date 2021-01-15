@@ -1,184 +1,129 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-import java.time.{Duration, Instant}
-import java.util.UUID.randomUUID
 import java.util.logging.Logger
 
-import co.firstorderlabs.coinbaseml.common.utils.Utils.{getResult, getResultOptional}
+import co.firstorderlabs.coinbaseml.common.utils.Utils.{
+  getResult,
+  getResultOptional
+}
 import co.firstorderlabs.coinbaseml.common.{Environment, InfoAggregator}
-import co.firstorderlabs.coinbaseml.fakebase.sql.{BigQueryReader, DatabaseReader, LocalStorage, PostgresReader}
-import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.SimulationNotStarted
+import co.firstorderlabs.coinbaseml.fakebase.sql._
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.environment.ObservationRequest
-import co.firstorderlabs.common.protos.events.{MatchEvents, OrderSide}
-import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{BigQuery, Postgres}
+import co.firstorderlabs.common.protos.events.MatchEvents
+import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{
+  BigQuery,
+  Postgres
+}
 import co.firstorderlabs.common.protos.fakebase._
 import co.firstorderlabs.common.protos.{events, fakebase}
-import co.firstorderlabs.common.types.Events.{Event, LimitOrderEvent, OrderEvent}
-import co.firstorderlabs.common.types.Types.TimeInterval
+import co.firstorderlabs.common.types.Events.{
+  Event,
+  LimitOrderEvent,
+  OrderEvent
+}
+import co.firstorderlabs.common.types.Types.{SimulationId, TimeInterval}
 import com.google.protobuf.empty.Empty
 
 import scala.concurrent.Future
 
-final case class ExchangeSnapshot(receivedEvents: List[Event]) extends Snapshot
-
-final case class SimulationMetadata(
-    startTime: Instant,
-    endTime: Instant,
-    timeDelta: Duration,
-    numWarmUpSteps: Int,
-    initialProductFunds: ProductVolume,
-    initialQuoteFunds: QuoteVolume,
-    simulationId: String,
-    observationRequest: ObservationRequest,
-    enableProgressBar: Boolean,
-    simulationType: SimulationType,
-    databaseReader: DatabaseReader,
-    snapshotBufferSize: Int
-) {
-  var currentTimeInterval =
-    TimeInterval(startTime.minus(timeDelta), startTime)
-  var currentStep = 0L
-
-  private val progressBar: Option[StepProgressLogger] =
-    if (enableProgressBar)
-      Some(
-        new StepProgressLogger(
-          s"${simulationType.name} simulation ${simulationId} progress",
-          numSteps
-        )
-      )
-    else None
-
-  def incrementCurrentTimeInterval: Unit =
-    currentTimeInterval = currentTimeInterval + timeDelta
-
-  def numSteps: Long =
-    Duration.between(startTime, endTime).dividedBy(timeDelta)
-
-  def previousTimeInterval: TimeInterval = {
-    currentTimeInterval - timeDelta
+final case class ExchangeState(var receivedEvents: List[Event])
+    extends State[ExchangeState] {
+  override val companion = ExchangeState
+  override def createSnapshot(implicit
+      simulationMetadata: SimulationMetadata
+  ): ExchangeState = {
+    ExchangeState(receivedEvents)
   }
 
-  def reset: Unit = {
-    currentTimeInterval = Checkpointer.checkpointTimeInterval
-    currentStep = numWarmUpSteps
-    progressBar match {
-      case Some(progressBar) => progressBar.resetTo(numWarmUpSteps)
-      case None              =>
-    }
-  }
-
-  def step(
-      stepDuration: Double,
-      dataGetDuration: Double,
-      matchingEngineDuration: Double,
-      environmentDuration: Double,
-      numEvents: Int
-  ): Unit = {
-    currentStep += 1
-    progressBar match {
-      case Some(progressBar) =>
-        progressBar.step(
-          currentStep,
-          stepDuration,
-          dataGetDuration,
-          matchingEngineDuration,
-          environmentDuration,
-          numEvents
-        )
-      case None =>
-    }
-  }
-
-  def simulationIsOver: Boolean =
-    currentTimeInterval.endTime isAfter endTime
 }
 
-object Exchange
-    extends ExchangeServiceGrpc.ExchangeService
-    with Snapshotable[ExchangeSnapshot] {
+object ExchangeState extends StateCompanion[ExchangeState] {
+  override def create(implicit
+      simulationMetadata: SimulationMetadata
+  ): ExchangeState =
+    ExchangeState(List())
+
+  override def fromSnapshot(snapshot: ExchangeState): ExchangeState =
+    ExchangeState(snapshot.receivedEvents)
+
+}
+
+object Exchange extends ExchangeServiceGrpc.ExchangeService {
   private val logger = Logger.getLogger(Exchange.toString)
   private val matchingEngine = MatchingEngine
 
-  var simulationMetadata: Option[SimulationMetadata] = None
-  private var receivedEvents: List[Event] = List()
-
-  def cancelOrder(order: OrderEvent): OrderEvent =
+  def cancelOrder(order: OrderEvent)(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
+  ): OrderEvent = {
+    implicit val orderBookState =
+      if (order.side.isbuy) matchingEngineState.buyOrderBookState
+      else matchingEngineState.sellOrderBookState
     matchingEngine.cancelOrder(order)
+  }
 
-  def checkIsTaker(limitOrder: LimitOrderEvent): Boolean = {
+  def checkIsTaker(
+      limitOrder: LimitOrderEvent
+  )(implicit matchingEngineState: MatchingEngineState): Boolean = {
     matchingEngine.checkIsTaker(limitOrder)
   }
 
-  def getReceivedEvents: List[Event] = receivedEvents
+  def getReceivedEvents(implicit exchangeState: ExchangeState): List[Event] =
+    exchangeState.receivedEvents
 
-  override def createSnapshot: ExchangeSnapshot = {
-    ExchangeSnapshot(receivedEvents)
-  }
-
-  override def clear: Unit = {
-    receivedEvents = List()
-  }
-
-  override def isCleared: Boolean = {
-    receivedEvents.isEmpty
-  }
-
-  override def restore(snapshot: ExchangeSnapshot): Unit = {
-    // calling clear is not necessary since receivedEvents is an immutable List
-    // and we're replacing the entire var, not the list contents
-    receivedEvents = snapshot.receivedEvents
-  }
-
-  def getOrderBook(side: OrderSide): OrderBook = {
-    matchingEngine.orderBooks(side)
-  }
-
-  @throws[SimulationNotStarted]
-  def getSimulationMetadata: SimulationMetadata = {
-    simulationMetadata match {
-      case Some(simulationMetadata) => simulationMetadata
-      case None =>
-        throw SimulationNotStarted(
-          "The field simulationMetadata is empty. Please start a simulation."
-        )
-    }
-  }
-
-  override def checkpoint(request: Empty): Future[Empty] = {
+  override def checkpoint(simulationId: SimulationId): Future[Empty] = {
     logger.info(
-      s"creating checkpoint at timeInterval ${Exchange.getSimulationMetadata.currentTimeInterval}"
+      s"creating checkpoint at timeInterval ${SimulationState.getSimulationMetadataOrFail(simulationId).currentTimeInterval}"
     )
-    Checkpointer.createCheckpoint
+    implicit val simulationMetadata =
+      SimulationState.getSimulationMetadataOrFail(simulationId)
+    SimulationState.snapshot(simulationId)
     Future.successful(Constants.emptyProto)
   }
 
   override def getExchangeInfo(
-      request: Empty
+      simulationId: SimulationId
   ): Future[ExchangeInfo] = {
     Future.successful(
-      getExchangeInfoHelper
+      getExchangeInfoHelper(simulationId)
     )
   }
 
-  override def getMatches(request: Empty): Future[MatchEvents] = {
-    Future.successful(events.MatchEvents(matchingEngine.matches.toList))
+  override def getMatches(simulationId: SimulationId): Future[MatchEvents] = {
+    val matchingEngineState = SimulationState
+      .getOrFail(
+        simulationId
+      )
+      .matchingEngineState
+    Future.successful(events.MatchEvents(matchingEngineState.matches.toList))
   }
 
-  override def getOrderBooks(request: OrderBooksRequest): Future[OrderBooks] = {
-    val buyOrderBook = MatchingEngine
-      .orderBooks(OrderSide.buy)
-      .aggregateToMap(request.orderBookDepth, true)
+  override def getOrderBooks(
+      orderBooksRequest: OrderBooksRequest
+  ): Future[OrderBooks] = {
+    val matchingEngineState = SimulationState
+      .getOrFail(
+        orderBooksRequest.simulationId.get
+      )
+      .matchingEngineState
+    val buyOrderBook = OrderBook
+      .aggregateToMap(orderBooksRequest.orderBookDepth, true)(
+        matchingEngineState.buyOrderBookState
+      )
 
-    val sellOrderBook = MatchingEngine
-      .orderBooks(OrderSide.sell)
-      .aggregateToMap(request.orderBookDepth)
+    val sellOrderBook = OrderBook
+      .aggregateToMap(orderBooksRequest.orderBookDepth)(
+        matchingEngineState.sellOrderBookState
+      )
 
     val orderBooks = new OrderBooks(buyOrderBook, sellOrderBook)
     Future.successful(orderBooks)
   }
+
+  override def getSimulationIds(request: Empty): Future[SimulationIds] =
+    Future.successful(SimulationIds(SimulationState.keys))
 
   override def populateStorage(
       populateStorageRequest: PopulateStorageRequest
@@ -187,13 +132,16 @@ object Exchange
       populateStorageRequest.ingestToLocalStorage || populateStorageRequest.backupToCloudStorage,
       "Either ingestToLocalStorage or backupToCloudStorage must be true."
     )
-    val databaseReader = getDatabaseReader(populateStorageRequest.databaseBackend)
+    val databaseReader = getDatabaseReader(
+      populateStorageRequest.databaseBackend
+    )
     val sstFileWriters = populateStorageRequest.populateStorageParameters.map {
       populateStorageParameter =>
         val timeInterval = TimeInterval(
           populateStorageParameter.startTime,
           populateStorageParameter.endTime
         )
+        implicit val databaseReaderState = DatabaseReaderState(timeInterval)
         databaseReader.createSstFiles(
           timeInterval,
           populateStorageParameter.timeDelta.get,
@@ -208,19 +156,28 @@ object Exchange
   }
 
   override def reset(
-      simulationInfoRequest: SimulationInfoRequest
+      observationRequest: ObservationRequest
   ): Future[SimulationInfo] = {
-    val simulationMetadata = getSimulationMetadata
-    logger.info(
-      s"Resetting simulation ${simulationMetadata.simulationId} to ${simulationMetadata.currentTimeInterval}"
-    )
-    getSimulationMetadata.reset
-    Checkpointer.restoreFromCheckpoint
+    SimulationState
+      .getOrFail(observationRequest.simulationId.get)
+      .databaseReaderState
+      .stop
 
-    Future successful getSimulationInfo(Some(simulationInfoRequest))
+    SimulationState.restore(observationRequest.simulationId.get)
+    val simulationState =
+      SimulationState.getOrFail(observationRequest.simulationId.get)
+    implicit val databaseReaderState = simulationState.databaseReaderState
+    implicit val matchingEngineState = simulationState.matchingEngineState
+    implicit val simulationMetadata = simulationState.simulationMetadata
+    logger.info(
+      s"Simulation ${simulationMetadata.simulationId} reset to ${simulationMetadata.currentTimeInterval}"
+    )
+    simulationMetadata.databaseReader.startPopulateQueryResultMapStream
+    StepProgressLogger.reset
+
+    Future successful getSimulationInfo(observationRequest)
   }
 
-  @throws[IllegalArgumentException]
   override def start(
       simulationStartRequest: SimulationStartRequest
   ): Future[SimulationInfo] = {
@@ -228,96 +185,104 @@ object Exchange
       simulationStartRequest.snapshotBufferSize > 0,
       "snapshotBufferSize must be greater than 0"
     )
-    if (simulationInProgress) stop(Constants.emptyProto)
 
-    simulationMetadata = Some(
-      SimulationMetadata(
-        simulationStartRequest.startTime,
-        simulationStartRequest.endTime,
-        simulationStartRequest.timeDelta.get,
-        simulationStartRequest.numWarmUpSteps,
-        simulationStartRequest.initialProductFunds,
-        simulationStartRequest.initialQuoteFunds,
-        randomUUID.toString,
-        simulationStartRequest.observationRequest.get,
-        simulationStartRequest.enableProgressBar,
-        simulationStartRequest.simulationType,
-        getDatabaseReader(simulationStartRequest.databaseBackend),
-        simulationStartRequest.snapshotBufferSize
-      )
-    )
+    if (simulationStartRequest.stopInProgressSimulations)
+      SimulationState.keys.foreach(stop(_))
+
+    implicit val simulationMetadata =
+      SimulationMetadata.fromSimulationStartRequest(simulationStartRequest)
+    val simulationState = SimulationState.create(simulationMetadata)
+    implicit val accountState = simulationState.accountState
+    implicit val databaseReaderState = simulationState.databaseReaderState
+    implicit val matchingEngineState = simulationState.matchingEngineState
+    implicit val walletsState = accountState.walletsState
 
     logger.info(
-      s"starting simulation ${simulationMetadata.get.simulationId} for parameters ${simulationMetadata.get}"
+      s"starting simulation ${simulationMetadata.simulationId} for parameters ${simulationMetadata}"
     )
-    Checkpointer.start
-    Environment.start(simulationStartRequest.snapshotBufferSize)
-    getSimulationMetadata.databaseReader.start(
-      getSimulationMetadata.startTime,
-      getSimulationMetadata.endTime,
-      getSimulationMetadata.timeDelta,
-      simulationStartRequest.backupToCloudStorage
-    )
+
+    simulationMetadata.databaseReader.start
 
     Account.initializeWallets
     Account.addFunds(simulationStartRequest.initialQuoteFunds)
     Account.addFunds(simulationStartRequest.initialProductFunds)
     MatchingEngine.start
+    StepProgressLogger.reset
 
     if (simulationStartRequest.numWarmUpSteps > 0) {
+      val stepRequest =
+        StepRequest(simulationId = Some(simulationMetadata.simulationId))
       (1 to simulationStartRequest.numWarmUpSteps) foreach (_ =>
-        step(Constants.emptyStepRequest)
+        step(stepRequest)
       )
-      checkpoint(Constants.emptyProto)
+      checkpoint(simulationMetadata.simulationId)
     }
 
-    Future successful getSimulationInfo(
-      simulationStartRequest.simulationInfoRequest
-    )
+    val observationRequest = simulationStartRequest.observationRequest.map {
+      observationRequest =>
+        observationRequest.update(
+          _.simulationId := simulationMetadata.simulationId
+        )
+    }
+
+    val simulationInfo = observationRequest
+      .map(getSimulationInfo(_))
+      .getOrElse(
+        SimulationInfo(simulationId = Some(simulationMetadata.simulationId))
+      )
+
+    Future successful simulationInfo
   }
 
   override def step(stepRequest: StepRequest): Future[SimulationInfo] = {
+    implicit val simulationState = SimulationState.getOrFail(
+      stepRequest.simulationId.get
+    )
+    implicit val accountState = simulationState.accountState
+    implicit val databaseReaderState = simulationState.databaseReaderState
+    implicit val simulationMetadata = simulationState.simulationMetadata
+    implicit val matchingEngineState = simulationState.matchingEngineState
     val stepStartTime = System.nanoTime
-    getSimulationMetadata.incrementCurrentTimeInterval
+    simulationMetadata.incrementCurrentTimeInterval
     require(
-      !getSimulationMetadata.simulationIsOver,
+      !simulationMetadata.simulationIsOver,
       "The simulation has ended. Please reset."
     )
-
-    logger.fine(
-      s"Stepped to ${getSimulationMetadata.currentTimeInterval}"
-    )
+    logger.fine(s"Stepped to ${simulationMetadata.currentTimeInterval}")
 
     Account.step
     Environment.preStep(stepRequest.actionRequest)
     InfoAggregator.preStep
 
     val dataGetStartTime = System.nanoTime
-    val queryResult = Exchange.getSimulationMetadata.databaseReader
-      .removeQueryResult(getSimulationMetadata.currentTimeInterval)
+    val queryResult = simulationMetadata.databaseReader
+      .removeQueryResult(simulationMetadata.currentTimeInterval)
 
-    receivedEvents = (Account.getReceivedOrders.toList
-      ++ Account.getReceivedCancellations.toList
-      ++ stepRequest.insertOrders
-        .map(OrderUtils.orderEventFromSealedOneOf)
-        .flatten
-      ++ stepRequest.insertCancellations
-      ++ queryResult.events)
-      .sortBy(event => event.time)
+    simulationState.exchangeState.receivedEvents =
+      (Account.getReceivedOrders.toList
+        ++ Account.getReceivedCancellations.toList
+        ++ stepRequest.insertOrders
+          .map(OrderUtils.orderEventFromSealedOneOf)
+          .flatten
+        ++ stepRequest.insertCancellations
+        ++ queryResult.events)
+        .sortBy(event => event.time)
 
     val dataGetDuration = (System.nanoTime - dataGetStartTime) / 1e6
 
-    if (receivedEvents.isEmpty)
+    if (simulationState.exchangeState.receivedEvents.isEmpty)
       logger.warning(
-        s"No events queried for time interval ${getSimulationMetadata.currentTimeInterval}"
+        s"No events queried for time interval ${simulationMetadata.currentTimeInterval}"
       )
     else
-      logger.fine(s"Processing ${receivedEvents.length} events")
+      logger.fine(
+        s"Processing ${simulationState.exchangeState.receivedEvents.length} events"
+      )
 
-    matchingEngine.matches.clear
+    simulationState.matchingEngineState.matches.clear
 
     val matchingEngineStartTime = System.nanoTime
-    matchingEngine.step(receivedEvents)
+    matchingEngine.step(simulationState.exchangeState.receivedEvents)
     val matchingEngineDuration =
       (System.nanoTime - matchingEngineStartTime) / 1e6
 
@@ -331,31 +296,47 @@ object Exchange
       dataGetDuration,
       matchingEngineDuration,
       environmentDuration,
-      receivedEvents.size
+      simulationState.exchangeState.receivedEvents.size,
+      stepRequest.simulationId.get
     )
 
-    val simulationInfo = getSimulationInfo(stepRequest.simulationInfoRequest)
+    val simulationInfo =
+      stepRequest.observationRequest
+        .map { observationRequest =>
+          val _observationRequest = observationRequest.update(
+            _.simulationId := simulationMetadata.simulationId
+          )
+          getSimulationInfo(_observationRequest)
+        }
+        .getOrElse(
+          SimulationInfo(simulationId = Some(simulationMetadata.simulationId))
+        )
 
     logger.fine(s"Exchange.step took ${stepDuration} ms")
-    getSimulationMetadata.step(
+    simulationMetadata.incrementStep
+    StepProgressLogger.step(
       stepDuration,
       dataGetDuration,
       matchingEngineDuration,
       environmentDuration,
-      receivedEvents.size
+      simulationState.exchangeState.receivedEvents.size
     )
 
     Future successful simulationInfo
   }
 
-  override def stop(request: Empty): Future[Empty] = {
-    logger.info("stopping simulation")
-    Checkpointer.clear
-    simulationMetadata = None
+  override def stop(simulationId: SimulationId): Future[Empty] = {
+    if (SimulationState.contains(simulationId)) {
+      SimulationState.remove(simulationId)
+      logger.info(s"stopping ${simulationId}")
+    }
+    else {
+      logger.info(s"${simulationId} not found")
+    }
     Future.successful(Constants.emptyProto)
   }
 
-  private def getDatabaseReader(
+  def getDatabaseReader(
       databaseBackend: DatabaseBackend
   ): DatabaseReader =
     databaseBackend match {
@@ -367,36 +348,39 @@ object Exchange
         )
     }
 
-  private def getExchangeInfoHelper: ExchangeInfo = {
-    if (simulationMetadata.isDefined) {
-      fakebase.ExchangeInfo(
-        getSimulationMetadata.currentTimeInterval.startTime,
-        getSimulationMetadata.currentTimeInterval.endTime,
-        getResultOptional(Account.getAccountInfo(Constants.emptyProto)),
-        getSimulationMetadata.simulationId
-      )
-    } else {
-      ExchangeInfo()
+  private def getExchangeInfoHelper(
+      simulationId: SimulationId
+  ): ExchangeInfo = {
+    SimulationState.get(simulationId) match {
+      case Some(simulationState) => {
+        val simulationMetadata = simulationState.simulationMetadata
+        fakebase.ExchangeInfo(
+          simulationMetadata.currentTimeInterval.startTime,
+          simulationMetadata.currentTimeInterval.endTime,
+          getResultOptional(Account.getAccountInfo(simulationId)),
+          Some(simulationMetadata.simulationId)
+        )
+      }
+      case None => ExchangeInfo()
     }
   }
 
   def getSimulationInfo(
-      simulationInfoRequest: Option[SimulationInfoRequest]
+      observationRequest: ObservationRequest
   ): SimulationInfo = {
-    if (simulationInfoRequest.isDefined) {
-      val _simulationInfoRequest = simulationInfoRequest.get
-      val exchangeInfo = getExchangeInfoHelper
-      val observation = _simulationInfoRequest.observationRequest match {
-        case Some(observationRequest) =>
-          Some(getResult(Environment.getObservation(observationRequest)))
-        case None => None
-      }
+    val exchangeInfo = getExchangeInfoHelper(
+      observationRequest.simulationId.get
+    )
+    val observation = Some(
+      getResult(
+        Environment.getObservation(observationRequest)
+      )
+    )
 
-      fakebase.SimulationInfo(Some(exchangeInfo), observation)
-    } else {
-      SimulationInfo()
-    }
+    fakebase.SimulationInfo(
+      Some(exchangeInfo),
+      observation,
+      observationRequest.simulationId
+    )
   }
-
-  private def simulationInProgress: Boolean = simulationMetadata.isDefined
 }

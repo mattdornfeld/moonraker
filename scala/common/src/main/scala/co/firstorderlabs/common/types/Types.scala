@@ -3,12 +3,22 @@ package co.firstorderlabs.common.types
 import java.nio.ByteBuffer
 import java.time.{Duration, Instant}
 
-import co.firstorderlabs.common.protos.fakebase.Currency
+import co.firstorderlabs.common.protos.environment.ObservationRequest
+import co.firstorderlabs.common.protos.events.{SimulationId => SimulationIdProto}
+import co.firstorderlabs.common.protos.fakebase.{Currency, StepRequest}
 import scalapb.TypeMapper
 
 object Types {
   final case class OrderId(orderId: String) extends AnyVal
   final case class OrderRequestId(orderRequestId: String) extends AnyVal
+  final case class SimulationId(simulationId: String) extends AnyVal {
+    def toObservationRequest: ObservationRequest =
+      ObservationRequest(simulationId = Some(this))
+
+    def toStepRequest: StepRequest =
+      StepRequest(simulationId = Some(this))
+  }
+
   final case class TradeId(tradeId: Long) extends AnyVal
 
   final case class ProductId(
@@ -81,12 +91,14 @@ object Types {
   }
 
   object TimeInterval {
-  def deserialize(bytes: Array[Byte]): TimeInterval = {
-    val byteBuffer = ByteBuffer.wrap(bytes)
-    val startTime = Instant.ofEpochSecond(byteBuffer.getLong, byteBuffer.getLong)
-    val endTime = Instant.ofEpochSecond(byteBuffer.getLong, byteBuffer.getLong)
-    TimeInterval(startTime, endTime)
-  }
+    def deserialize(bytes: Array[Byte]): TimeInterval = {
+      val byteBuffer = ByteBuffer.wrap(bytes)
+      val startTime =
+        Instant.ofEpochSecond(byteBuffer.getLong, byteBuffer.getLong)
+      val endTime =
+        Instant.ofEpochSecond(byteBuffer.getLong, byteBuffer.getLong)
+      TimeInterval(startTime, endTime)
+    }
 
     def fromStrings(startTime: String, endTime: String): TimeInterval =
       TimeInterval(Instant.parse(startTime), Instant.parse(endTime))
@@ -127,6 +139,13 @@ object Types {
 
       ProductId(productCurrency, quoteCurrency)
     }
+  }
+
+  object SimulationId {
+    implicit val typeMapper =
+      TypeMapper[SimulationIdProto, SimulationId](simulationId =>
+        SimulationId(simulationId.simulationId)
+      )(simulationId => SimulationIdProto(simulationId.simulationId))
   }
 
   object TradeId {

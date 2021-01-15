@@ -1,7 +1,7 @@
 package co.firstorderlabs.coinbaseml.common
 
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
-import co.firstorderlabs.coinbaseml.common.utils.TestUtils.doubleEquality
+import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{buildStepRequest, doubleEquality}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
@@ -31,40 +31,43 @@ class InfoAggregatorTest extends AnyFunSpec {
       "InfoAggregator should correctly count the number of orders placed for all order types"
     ) {
       Seq(
-        (buyLimitOrderRequest, InfoDictKey.buyOrdersPlaced),
-        (buyMarketOrderRequest, InfoDictKey.buyOrdersPlaced),
-        (sellLimitOrderRequest, InfoDictKey.sellOrdersPlaced),
-        (sellMarketOrderRequest, InfoDictKey.sellOrdersPlaced)
+        (buyLimitOrderRequest _, InfoDictKey.buyOrdersPlaced),
+        (buyMarketOrderRequest _, InfoDictKey.buyOrdersPlaced),
+        (sellLimitOrderRequest _, InfoDictKey.sellOrdersPlaced),
+        (sellMarketOrderRequest _, InfoDictKey.sellOrdersPlaced)
       ).foreach { item =>
-        Exchange.start(simulationStartRequest)
-        placeOrder(item._1)
-        Exchange.step(Constants.emptyStepRequest)
-        assert(InfoAggregator.getInfoDict.get(item._2).get === 1.0)
+        val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+        val infoDict = SimulationState.getInfoDictOrFail(simulationId)
+        placeOrder(item._1(simulationId))
+        Exchange.step(buildStepRequest(simulationId))
+        assert(infoDict.get(item._2).get === 1.0)
       }
     }
 
     it("InfoAggregator should correctly count the number of orders rejected") {
       Seq(
-        fundsTooLargeOrderRequest,
-        fundsTooSmallOrderRequest,
-        insufficientFundsOrderRequest,
-        postOnlyOrderRequest,
-        priceTooLargeOrderRequest,
-        priceTooSmallOrderRequest,
-        sizeTooLargeOrderRequest,
-        sizeTooSmallOrderRequest
+        fundsTooLargeOrderRequest _,
+        fundsTooSmallOrderRequest _,
+        insufficientFundsOrderRequest _,
+        postOnlyOrderRequest _,
+        priceTooLargeOrderRequest _,
+        priceTooSmallOrderRequest _,
+        sizeTooLargeOrderRequest _,
+        sizeTooSmallOrderRequest _,
       ).foreach { orderRequest =>
-        Exchange.start(simulationStartRequest)
+        val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+        implicit val simulationMetadata = SimulationState.getSimulationMetadataOrFail(simulationId)
+        val infoDict = SimulationState.getInfoDictOrFail(simulationId)
 
         val sellOrders = OrdersData.insertSellOrders(
-          minPrice = postOnlyOrderRequest.price,
+          minPrice = postOnlyOrderRequest(simulationId).price,
           numOrders = 2
         )
-        Exchange.step(StepRequest(insertOrders = sellOrders))
-        placeOrder(orderRequest)
-        Exchange.step(Constants.emptyStepRequest)
+        Exchange.step(simulationId.toStepRequest.update(_.insertOrders := sellOrders))
+        placeOrder(orderRequest(simulationId))
+        Exchange.step(buildStepRequest(simulationId))
         assert(
-          InfoAggregator.getInfoDict
+          infoDict
             .get(InfoDictKey.numOrdersRejected)
             .get === 1.0
         )
@@ -72,7 +75,11 @@ class InfoAggregatorTest extends AnyFunSpec {
     }
 
     it("InfoAggregator should return the correct portfolio value.") {
-      Exchange.start(simulationStartRequestWarmup)
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequestWarmup)).simulationId.get
+      val simulationState = SimulationState.getOrFail(simulationId)
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      implicit val simulationMetadata = simulationState.simulationMetadata
 
       val buyOrders = OrdersData.insertBuyOrders(
         maxPrice = new ProductPrice(Right("500.00")),
@@ -84,7 +91,7 @@ class InfoAggregatorTest extends AnyFunSpec {
         numOrders = 1
       )
 
-      Exchange.step(StepRequest(insertOrders = buyOrders ++ sellOrders))
+      Exchange.step(simulationId.toStepRequest.update(_.insertOrders := buyOrders ++ sellOrders))
 
       val bestBid =
         buyOrders.map(order => order.asMessage.getBuyLimitOrder.price)(0)
@@ -104,19 +111,23 @@ class InfoAggregatorTest extends AnyFunSpec {
     ) {
       Seq(
         (
-          buyLimitOrderRequest,
+          buyLimitOrderRequest _,
           InfoDictKey.buyFeesPaid,
           InfoDictKey.buyVolumeTraded
         ),
         (
-          sellLimitOrderRequest,
+          sellLimitOrderRequest _,
           InfoDictKey.sellFeesPaid,
           InfoDictKey.sellVolumeTraded
         )
       ).foreach { item =>
-        Exchange.start(simulationStartRequest)
+        val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+        val simulationState = SimulationState.getOrFail(simulationId)
+        val infoDict = SimulationState.getInfoDictOrFail(simulationId)
+        implicit val matchingEngineState = simulationState.matchingEngineState
+        implicit val simulationMetadata = simulationState.simulationMetadata
 
-        val insertOrders = item._1 match {
+        val insertOrders = item._1(simulationId) match {
           case sellLimitOrderRequest: SellLimitOrderRequest =>
             OrdersData.insertBuyOrders(
               maxPrice = sellLimitOrderRequest.price / Right(0.5),
@@ -129,16 +140,16 @@ class InfoAggregatorTest extends AnyFunSpec {
             )
         }
 
-        Exchange.step(StepRequest(insertOrders = insertOrders))
-        placeOrder(item._1)
-        Exchange.step(Constants.emptyStepRequest)
+        Exchange.step(simulationId.toStepRequest.update(_.insertOrders := insertOrders))
+        placeOrder(item._1(simulationId))
+        Exchange.step(buildStepRequest(simulationId))
         val matches =
-          getResult(Account.getMatches(Constants.emptyProto)).matchEvents
+          getResult(Account.getMatches(simulationId)).matchEvents
 
         val expectedFeesPaid = matches.map(_.fee.toDouble).reduce(_ + _)
-        val expectedVolumeTraded = matches.map(_.quoteVolume.toDouble).reduce(_ + _)
+        val expectedVolumeTraded =
+          matches.map(_.quoteVolume.toDouble).reduce(_ + _)
 
-        val infoDict = InfoAggregator.getInfoDict
         assert(expectedFeesPaid === infoDict.get(item._2).get)
         assert(
           expectedVolumeTraded === infoDict.get(item._3).get
@@ -147,17 +158,12 @@ class InfoAggregatorTest extends AnyFunSpec {
     }
 
     it("InfoAggregator should be reset when Exchange is reset") {
-      Exchange.start(simulationStartRequestWarmup)
-      val infoDict = InfoAggregator.getInfoDict.clone
-      Exchange.step(Constants.emptyStepRequest)
-      Exchange.reset(SimulationInfoRequest())
-      println(infoDict == InfoAggregator.getInfoDict)
-    }
-
-    it("InfoDict should be cleared when InfoAggregator is cleared") {
-      Exchange.start(simulationStartRequestWarmup)
-      InfoAggregator.clear
-      assert(InfoAggregator.getInfoDict.values.forall(_ === 0.0))
+      val simulationId = getResult(Exchange.start(simulationStartRequestWarmup)).simulationId.get
+      val expectedInfoDict = SimulationState.getInfoDictOrFail(simulationId)
+      Exchange.step(buildStepRequest(simulationId))
+      Exchange.reset(simulationId.toObservationRequest)
+      val infoDict = SimulationState.getInfoDictOrFail(simulationId)
+      println(expectedInfoDict == infoDict)
     }
   }
 }

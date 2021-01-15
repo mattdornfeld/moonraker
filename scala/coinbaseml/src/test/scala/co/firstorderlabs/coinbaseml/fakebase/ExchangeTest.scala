@@ -3,15 +3,24 @@ package co.firstorderlabs.coinbaseml.fakebase
 import java.time.Duration
 
 import co.firstorderlabs.coinbaseml.common.utils
+import co.firstorderlabs.coinbaseml.common.utils.TestUtils.buildStepRequest
+import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData.lowerOrder
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.environment.{ObservationRequest, RewardRequest, RewardStrategy}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
+import co.firstorderlabs.common.protos.environment.{
+  ObservationRequest,
+  RewardRequest,
+  RewardStrategy
+}
 import co.firstorderlabs.common.protos.events.OrderSide
 import co.firstorderlabs.common.protos.fakebase.{Wallets => _, _}
-import co.firstorderlabs.common.types.Types.TimeInterval
+import co.firstorderlabs.common.types.Types.{SimulationId, TimeInterval}
 import org.scalatest.funspec.AnyFunSpec
 
 class ExchangeTest extends AnyFunSpec {
@@ -22,8 +31,11 @@ class ExchangeTest extends AnyFunSpec {
       "When a Exchange simulation is started it should set the simulationMetadata, add funds to the wallets, and set" +
         "the currentTimeInterval. If numWarmUpSteps == 0, then no checkpoint should be created."
     ) {
-      Exchange.start(simulationStartRequest)
-      val simulationMetadata = Exchange.getSimulationMetadata
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      val simulationState =
+        SimulationState.getOrFail(simulationInfo.simulationId.get)
+      val simulationMetadata = simulationState.simulationMetadata
+      implicit val walletsState = simulationState.accountState.walletsState
       assert(
         simulationMetadata.startTime
           .compareTo(simulationStartRequest.startTime) == 0
@@ -68,18 +80,23 @@ class ExchangeTest extends AnyFunSpec {
           simulationStartRequest.startTime
         )
       assert(
-        expectedTimeInterval == Exchange.getSimulationMetadata.currentTimeInterval
+        expectedTimeInterval == simulationMetadata.currentTimeInterval
       )
 
-      assert(!Checkpointer.checkpointExists)
+      assert(
+        SimulationState.getSnapshot(simulationInfo.simulationId.get).isEmpty
+      )
     }
 
     it(
       "The getOrderBooks endpoint should return empty maps if no orders are on the order book."
     ) {
-      Exchange.start(simulationStartRequest)
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
       val orderBooks =
-        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(
+          Exchange.getOrderBooks(orderBooksRequest(simulationId))
+        )
       assert(
         orderBooks.buyOrderBook.isEmpty && orderBooks.sellOrderBook.isEmpty
       )
@@ -88,68 +105,79 @@ class ExchangeTest extends AnyFunSpec {
     it(
       "The getOrderBooks endpoint should return maps that aggregate the volume for all orders for each price."
     ) {
-      Exchange.start(simulationStartRequest)
-      Account.placeBuyLimitOrder(buyLimitOrderRequest)
-      Account.placeSellLimitOrder(sellLimitOrderRequest)
-      Exchange.step(Constants.emptyStepRequest)
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      Account.placeBuyLimitOrder(buyLimitOrderRequest(simulationId))
+      Account.placeSellLimitOrder(sellLimitOrderRequest(simulationId))
+      Exchange.step(buildStepRequest(simulationId))
       val orderBooks =
-        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(
+          Exchange.getOrderBooks(orderBooksRequest(simulationId))
+        )
 
       assert(orderBooks.buyOrderBook.size == 1)
       assert(orderBooks.sellOrderBook.size == 1)
       assert(
         orderBooks.buyOrderBook
-          .get(buyLimitOrderRequest.price)
-          .get == buyLimitOrderRequest.size
+          .get(buyLimitOrderRequest(simulationId).price)
+          .get == buyLimitOrderRequest(simulationId).size
       )
       assert(
         orderBooks.sellOrderBook
-          .get(sellLimitOrderRequest.price)
-          .get == sellLimitOrderRequest.size
+          .get(sellLimitOrderRequest(simulationId).price)
+          .get == sellLimitOrderRequest(simulationId).size
       )
 
       val buyOrder =
-        utils.Utils.getResult(Account.placeBuyLimitOrder(buyLimitOrderRequest))
+        utils.Utils.getResult(
+          Account.placeBuyLimitOrder(buyLimitOrderRequest(simulationId))
+        )
       val sellOrder =
         utils.Utils.getResult(
-          Account.placeSellLimitOrder(sellLimitOrderRequest)
+          Account.placeSellLimitOrder(sellLimitOrderRequest(simulationId))
         )
-      Exchange.step(Constants.emptyStepRequest)
+      Exchange.step(buildStepRequest(simulationId))
       val orderBooks2 =
-        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(
+          Exchange.getOrderBooks(orderBooksRequest(simulationId))
+        )
 
       assert(orderBooks2.buyOrderBook.size == 1)
       assert(orderBooks2.sellOrderBook.size == 1)
       assert(
         orderBooks2.buyOrderBook
-          .get(buyLimitOrderRequest.price)
-          .get == (buyLimitOrderRequest.size * Right(2.0))
+          .get(buyLimitOrderRequest(simulationId).price)
+          .get == (buyLimitOrderRequest(simulationId).size * Right(2.0))
       )
       assert(
         orderBooks2.sellOrderBook
-          .get(sellLimitOrderRequest.price)
-          .get == (sellLimitOrderRequest.size * Right(2.0))
+          .get(sellLimitOrderRequest(simulationId).price)
+          .get == (sellLimitOrderRequest(simulationId).size * Right(2.0))
       )
 
       List(buyOrder.orderId, sellOrder.orderId)
-        .foreach(
-          orderId => Account.cancelOrder(new CancellationRequest(orderId))
+        .foreach(orderId =>
+          Account.cancelOrder(
+            new CancellationRequest(orderId, Some(simulationId))
+          )
         )
-      Exchange.step(Constants.emptyStepRequest)
+      Exchange.step(buildStepRequest(simulationId))
       val orderBooks3 =
-        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(
+          Exchange.getOrderBooks(orderBooksRequest(simulationId))
+        )
 
       assert(orderBooks3.buyOrderBook.size == 1)
       assert(orderBooks3.sellOrderBook.size == 1)
       assert(
         orderBooks3.buyOrderBook
-          .get(buyLimitOrderRequest.price)
-          .get == buyLimitOrderRequest.size
+          .get(buyLimitOrderRequest(simulationId).price)
+          .get == buyLimitOrderRequest(simulationId).size
       )
       assert(
         orderBooks3.sellOrderBook
-          .get(sellLimitOrderRequest.price)
-          .get == sellLimitOrderRequest.size
+          .get(sellLimitOrderRequest(simulationId).price)
+          .get == sellLimitOrderRequest(simulationId).size
       )
     }
 
@@ -158,7 +186,10 @@ class ExchangeTest extends AnyFunSpec {
         + "The max/min price of the returned sellOrderBook/buyOrderBook should be orderBookDepth price ticks away from the best ask/bid."
         + "The min/max price of the returned sellOrderBook/buyOrderBook should be the best ask/bid price."
     ) {
-      Exchange.start(simulationStartRequest)
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      val simulationMetadata =
+        SimulationState.getSimulationMetadataOrFail(simulationId)
       val productVolume = new ProductVolume(Right("1.00"))
       val buyOrders = TestUtils
         .generateOrdersForRangeOfPrices(
@@ -167,7 +198,7 @@ class ExchangeTest extends AnyFunSpec {
           new ProductPrice(Right("915.00")),
           OrderSide.buy,
           productVolume,
-          Exchange.getSimulationMetadata.currentTimeInterval.endTime
+          simulationMetadata.currentTimeInterval.endTime
         )
 
       val sellOrders = TestUtils
@@ -177,26 +208,30 @@ class ExchangeTest extends AnyFunSpec {
           new ProductPrice(Right("1015.00")),
           OrderSide.sell,
           productVolume,
-          Exchange.getSimulationMetadata.currentTimeInterval.endTime
+          simulationMetadata.currentTimeInterval.endTime
         )
 
-      Exchange.step(new StepRequest(insertOrders = buyOrders ++ sellOrders))
+      Exchange.step(
+        simulationId.toStepRequest
+          .update(_.insertOrders := buyOrders ++ sellOrders)
+      )
 
       val orderBooks =
-        utils.Utils.getResult(Exchange.getOrderBooks(orderBooksRequest))
+        utils.Utils.getResult(
+          Exchange.getOrderBooks(orderBooksRequest(simulationId))
+        )
       List(orderBooks.buyOrderBook, orderBooks.sellOrderBook)
         .foreach(orderBook => assert(orderBook.size == 10))
 
       List(orderBooks.buyOrderBook, orderBooks.sellOrderBook)
-        .foreach(
-          orderBook =>
-            orderBook.values
-              .foreach(volume => assert(volume equalTo productVolume))
+        .foreach(orderBook =>
+          orderBook.values
+            .foreach(volume => assert(volume equalTo productVolume))
         )
 
       assert(
         orderBooks.buyOrderBook.min._1 equalTo buyOrders(
-          buyOrders.size - orderBooksRequest.orderBookDepth
+          buyOrders.size - orderBooksRequest(simulationId).orderBookDepth
         ).asMessage.getBuyLimitOrder.price
       )
       assert(
@@ -207,7 +242,7 @@ class ExchangeTest extends AnyFunSpec {
       )
       assert(
         orderBooks.sellOrderBook.max._1 equalTo sellOrders(
-          orderBooksRequest.orderBookDepth - 1
+          orderBooksRequest(simulationId).orderBookDepth - 1
         ).asMessage.getSellLimitOrder.price
       )
     }
@@ -216,27 +251,33 @@ class ExchangeTest extends AnyFunSpec {
       val timeToLive = simulationStartRequest.timeDelta
         .map(duration => Duration.ofSeconds((duration.toSeconds * 1.5).toLong))
 
-      val buyLimitOrderRequest = new BuyLimitOrderRequest(
-        new ProductPrice(Right("200.00")),
-        ProductPrice.productId,
-        new ProductVolume(Right("10.000000")),
-        false,
-        timeToLive,
-      )
+      def buyLimitOrderRequest(simulationId: SimulationId) =
+        new BuyLimitOrderRequest(
+          new ProductPrice(Right("200.00")),
+          ProductPrice.productId,
+          new ProductVolume(Right("10.000000")),
+          false,
+          timeToLive,
+          simulationId = Some(simulationId)
+        )
 
-      val sellLimitOrderRequest = new SellLimitOrderRequest(
-        new ProductPrice(Right("50.00")),
-        ProductPrice.productId,
-        new ProductVolume(Right("10.000000")),
-        false,
-        timeToLive,
-      )
+      def sellLimitOrderRequest(simulationId: SimulationId) =
+        new SellLimitOrderRequest(
+          new ProductPrice(Right("50.00")),
+          ProductPrice.productId,
+          new ProductVolume(Right("10.000000")),
+          false,
+          timeToLive,
+          simulationId = Some(simulationId)
+        )
 
-      List(buyLimitOrderRequest, sellLimitOrderRequest).foreach {
+      List(buyLimitOrderRequest _, sellLimitOrderRequest _).foreach {
         orderRequest =>
-          Exchange.start(simulationStartRequest)
+          val simulationId =
+            getResult(Exchange.start(simulationStartRequest)).simulationId.get
+          val accountState = SimulationState.getAccountStateOrFail(simulationId)
 
-          val orderFuture = orderRequest match {
+          val orderFuture = orderRequest(simulationId) match {
             case orderRequest: BuyLimitOrderRequest =>
               Account.placeBuyLimitOrder(orderRequest)
             case orderRequest: SellLimitOrderRequest =>
@@ -245,15 +286,18 @@ class ExchangeTest extends AnyFunSpec {
 
           val order = utils.Utils.getResult(orderFuture)
 
-          Exchange.step(Constants.emptyStepRequest)
+          Exchange.step(buildStepRequest(simulationId))
 
-          assert(Account.placedOrders.get(order.orderId).get.orderStatus.isopen)
+          assert(
+            accountState.placedOrders.get(order.orderId).get.orderStatus.isopen
+          )
 
+          val stepRequest = buildStepRequest(simulationId)
           List.range(1, 3).foreach { _ =>
-            Exchange.step(Constants.emptyStepRequest)
+            Exchange.step(stepRequest)
           }
 
-          val cancelledOrder = Account.placedOrders.get(order.orderId).get
+          val cancelledOrder = accountState.placedOrders.get(order.orderId).get
           assert(cancelledOrder.orderStatus.isdone)
           assert(cancelledOrder.doneReason.iscanceled)
           assert(
@@ -265,40 +309,112 @@ class ExchangeTest extends AnyFunSpec {
     }
 
     it("Ensure getSimulationInfo returns Observation.") {
-      Exchange.start(simulationStartRequestWarmup)
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequestWarmup)).simulationId.get
 
-      val rewardRequest = Some(RewardRequest(RewardStrategy.LogReturnRewardStrategy))
-      val observationRequest = Some(ObservationRequest(orderBooksRequest.orderBookDepth, false, rewardRequest))
-      val simulationInfoRequest = SimulationInfoRequest(observationRequest = observationRequest)
-      val simulationInfo = Exchange.getSimulationInfo(Some(simulationInfoRequest))
+      val rewardRequest =
+        Some(RewardRequest(RewardStrategy.LogReturnRewardStrategy))
+      val observationRequest = ObservationRequest(
+        orderBooksRequest(simulationId).orderBookDepth,
+        false,
+        rewardRequest,
+        Some(simulationId)
+      )
+
+      val simulationInfo =
+        Exchange.getSimulationInfo(observationRequest)
       assert(simulationInfo.observation.isDefined)
     }
 
-    it("This test is to ensure that the order book is cloned and restored properly during a checkpoint.") {
-      Exchange.start(simulationStartRequestWarmup)
-      Exchange.step(StepRequest(insertOrders = List(lowerOrder)))
-      Exchange.checkpoint(Constants.emptyProto)
-      Exchange.step(StepRequest(insertCancellations = List(OrderUtils.cancellationFromOrder(lowerOrder))))
+    it(
+      "This test is to ensure that the order book is cloned and restored properly during a checkpoint."
+    ) {
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequestWarmup)).simulationId.get
+      val simulationState = SimulationState.getOrFail(simulationId)
+      val matchingEngineState = simulationState.matchingEngineState
+      val simulationMetadata = simulationState.simulationMetadata
+      Exchange.step(
+        simulationId.toStepRequest.update(_.insertOrders := List(lowerOrder))
+      )
+      Exchange.checkpoint(simulationId)
+      Exchange.step(
+        simulationId.toStepRequest.update(
+          _.insertCancellations := List(
+            OrderUtils.cancellationFromOrder(lowerOrder)(simulationMetadata)
+          )
+        )
+      )
 
       // Assert order is not on order book
-      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderId(lowerOrder.orderId).isEmpty)
-      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderBookKey(lowerOrder.orderBookKey).isEmpty)
+      val orderBookState =
+        matchingEngineState.getOrderBookState(lowerOrder.side)
+      assert(
+        OrderBook.getOrderByOrderId(lowerOrder.orderId)(orderBookState).isEmpty
+      )
+      assert(
+        OrderBook
+          .getOrderByOrderBookKey(lowerOrder.orderBookKey)(orderBookState)
+          .isEmpty
+      )
 
-      Exchange.reset(new SimulationInfoRequest)
+      Exchange.reset(simulationId.toObservationRequest)
+      val restoredSimulationState = SimulationState.getOrFail(simulationId)
+      val restoredOrderBookState = restoredSimulationState.matchingEngineState
+        .getOrderBookState(lowerOrder.side)
+      val restoredSimulationMetadata =
+        restoredSimulationState.simulationMetadata
 
       // Assert order has been re-added to order book
-      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderId(lowerOrder.orderId).nonEmpty)
-      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderBookKey(lowerOrder.orderBookKey).nonEmpty)
+      assert(
+        OrderBook
+          .getOrderByOrderId(lowerOrder.orderId)(restoredOrderBookState)
+          .nonEmpty
+      )
+      assert(
+        OrderBook
+          .getOrderByOrderBookKey(lowerOrder.orderBookKey)(
+            restoredOrderBookState
+          )
+          .nonEmpty
+      )
 
-      Exchange.step(StepRequest(insertCancellations = List(OrderUtils.cancellationFromOrder(lowerOrder))))
+      Exchange.step(
+        simulationId.toStepRequest.update(
+          _.insertCancellations := List(
+            OrderUtils.cancellationFromOrder(lowerOrder)(
+              restoredSimulationMetadata
+            )
+          )
+        )
+      )
 
       // Assert order successfully re-removed from order book
-      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderId(lowerOrder.orderId).isEmpty)
-      assert(Exchange.getOrderBook(lowerOrder.side).getOrderByOrderBookKey(lowerOrder.orderBookKey).isEmpty)
+      assert(
+        OrderBook
+          .getOrderByOrderId(lowerOrder.orderId)(restoredOrderBookState)
+          .isEmpty
+      )
+      assert(
+        OrderBook
+          .getOrderByOrderBookKey(lowerOrder.orderBookKey)(
+            restoredOrderBookState
+          )
+          .isEmpty
+      )
 
-      Exchange.reset(new SimulationInfoRequest)
+      Exchange.reset(simulationId.toObservationRequest)
+      val restoredSimulationState2 =
+        SimulationState.getSimulationMetadataOrFail(simulationId)
 
-      Exchange.step(StepRequest(insertCancellations = List(OrderUtils.cancellationFromOrder(lowerOrder))))
+      Exchange.step(
+        simulationId.toStepRequest.update(
+          _.insertCancellations := List(
+            OrderUtils
+              .cancellationFromOrder(lowerOrder)(restoredSimulationState2)
+          )
+        )
+      )
     }
   }
 }

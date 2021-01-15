@@ -46,6 +46,11 @@ enum RejectReason {
     sizeTooSmall = 8;
 }
 
+message SimulationId {
+    option (scalapb.message).type = "co.firstorderlabs.common.types.Types.SimulationId";
+    string simulationId = 1;
+}
+
 message BuyLimitOrder {
     option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.BuyOrderEvent";
     option (scalapb.message).extends = "co.firstorderlabs.common.types.Events.LimitOrderEvent";

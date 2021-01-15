@@ -1,16 +1,19 @@
 """Account object for interacting with Exchange object
 """
 from __future__ import annotations
+
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from dateutil import parser
 from google.protobuf.duration_pb2 import Duration
+from grpc import Channel
 
 import coinbase_ml.common.constants as cc
-import coinbase_ml.fakebase.constants as c
-from coinbase_ml.fakebase.base_classes.account import AccountBase, Funds
-from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
+from coinbase_ml.common.protos.events_pb2 import SimulationId as SimulationIdProto
+from coinbase_ml.common.types import SimulationId
+from coinbase_ml.fakebase.base_classes.account import Funds
+from coinbase_ml.fakebase.orm import CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.protos.events_pb2 import (
     Cancellation,
     BuyLimitOrder,
@@ -30,10 +33,8 @@ from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     Wallets,
 )
 from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import AccountServiceStub
-from coinbase_ml.fakebase.utils.proto_utils import order_from_sealed_value
 from coinbase_ml.fakebase.types import (
     Currency,
-    InvalidTypeError,
     OrderId,
     OrderSide,
     OrderStatus,
@@ -43,74 +44,29 @@ from coinbase_ml.fakebase.types import (
     ProductVolume,
     QuoteVolume,
 )
+from coinbase_ml.fakebase.utils.proto_utils import order_from_sealed_value
 
 if TYPE_CHECKING:
     # To avoid circular import exchange on the submodule level
     # Exchange is then referenced using the str syntax below
-    import coinbase_ml.fakebase.exchange as exchange
+    pass
 
 
-class Account(AccountBase["exchange.Exchange"]):
-
-    """Summary
-
-    Attributes:
-        funds (dict[str, dict]): Description
-        orders (dict[str, CoinbaseOrder]): Description
-        profile_id (str): Description
-    """
-
-    def __init__(self, exchange: "exchange.Exchange"):
-        """
-        __init__ [summary]
-
-        Args:
-            exchange (exchange.Exchange): [description]
-        """
-        super().__init__(exchange)
-
-        self.account_info: Optional[AccountInfo] = None
-        self.stub = AccountServiceStub(self.exchange.channel)
-        self.placed_cancellations: List[CoinbaseCancellation] = []
-        self.placed_orders: List[CoinbaseOrder] = []
-
-    def __eq__(self, other: Any) -> bool:
-        """
-        __eq__ [summary]
-
-        Args:
-            other (Any): [description]
-
-        Returns:
-            bool: [description]
-        """
-        if isinstance(other, Account):
-            _other: Account = other
-            return_val = (
-                self.funds == _other.funds
-                and self.orders == _other.orders
-                and self.matches == _other.matches
-            )
-        else:
-            raise InvalidTypeError(type(other), "other")
-
-        return return_val
+class Account:
+    def __init__(
+        self, channel: Channel, account_info: AccountInfo, simulation_id: SimulationId
+    ):
+        self.account_info = account_info
+        self.simulation_id = simulation_id
+        self.stub = AccountServiceStub(channel)
+        self._simulation_id_proto = SimulationIdProto(simulationId=simulation_id)
 
     def cancel_order(self, order_id: OrderId) -> CoinbaseOrder:
-        """
-        cancel_order [summary]
-
-        Args:
-            order_id (OrderId): [description]
-
-        Returns:
-            CoinbaseOrder: [description]
-        """
         cancellation: Cancellation = self.stub.cancelOrder(
-            CancellationRequest(orderId=order_id)
+            CancellationRequest(
+                orderId=order_id, simulationId=self._simulation_id_proto
+            )
         )
-
-        self.placed_cancellations.append(CoinbaseCancellation.from_proto(cancellation))
 
         return CoinbaseOrder(
             order_id=OrderId(cancellation.orderId),
@@ -124,7 +80,7 @@ class Account(AccountBase["exchange.Exchange"]):
     @property
     def funds(self) -> Dict[Currency, Funds]:
         wallets: Wallets = self.stub.getWallets(
-            c.EMPTY_PROTO
+            self._simulation_id_proto
         ) if self.account_info is None else self.account_info.wallets
 
         _funds: Dict[Currency, Funds] = {}
@@ -142,26 +98,14 @@ class Account(AccountBase["exchange.Exchange"]):
 
     @property
     def matches(self) -> List[CoinbaseMatch]:
-        """
-        matches [summary]
-
-        Returns:
-            List[CoinbaseMatch]: [description]
-        """
         match_events: MatchEvents = self.stub.getMatches(
-            c.EMPTY_PROTO
+            self._simulation_id_proto
         ) if self.account_info is None else self.account_info.matchEvents
         return [CoinbaseMatch.from_proto(match) for match in match_events.matchEvents]
 
     @property
     def orders(self) -> Dict[OrderId, CoinbaseOrder]:
-        """
-        orders [summary]
-
-        Returns:
-            Dict[OrderId, CoinbaseOrder]: [description]
-        """
-        orders_proto: Orders = self.stub.getOrders(c.EMPTY_PROTO)
+        orders_proto: Orders = self.stub.getOrders(self._simulation_id_proto)
 
         return {
             OrderId(order_id): order_from_sealed_value(order)
@@ -175,24 +119,8 @@ class Account(AccountBase["exchange.Exchange"]):
         side: OrderSide,
         size: ProductVolume,
         post_only: bool = False,
-        time_in_force: str = "gtc",
         time_to_live: timedelta = timedelta.max,
     ) -> CoinbaseOrder:
-        """
-        place_limit_order [summary]
-
-        Args:
-            product_id (ProductId): [description]
-            price (ProductPrice): [description]
-            side (OrderSide): [description]
-            size (ProductVolume): [description]
-            post_only (bool, optional): [description]. Defaults to False.
-            time_in_force (str, optional): [description]. Defaults to "gtc".
-            time_to_live (timedelta, optional): [description]. Defaults to timedelta.max.
-
-        Returns:
-            CoinbaseOrder: [description]
-        """
         _time_to_live = Duration()
         _time_to_live.FromTimedelta(time_to_live)  # pylint: disable=no-member
 
@@ -204,6 +132,7 @@ class Account(AccountBase["exchange.Exchange"]):
                     size=str(size),
                     postOnly=post_only,
                     timeToLive=_time_to_live,
+                    simulationId=self._simulation_id_proto,
                 )
             )
 
@@ -216,12 +145,11 @@ class Account(AccountBase["exchange.Exchange"]):
                     size=str(size),
                     postOnly=post_only,
                     timeToLive=_time_to_live,
+                    simulationId=self._simulation_id_proto,
                 )
             )
 
             order = CoinbaseOrder.from_proto(sell_order_proto)
-
-        self.placed_orders.append(order)
 
         return order
 
@@ -232,21 +160,6 @@ class Account(AccountBase["exchange.Exchange"]):
         funds: Optional[QuoteVolume] = None,
         size: Optional[ProductVolume] = None,
     ) -> CoinbaseOrder:
-        """
-        place_market_order [summary]
-
-        Args:
-            product_id (ProductId): [description]
-            side (OrderSide): [description]
-            funds (Optional[QuoteVolume], optional): [description]. Defaults to None.
-            size (Optional[ProductVolume], optional): [description]. Defaults to None.
-
-        Raises:
-            ValueError: [description]
-
-        Returns:
-            CoinbaseOrder: [description]
-        """
         if side is OrderSide.buy:
             if funds is None or size is not None:
                 raise ValueError("Must specify funds and not size for buy orders.")
@@ -256,17 +169,23 @@ class Account(AccountBase["exchange.Exchange"]):
 
         if side is OrderSide.buy:
             buy_order_proto: BuyMarketOrder = self.stub.placeBuyMarketOrder(
-                BuyMarketOrderRequest(funds=str(funds), productId=str(product_id))
+                BuyMarketOrderRequest(
+                    funds=str(funds),
+                    productId=str(product_id),
+                    simulationId=self._simulation_id_proto,
+                )
             )
 
             order = CoinbaseOrder.from_proto(buy_order_proto)
         else:
             sell_order_proto: SellMarketOrder = self.stub.placeSellMarketOrder(
-                SellMarketOrderRequest(size=str(size), productId=str(product_id))
+                SellMarketOrderRequest(
+                    size=str(size),
+                    productId=str(product_id),
+                    simulationId=self._simulation_id_proto,
+                )
             )
 
             order = CoinbaseOrder.from_proto(sell_order_proto)
-
-        self.placed_orders.append(order)
 
         return order

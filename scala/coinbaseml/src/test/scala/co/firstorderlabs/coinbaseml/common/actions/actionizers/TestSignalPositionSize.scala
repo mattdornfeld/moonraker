@@ -5,12 +5,14 @@ import java.time.{Duration, Instant}
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, NoTransaction, SellMarketOrderTransaction}
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.advanceExchange
+import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.{observationRequest, simulationStartRequest, simulationStartRequestWarmup}
-import co.firstorderlabs.coinbaseml.fakebase.{Account, Configs, Exchange}
+import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange, SimulationState}
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.environment.{ActionRequest, Actionizer}
 import co.firstorderlabs.common.protos.events.{BuyMarketOrder, Liquidity, SellMarketOrder}
 import co.firstorderlabs.common.protos.fakebase.{SimulationStartRequest, StepRequest}
+import co.firstorderlabs.common.types.Types.SimulationId
 import org.scalatest.funspec.AnyFunSpec
 
 class TestSignalPositionSize extends AnyFunSpec {
@@ -21,12 +23,14 @@ class TestSignalPositionSize extends AnyFunSpec {
         "in noTransactionRange is in the 0th element of the input vector."
     ) {
       SignalPositionSize.noTransactionRange.iterator(0.1).foreach { entrySignal =>
-        Exchange.start(simulationStartRequestWarmup)
+        val simulationInfo = getResult(Exchange.start(simulationStartRequestWarmup))
+        implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+        val accountState = simulationState.accountState
         val action = SignalPositionSize.construct(List(entrySignal, 1.0))
         assert(action.isInstanceOf[NoTransaction])
         val order = action.execute
         assert(order.isEmpty)
-        assert(Account.placedOrders.isEmpty)
+        assert(accountState.placedOrders.isEmpty)
       }
     }
 
@@ -35,7 +39,8 @@ class TestSignalPositionSize extends AnyFunSpec {
         "in closeAllPositionsRange is in the 0th element of the input vector."
     ) {
       SignalPositionSize.closeAllPositionsRange.iterator(0.1).foreach { entrySignal =>
-        Exchange.start(simulationStartRequestWarmup)
+        val simulationInfo = getResult(Exchange.start(simulationStartRequestWarmup))
+        implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
         val action = SignalPositionSize.construct(List(entrySignal, 1.0))
         assert(action.isInstanceOf[SellMarketOrderTransaction])
       }
@@ -47,7 +52,8 @@ class TestSignalPositionSize extends AnyFunSpec {
         "current portfolio position."
     ) {
       SignalPositionSize.openNewPositionRange.iterator(0.1).foreach { entrySignal =>
-        Exchange.start(simulationStartRequestWarmup)
+        val simulationInfo = getResult(Exchange.start(simulationStartRequestWarmup))
+        implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
         val action = SignalPositionSize.construct(List(entrySignal, 1.0))
         assert(action.isInstanceOf[BuyMarketOrderTransaction])
       }
@@ -59,13 +65,16 @@ class TestSignalPositionSize extends AnyFunSpec {
         "is equal to positionSizeFraction."
     ) {
       List(0.3, 0.9, 1.0).foreach { positionSizeFraction =>
-        Exchange.start(simulationStartRequestWarmup)
+        val simulationInfo = getResult(Exchange.start(simulationStartRequestWarmup))
+        implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+        implicit val matchingEngineState = simulationState.matchingEngineState
+        val accountState = simulationState.accountState
         val action =
           SignalPositionSize.construct(List(1.0, positionSizeFraction))
         assert(action.isInstanceOf[BuyMarketOrderTransaction])
         val order = action.execute.get
         assert(order.orderStatus.isreceived)
-        assert(Account.placedOrders.contains(order.orderId))
+        assert(accountState.placedOrders.contains(order.orderId))
         val expectedFunds = new QuoteVolume(
           Right(
             (ReturnRewardStrategy.currentPortfolioValue * positionSizeFraction).toString
@@ -96,29 +105,39 @@ class TestSignalPositionSize extends AnyFunSpec {
         observationRequest = Some(observationRequest),
       )
       List(0.1, 0.3, 0.9).foreach { positionSizeFraction =>
-        Exchange.start(simulationStartRequest)
+        val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+        implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+        implicit val simulationMetadata = simulationState.simulationMetadata
+
+        val accountState = simulationState.accountState
         advanceExchange
         val action = SignalPositionSize.construct(List(1.0, positionSizeFraction))
         assert(action.isInstanceOf[SellMarketOrderTransaction])
         val order = action.execute.get
         assert(order.orderStatus.isreceived)
-        assert(Account.placedOrders.contains(order.orderId))
+        assert(accountState.placedOrders.contains(order.orderId))
 
         val expecteOrderSize = initialProductVolume * Right(1 - positionSizeFraction)
         order match {
-          case order: SellMarketOrder => assert(expecteOrderSize equalTo order.size)
+          case order: SellMarketOrder => {
+            println(expecteOrderSize)
+            println(order.size)
+            assert(expecteOrderSize equalTo order.size)
+          }
         }
       }
     }
 
     it("When signalStength==0.0 the SignalPositionSize Actionizer should execute a SellMarketOrder that will close all" +
       "open positions.") {
-      Exchange.start(simulationStartRequestWarmup)
+      val simulationInfo = getResult(Exchange.start(simulationStartRequestWarmup))
+      implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+      val accountState = simulationState.accountState
       val action = SignalPositionSize.construct(List(0.0, 0.5))
       assert(action.isInstanceOf[SellMarketOrderTransaction])
       val order = action.execute.get
       assert(order.orderStatus.isreceived)
-      assert(Account.placedOrders.contains(order.orderId))
+      assert(accountState.placedOrders.contains(order.orderId))
 
       order match {
         case order: SellMarketOrder => assert(simulationStartRequestWarmup.initialProductFunds equalTo order.size)
@@ -136,9 +155,11 @@ class TestSignalPositionSize extends AnyFunSpec {
         new QuoteVolume(Right("1000.00")),
         snapshotBufferSize = 3,
         observationRequest = Some(observationRequest),
+        stopInProgressSimulations = true,
       )
 
-      Exchange.start(simulationStartRequest)
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
       val action = SignalPositionSize.construct(List(0.0, 0.5))
       val order = action.execute
       assert(action.isInstanceOf[NoTransaction])
@@ -158,9 +179,12 @@ class TestSignalPositionSize extends AnyFunSpec {
         new QuoteVolume(Right("00.00")),
         snapshotBufferSize = 3,
         observationRequest = Some(observationRequest),
+        stopInProgressSimulations = true,
       )
 
-      Exchange.start(simulationStartRequest)
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+      implicit val simulationMetadata = simulationState.simulationMetadata
       advanceExchange
       val positionSizeFraction = 0.96
       val action = SignalPositionSize.construct(List(1.0, positionSizeFraction))
@@ -172,14 +196,16 @@ class TestSignalPositionSize extends AnyFunSpec {
 
   it("The SignalPositionSize Actionizer should be called when the appropriate ActionRequest is passed in with the " +
     "Exchange StepRequest.") {
-    Exchange.start(simulationStartRequest)
+    val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+    val accountState = SimulationState.getAccountStateOrFail(simulationInfo.simulationId.get)
     val stepRequest = StepRequest(
-      actionRequest=Some(ActionRequest(List(1.0, 1.0), Actionizer.SignalPositionSize))
+      actionRequest=Some(ActionRequest(List(1.0, 1.0), Actionizer.SignalPositionSize, simulationInfo.simulationId)),
+      simulationId = simulationInfo.simulationId
     )
     Exchange.step(stepRequest)
     val expectedFunds = simulationStartRequest.initialQuoteFunds.subtractFees(Liquidity.taker)
-    assert(Account.placedOrders.size == 1)
-    val order = Account.placedOrders.values.toList(0)
+    assert(accountState.placedOrders.size == 1)
+    val order = accountState.placedOrders.values.toList(0)
     assert(order.orderStatus.isdone)
     order match {
       case order: BuyMarketOrder => assert(expectedFunds equalTo order.funds)

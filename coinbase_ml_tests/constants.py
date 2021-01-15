@@ -54,7 +54,7 @@ TEST_ORDER_SIZE = TEST_PRODUCT_TYPE("1.000000")
 TEST_WALLET_PRODUCT_FUNDS = TEST_PRODUCT_TYPE("10.0")
 TEST_WALLET_QUOTE_FUNDS = TEST_QUOTE_TYPE("100000.00")
 ACTIONIZER = Actionizer.SignalPositionSize
-REWARD_STRATEGY = RewardStrategy.Name(RewardStrategy.ReturnRewardStrategy)
+REWARD_STRATEGY = RewardStrategy.ReturnRewardStrategy
 
 POSTGRES_CONTAINER_NAME = "coinbase_ml_tests_postgres"
 POSTGRES_IMAGE_NAME = "postgres:9.6"
@@ -62,12 +62,4 @@ TEST_SQL_SRC_DIR = f"{os.getcwd()}/coinbase_ml_tests/data/moonraker.sql"
 TMP_SQL_DIR = "/tmp/coinbase_ml/docker-entrypoint-initdb.d"
 
 
-EXCHANGE = Exchange(
-    end_dt=EXCHANGE_END_DT,
-    product_id=PRODUCT_ID,
-    start_dt=EXCHANGE_START_DT,
-    time_delta=EXCHANGE_TIME_DELTA,
-    reward_strategy=REWARD_STRATEGY,
-    actionizer=ACTIONIZER,
-    test_mode=True,
-)
+EXCHANGE = Exchange(test_mode=True,)

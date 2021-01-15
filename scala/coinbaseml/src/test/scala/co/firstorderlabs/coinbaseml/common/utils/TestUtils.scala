@@ -2,11 +2,16 @@ package co.firstorderlabs.coinbaseml.common.utils
 
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.buyMarketOrderRequest
-import co.firstorderlabs.coinbaseml.fakebase.{Account, Exchange}
+import co.firstorderlabs.coinbaseml.fakebase.{
+  Account,
+  Exchange,
+  SimulationMetadata
+}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.protos.events.OrderSide
 import co.firstorderlabs.common.protos.fakebase.StepRequest
+import co.firstorderlabs.common.types.Types.SimulationId
 import org.scalactic.TolerantNumerics
 
 import scala.annotation.tailrec
@@ -24,7 +29,7 @@ object TestUtils {
   implicit class OrderSideUtils(orderside: OrderSide) {
     def getOppositeSide: OrderSide = {
       orderside match {
-        case OrderSide.buy => OrderSide.sell
+        case OrderSide.buy  => OrderSide.sell
         case OrderSide.sell => OrderSide.buy
       }
     }
@@ -48,34 +53,42 @@ object TestUtils {
     }
   }
 
-  def advanceExchange: Unit = {
+  def advanceExchange(implicit simulationMetadata: SimulationMetadata): Unit = {
     Exchange step StepRequest(
       insertOrders = OrdersData.insertSellOrders(
         new ProductPrice(Right("100.00")),
         new ProductVolume(Right("0.5"))
-      ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00")))
+      ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00"))),
+      simulationId = Some(simulationMetadata.simulationId)
     )
   }
 
-  def advanceExchangeAndPlaceOrders: Unit = {
+  def advanceExchangeAndPlaceOrders(implicit
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
     Exchange step StepRequest(
       insertOrders = OrdersData.insertSellOrders(
         new ProductPrice(Right("100.00")),
         new ProductVolume(Right("0.5"))
-      ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00")))
+      ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00"))),
+      simulationId = Some(simulationMetadata.simulationId)
     )
 
-    Account.placeBuyMarketOrder(buyMarketOrderRequest)
+    Account.placeBuyMarketOrder(buyMarketOrderRequest(simulationMetadata.simulationId))
 
     Exchange step StepRequest(
       insertOrders = OrdersData.insertSellOrders(
         new ProductPrice(Right("100.00")),
         new ProductVolume(Right("0.5"))
-      ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00")))
+      ) ++ OrdersData.insertBuyOrders(new ProductPrice(Right("100.00"))),
+      simulationId = Some(simulationMetadata.simulationId)
     )
 
-    Account.placeBuyMarketOrder(buyMarketOrderRequest)
+    Account.placeBuyMarketOrder(buyMarketOrderRequest(simulationMetadata.simulationId))
   }
+
+  def buildStepRequest(simulationId: SimulationId): StepRequest =
+    StepRequest(simulationId = Some(simulationId))
 
   def mean(x: List[Double]): Double =
     if (x.size > 0)

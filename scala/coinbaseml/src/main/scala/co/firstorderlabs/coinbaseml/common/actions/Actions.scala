@@ -10,6 +10,7 @@ import co.firstorderlabs.common.protos.events.{BuyLimitOrder, Order, OrderSide, 
 import co.firstorderlabs.common.protos.fakebase.{BuyLimitOrderRequest, BuyMarketOrderRequest, SellLimitOrderRequest, SellMarketOrderRequest}
 import co.firstorderlabs.common.types.Events
 import co.firstorderlabs.common.types.Events.OrderEvent
+import co.firstorderlabs.common.types.Types.SimulationId
 import scalapb.GeneratedMessage
 import scalapb.lenses.Updatable
 
@@ -25,6 +26,7 @@ object Actions {
       size: ProductVolume,
       side: OrderSide,
       timeToLive: Duration,
+      simulationId: SimulationId,
       postOnly: Boolean = false
   ) extends Action {
     override def execute: Option[OrderEvent] = {
@@ -39,7 +41,8 @@ object Actions {
             ProductPrice.productId,
             size,
             postOnly,
-            Some(timeToLive)
+            Some(timeToLive),
+            Some(simulationId),
           )
           Account.placeBuyLimitOrder(buyLimitOrderRequest)
         }
@@ -49,7 +52,8 @@ object Actions {
             ProductPrice.productId,
             size,
             postOnly,
-            Some(timeToLive)
+            Some(timeToLive),
+            Some(simulationId),
           )
           Account.placeSellLimitOrder(sellLimitOrderRequest)
         }
@@ -59,11 +63,11 @@ object Actions {
     }
   }
 
-  final case class BuyMarketOrderTransaction(funds: QuoteVolume) extends Action {
+  final case class BuyMarketOrderTransaction(funds: QuoteVolume, simulationId: SimulationId) extends Action {
     override def execute: Option[OrderEvent] =
       getResultOptional(
         Account.placeBuyMarketOrder(
-          BuyMarketOrderRequest(funds, ProductPrice.productId)
+          BuyMarketOrderRequest(funds, ProductPrice.productId, Some(simulationId))
         )
       )
   }
@@ -72,11 +76,11 @@ object Actions {
     override def execute: Option[OrderEvent] = None
   }
 
-  final case class SellMarketOrderTransaction(size: ProductVolume) extends Action {
+  final case class SellMarketOrderTransaction(size: ProductVolume, simulationId: SimulationId) extends Action {
     override def execute: Option[OrderEvent] =
       getResultOptional(
         Account.placeSellMarketOrder(
-          SellMarketOrderRequest(ProductPrice.productId, size)
+          SellMarketOrderRequest(ProductPrice.productId, size, Some(simulationId))
         )
       )
   }

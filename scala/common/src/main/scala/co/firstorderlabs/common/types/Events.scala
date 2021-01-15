@@ -8,12 +8,14 @@ import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, Qu
 import co.firstorderlabs.common.currency.Constants
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, DoneReason, Liquidity, Match, MatchEvents, Order, OrderSide, OrderStatus, RejectReason, SellLimitOrder, SellMarketOrder, Cancellation => CancellationProto, Event => EventProto}
 import co.firstorderlabs.common.protos.fakebase.OrderType
-import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, ProductId, TimeInterval, TradeId}
+import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, ProductId, SimulationId, TimeInterval, TradeId}
 
 import scala.jdk.CollectionConverters._
 
 object Events {
-  trait OrderRequest
+  trait OrderRequest {
+    val simulationId: Option[SimulationId]
+  }
 
   trait BuyOrderRequest extends OrderRequest
 

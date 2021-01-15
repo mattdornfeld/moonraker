@@ -1,7 +1,9 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-final case class StepProgressLogger(task: String, maxSteps: Long) {
+object StepProgressLogger {
   private def render(
+      taskName: String,
+      maxSteps: Long,
       currentStep: Long,
       portfolioValue: Option[Double],
       stepDuration: Option[Double] = None,
@@ -12,7 +14,7 @@ final case class StepProgressLogger(task: String, maxSteps: Long) {
       eventsPerMilliSecond: Option[Double] = None
   ): Unit = {
     println(
-      s"${task}: ${currentStep} / ${maxSteps} steps (" +
+      s"${taskName}: ${currentStep} / ${maxSteps} steps (" +
         s"portfolioValue = ${portfolioValue.getOrElse("")}, " +
         s"stepDuration = ${stepDuration.getOrElse("")} ms, " +
         s"dataGetDuration = ${dataGetDuration.getOrElse("")} ms, " +
@@ -23,19 +25,35 @@ final case class StepProgressLogger(task: String, maxSteps: Long) {
     )
   }
 
+  def reset(implicit
+            matchingEngineState: MatchingEngineState,
+            simulationMetadata: SimulationMetadata
+  ): Unit = {
+    render(
+      simulationMetadata.taskName,
+      simulationMetadata.numSteps,
+      simulationMetadata.currentStep,
+      matchingEngineState.currentPortfolioValue
+    )
+  }
+
   def step(
-      currentStep: Long,
       stepDuration: Double,
       dataGetDuration: Double,
       matchingEngineDuration: Double,
       environmentDuration: Double,
-      numEvents: Int,
+      numEvents: Int
+  )(implicit
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
   ): Unit = {
     val eventsPerMillSecond =
       if (stepDuration > 0) numEvents / stepDuration else 0L
     render(
-      currentStep,
-      MatchingEngine.currentPortfolioValue,
+      simulationMetadata.taskName,
+      simulationMetadata.numSteps,
+      simulationMetadata.currentStep,
+      matchingEngineState.currentPortfolioValue,
       Some(stepDuration),
       Some(dataGetDuration),
       Some(matchingEngineDuration),
@@ -43,9 +61,5 @@ final case class StepProgressLogger(task: String, maxSteps: Long) {
       Some(numEvents),
       Some(eventsPerMillSecond)
     )
-  }
-
-  def resetTo(stepNum: Long): Unit = {
-    render(stepNum, MatchingEngine.currentPortfolioValue)
   }
 }

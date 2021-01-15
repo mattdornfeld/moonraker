@@ -3,7 +3,7 @@ package co.firstorderlabs.coinbaseml.common.utils
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.channels.Channels
 
-import co.firstorderlabs.coinbaseml.fakebase.Exchange
+import co.firstorderlabs.coinbaseml.fakebase.SimulationMetadata
 import co.firstorderlabs.common.protos.environment.Features
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.message.IpcOption
@@ -19,16 +19,16 @@ object ArrowUtils {
   private val allocator = new RootAllocator()
   private val socketDir = "/tmp/moonraker/coinbaseml/arrow_sockets"
 
-  def fromArrowSockets(): Features =
+  def fromArrowSockets(implicit simulationMetadata: SimulationMetadata): Features =
     new Features(
       readVectorFromSocket(new File(socketFileDir, "account.socket")),
       readVectorFromSocket(new File(socketFileDir, "orderBook.socket")),
       readVectorFromSocket(new File(socketFileDir, "timeSeries.socket"))
     )
 
-  def socketFileDir: File = {
+  def socketFileDir(implicit simulationMetadata: SimulationMetadata): File = {
     val file = new File(
-      s"${socketDir}/${Exchange.getSimulationMetadata.simulationId}"
+      s"${socketDir}/${simulationMetadata.simulationId.simulationId}"
     )
     file.deleteOnExit
     file
@@ -47,7 +47,7 @@ object ArrowUtils {
   }
 
   implicit class ArrowFeatureUtils(features: Features) {
-    def writeToSockets: Unit = {
+    def writeToSockets(implicit simulationMetadata: SimulationMetadata): Unit = {
       if (!socketFileDir.exists) {
         socketFileDir.mkdirs
       }

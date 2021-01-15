@@ -19,6 +19,7 @@ import co.firstorderlabs.common.protos.fakebase.{
 }
 import co.firstorderlabs.common.types.Events.{SellOrderEvent, _}
 
+import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
 final case class Wallet[A <: Volume[A]](
@@ -47,22 +48,56 @@ final case class Wallet[A <: Volume[A]](
   }
 }
 
-final case class WalletsSnapshot(
-    walletsMap: Map[Currency, Wallets.GenericWallet]
-) extends Snapshot
+final case class WalletsState(
+    walletsMap: Wallets.WalletMap
+) extends State[WalletsState] {
+  override val companion = WalletsState
 
-object Wallets extends Snapshotable[WalletsSnapshot] {
+  override def createSnapshot(implicit
+      simulationMetadata: SimulationMetadata
+  ): WalletsState = {
+    val walletMap: Wallets.WalletMap = HashMap(
+      ProductVolume.currency -> getWallet(ProductVolume).clone,
+      QuoteVolume.currency -> getWallet(QuoteVolume).clone
+    )
+    WalletsState(walletMap)
+  }
+
+  def getWallet[A <: Volume[A]](volume: VolumeCompanion[A]): Wallet[A] = {
+    walletsMap(volume.currency).asInstanceOf[Wallet[A]]
+  }
+}
+
+object WalletsState extends StateCompanion[WalletsState] {
+  override def create(implicit
+      simulationMetadata: SimulationMetadata
+  ): WalletsState =
+    WalletsState(new mutable.HashMap)
+
+  override def fromSnapshot(snapshot: WalletsState): WalletsState = {
+    val walletsState = WalletsState(new mutable.HashMap)
+    snapshot.walletsMap.foreach(item =>
+      walletsState.walletsMap.put(item._1, item._2.clone)
+    )
+    walletsState
+  }
+}
+
+object Wallets {
   type GenericWallet = Wallet[_ >: ProductVolume with QuoteVolume <: Volume[
     _ >: ProductVolume with QuoteVolume
   ]]
-  type WalletMap = HashMap[Currency, GenericWallet]
-  private val walletsMap: WalletMap = new HashMap
+  type WalletMap = HashMap[Currency.Recognized, GenericWallet]
 
-  def addFunds[A <: Volume[A]](volume: A): Unit = {
+  def addFunds[A <: Volume[A]](
+      volume: A
+  )(implicit walletsState: WalletsState): Unit = {
     getWallet(volume.companion).balance += volume
   }
 
-  def calcRequiredBuyHold(order: BuyOrderEvent): QuoteVolume = {
+  def calcRequiredBuyHold(
+      order: BuyOrderEvent
+  )(implicit matchingEngineState: MatchingEngineState): QuoteVolume = {
     order match {
       case order: BuyLimitOrder => {
         val feeFraction =
@@ -78,24 +113,17 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
     }
   }
 
-  def createSnapshot: WalletsSnapshot = {
-    val walletMap: Map[Currency, GenericWallet] = Map(
-      ProductVolume.currency -> getWallet(ProductVolume).clone,
-      QuoteVolume.currency -> getWallet(QuoteVolume).clone
-    )
-    WalletsSnapshot(walletMap)
-  }
-
-  def clear: Unit = walletsMap.clear
-
   def getAvailableFunds[A <: Volume[A]](
       volume: VolumeCompanion[A]
-  ): Volume[A] = {
+  )(implicit walletsState: WalletsState): Volume[A] = {
     val wallet = getWallet(volume)
     wallet.balance - wallet.holds
   }
 
-  def incrementHolds(order: OrderEvent): Unit = {
+  def incrementHolds(order: OrderEvent)(implicit
+      matchingEngineState: MatchingEngineState,
+      walletsState: WalletsState
+  ): Unit = {
     order match {
       case order: BuyOrderEvent => {
         val wallet = getWallet(QuoteVolume)
@@ -113,7 +141,9 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
     }
   }
 
-  def initializeWallets: Unit = {
+  def initializeWallets(implicit walletsState: WalletsState): Unit = {
+    val walletsMap = walletsState.walletsMap
+
     walletsMap(ProductVolume.currency) = Wallet(
       UUID.randomUUID().toString,
       ProductVolume,
@@ -128,11 +158,9 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
     )
   }
 
-  def isCleared: Boolean = {
-    walletsMap.isEmpty
-  }
-
-  def updateBalances(matchEvent: MatchEvent): Unit = {
+  def updateBalances(
+      matchEvent: MatchEvent
+  )(implicit walletsState: WalletsState): Unit = {
     val productWallet = getWallet(ProductVolume)
     val quoteWallet = getWallet(QuoteVolume)
     matchEvent.getAccountOrder.get match {
@@ -153,11 +181,14 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
     }
   }
 
-  def getWallet[A <: Volume[A]](volume: VolumeCompanion[A]): Wallet[A] = {
-    walletsMap(volume.currency).asInstanceOf[Wallet[A]]
-  }
+  def getWallet[A <: Volume[A]](
+      volume: VolumeCompanion[A]
+  )(implicit walletsState: WalletsState): Wallet[A] =
+    walletsState.getWallet(volume)
 
-  def removeHolds(order: OrderEvent): Unit = {
+  def removeHolds(
+      order: OrderEvent
+  )(implicit walletsState: WalletsState): Unit = {
     order match {
       case order: BuyOrderEvent => {
         val wallet = getWallet(QuoteVolume)
@@ -174,12 +205,7 @@ object Wallets extends Snapshotable[WalletsSnapshot] {
     }
   }
 
-  def restore(snapshot: WalletsSnapshot): Unit = {
-    clear
-    snapshot.walletsMap.foreach(item => walletsMap.put(item._1, item._2.clone))
-  }
-
-  def toProto: WalletsProto =
+  def toProto(implicit walletsState: WalletsState): WalletsProto =
     WalletsProto(
       Map(
         ProductVolume.currency.name -> getWallet(ProductVolume).toProto,

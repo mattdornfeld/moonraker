@@ -2,7 +2,7 @@
  [summary]
 """
 from dataclasses import dataclass
-from typing import Deque, List
+from typing import Deque, List, NewType
 
 import numpy as np
 
@@ -28,3 +28,4 @@ class StateAtTime:
 
 
 StateBuffer = Deque[StateAtTime]
+SimulationId = NewType("SimulationId", str)

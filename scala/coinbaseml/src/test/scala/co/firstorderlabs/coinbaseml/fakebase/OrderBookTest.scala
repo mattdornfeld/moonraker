@@ -3,6 +3,7 @@ package co.firstorderlabs.coinbaseml.fakebase
 import java.time.Instant
 
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.SeqUtils
+import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData._
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData
 import co.firstorderlabs.coinbaseml.fakebase.utils.DuplicateKey
@@ -106,61 +107,69 @@ class PriceGlobTest extends AnyFunSpec {
 class OrderBookTest extends AnyFunSpec {
 
   Configs.testMode = true
-  val orderBook = new OrderBook
-  Exchange.start(RequestsData.simulationStartRequest)
+  val simulationId = getResult(Exchange.start(RequestsData.simulationStartRequest)).simulationId.get
+  implicit val simulationMetadata = SimulationState.getSimulationMetadataOrFail(simulationId)
 
   describe("OrderBook") {
     it("should do the following when empty") {
-      assert(orderBook.minOrder.isEmpty)
-      assert(orderBook.maxOrder.isEmpty)
-      assert(orderBook.minPrice.isEmpty)
-      assert(orderBook.maxPrice.isEmpty)
-      assert(orderBook.isEmpty)
+      implicit val buyOrderBookState = BuyOrderBookState.create
+      implicit val sellOrderBookState = SellOrderBookState.create
+      assert(OrderBook.minOrder.isEmpty)
+      assert(OrderBook.maxOrder.isEmpty)
+      assert(OrderBook.minPrice.isEmpty)
+      assert(OrderBook.maxPrice.isEmpty)
+      assert(OrderBook.isEmpty(buyOrderBookState))
+      assert(OrderBook.isEmpty(sellOrderBookState))
     }
 
     it("should be able to do the following when one order is added") {
+      implicit val buyOrderBookState = BuyOrderBookState.create
       val orderBookKey = OrderBook.getOrderBookKey(lowerOrder)
-      orderBook.update(orderBookKey, lowerOrder)
+      OrderBook.update(orderBookKey, lowerOrder)
       assert(
-        orderBook.getOrderByOrderBookKey(orderBookKey).get equalTo lowerOrder
+        OrderBook.getOrderByOrderBookKey(orderBookKey).get equalTo lowerOrder
       )
       assert(
-        orderBook.getOrderByOrderId(lowerOrder.orderId).get equalTo lowerOrder
+        OrderBook.getOrderByOrderId(lowerOrder.orderId).get equalTo lowerOrder
       )
-      assert(orderBook.maxOrder.get equalTo lowerOrder)
-      assert(orderBook.minOrder.get equalTo lowerOrder)
-      assert(orderBook.maxPrice.get equalTo lowerOrder.price)
-      assert(orderBook.minPrice.get equalTo lowerOrder.price)
-      assert(!orderBook.isEmpty)
-      assert(orderBook.removeByKey(orderBookKey).get equalTo lowerOrder)
+      assert(OrderBook.bestOrder.get equalTo lowerOrder)
+      assert(OrderBook.bestPrice.get equalTo lowerOrder.price)
+      assert(!OrderBook.isEmpty)
+      assert(OrderBook.removeByKey(orderBookKey).get equalTo lowerOrder)
     }
 
     it("should be able to do the following when two orders are added") {
-      orderBook.update(OrderBook.getOrderBookKey(lowerOrder), lowerOrder)
-      orderBook.update(OrderBook.getOrderBookKey(higherOrder), higherOrder)
-      assert(orderBook.maxOrder.get equalTo higherOrder)
-      assert(orderBook.minOrder.get equalTo lowerOrder)
-      assert(orderBook.maxPrice.get equalTo higherOrder.price)
-      assert(orderBook.minPrice.get equalTo lowerOrder.price)
-      assert(!orderBook.isEmpty)
-      assert(
-        orderBook.removeByOrderId(lowerOrder.orderId).get equalTo lowerOrder
-      )
-      assert(
-        orderBook.removeByOrderId(higherOrder.orderId).get equalTo higherOrder
-      )
+        implicit val buyOrderBookState = BuyOrderBookState.create
+        OrderBook.update(OrderBook.getOrderBookKey(lowerOrder), lowerOrder)
+        OrderBook.update(OrderBook.getOrderBookKey(higherOrder), higherOrder)
+        assert(OrderBook.maxOrder.get equalTo higherOrder)
+        assert(OrderBook.iterator.toList.head._2 equalTo lowerOrder)
+        assert(OrderBook.maxPrice.get equalTo higherOrder.price)
+        assert(OrderBook.iterator.toList.head._2.price equalTo lowerOrder.price)
+        assert(!OrderBook.isEmpty)
+        assert(
+          OrderBook.removeByOrderId(lowerOrder.orderId).get equalTo lowerOrder
+        )
+        assert(
+          OrderBook
+            .removeByOrderId(higherOrder.orderId)
+            .get equalTo higherOrder
+        )
     }
 
     it(
       "The aggregateToMap method should return the same result before and after a snapshot is restored. This is a sign" +
         "that the restore functioned correctly."
     ) {
-      val orderBook = new OrderBook
-      orderBook.update(OrderBook.getOrderBookKey(lowerOrder), lowerOrder)
-      orderBook.update(OrderBook.getOrderBookKey(higherOrder), higherOrder)
-      val expectedAggregatedMap = orderBook.aggregateToMap(2)
-      orderBook.restore(orderBook.createSnapshot)
-      val aggregatedMap = orderBook.aggregateToMap(2)
+      val simulationId = getResult(Exchange.start(RequestsData.simulationStartRequest)).simulationId.get
+      implicit val simulationMetadata = SimulationState.getSimulationMetadataOrFail(simulationId)
+      val buyOrderBookState = SimulationState.getOrFail(simulationId).matchingEngineState.buyOrderBookState
+      OrderBook.update(OrderBook.getOrderBookKey(lowerOrder), lowerOrder)(buyOrderBookState)
+      OrderBook.update(OrderBook.getOrderBookKey(higherOrder), higherOrder)(buyOrderBookState)
+      val expectedAggregatedMap = OrderBook.aggregateToMap(2)(buyOrderBookState)
+      SimulationState.restore(simulationId)
+      val restoredBuyOrderBookState = SimulationState.getOrFail(simulationId).matchingEngineState.buyOrderBookState
+      val aggregatedMap = OrderBook.aggregateToMap(2)(restoredBuyOrderBookState)
 
       assert(expectedAggregatedMap == aggregatedMap)
     }

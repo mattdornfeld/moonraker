@@ -1,9 +1,8 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.OrderSideUtils
-import co.firstorderlabs.coinbaseml.common.utils.Utils.When
+import co.firstorderlabs.coinbaseml.common.utils.Utils.{When, getResult}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData
-import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.simulationStartRequest
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
@@ -17,11 +16,14 @@ class MatchingEngineTest extends AnyFunSpec {
 
   val buyOrderEvents =
     List[Event](TestData.OrdersData.higherOrder, TestData.OrdersData.lowerOrder)
-  val buyOrderEventsWithCancellation = List[Event](
-    TestData.OrdersData.higherOrder,
-    TestData.OrdersData.lowerOrder,
-    TestData.OrdersData.cancellation
-  )
+  def buyOrderEventsWithCancellation(implicit
+      simulationMetadata: SimulationMetadata
+  ) =
+    List[Event](
+      TestData.OrdersData.higherOrder,
+      TestData.OrdersData.lowerOrder,
+      TestData.OrdersData.cancellation
+    )
   val buyOrderEventsAndTakerOrder = List[Event](
     TestData.OrdersData.higherOrder,
     TestData.OrdersData.lowerOrder,
@@ -30,32 +32,28 @@ class MatchingEngineTest extends AnyFunSpec {
 
   describe("MatchingEngine") {
     it("should do the following when buy orders are added") {
-      Exchange.start(RequestsData.simulationStartRequest)
+      val simulationId = getResult(
+        Exchange.start(RequestsData.simulationStartRequest)
+      ).simulationId.get
+      val simulationState = SimulationState.getOrFail(simulationId)
+      implicit val accountState = simulationState.accountState
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      implicit val simulationMetadata = simulationState.simulationMetadata
+      implicit val buyOrderBookState = matchingEngineState.buyOrderBookState
       MatchingEngine.processEvents(buyOrderEvents)
+      println(OrderBook.maxOrder)
 
       assert(
-        MatchingEngine
-          .orderBooks(OrderSide.buy)
-          .maxOrder
-          .get equalTo TestData.OrdersData.higherOrder
+        OrderBook.maxOrder.get equalTo TestData.OrdersData.higherOrder
       )
       assert(
-        MatchingEngine
-          .orderBooks(OrderSide.buy)
-          .minOrder
-          .get equalTo TestData.OrdersData.lowerOrder
+        OrderBook.iterator.toList.head._2 equalTo TestData.OrdersData.lowerOrder
       )
       assert(
-        MatchingEngine
-          .orderBooks(OrderSide.buy)
-          .maxPrice
-          .get equalTo TestData.OrdersData.higherOrder.price
+        OrderBook.maxPrice.get equalTo TestData.OrdersData.higherOrder.price
       )
       assert(
-        MatchingEngine
-          .orderBooks(OrderSide.buy)
-          .minPrice
-          .get equalTo TestData.OrdersData.lowerOrder.price
+        OrderBook.iterator.toList.head._2.price equalTo TestData.OrdersData.lowerOrder.price
       )
       assert(MatchingEngine.checkIsTaker(TestData.OrdersData.takerSellOrder))
     }
@@ -63,28 +61,39 @@ class MatchingEngineTest extends AnyFunSpec {
     it(
       "should do the following when buy orders are added and one is cancelled"
     ) {
-      Exchange.start(RequestsData.simulationStartRequest)
+      val simulationId = getResult(
+        Exchange.start(RequestsData.simulationStartRequest)
+      ).simulationId.get
+      val simulationState = SimulationState.getOrFail(simulationId)
+      implicit val accountState = simulationState.accountState
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      implicit val simulationMetadata = simulationState.simulationMetadata
+      implicit val buyOrderBookState = matchingEngineState.buyOrderBookState
+
       MatchingEngine.processEvents(buyOrderEventsWithCancellation)
       assert(
-        MatchingEngine
-          .orderBooks(OrderSide.buy)
-          .maxOrder
-          .get equalTo TestData.OrdersData.lowerOrder
+        OrderBook.maxOrder.get equalTo TestData.OrdersData.lowerOrder
       )
       assert(
-        MatchingEngine
-          .orderBooks(OrderSide.buy)
-          .minOrder
-          .get equalTo TestData.OrdersData.lowerOrder
+        OrderBook.iterator.toList.head._2 equalTo TestData.OrdersData.lowerOrder
       )
     }
 
     it(
       "should do the following when buy orders are added and a sell order is matched"
     ) {
-      Exchange.start(RequestsData.simulationStartRequest)
+      val simulationId = getResult(
+        Exchange.start(RequestsData.simulationStartRequest)
+      ).simulationId.get
+      val simulationState = SimulationState.getOrFail(simulationId)
+      implicit val accountState = simulationState.accountState
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      implicit val simulationMetadata = simulationState.simulationMetadata
+      implicit val buyOrderBookState = matchingEngineState.buyOrderBookState
+      implicit val sellOrderBookState = matchingEngineState.sellOrderBookState
+
       MatchingEngine.processEvents(buyOrderEventsAndTakerOrder)
-      val matchEvent = MatchingEngine.matches(0)
+      val matchEvent = matchingEngineState.matches(0)
       assert(matchEvent.price equalTo TestData.OrdersData.higherOrder.price)
       assert(matchEvent.size equalTo TestData.OrdersData.higherOrder.size)
       assert(
@@ -107,7 +116,14 @@ class MatchingEngineTest extends AnyFunSpec {
       "Successively cancel best maker order to ensure next best maker order is the expected one."
     ) {
       List(OrderSide.buy, OrderSide.sell).foreach { orderSide =>
-        Exchange.start(simulationStartRequest)
+        val simulationId = getResult(
+          Exchange.start(RequestsData.simulationStartRequest)
+        ).simulationId.get
+        val simulationState = SimulationState.getOrFail(simulationId)
+        implicit val accountState = simulationState.accountState
+        implicit val matchingEngineState = simulationState.matchingEngineState
+        implicit val simulationMetadata = simulationState.simulationMetadata
+
         val receivedOrders = TestUtils
           .generateOrdersForRangeOfPrices(
             new ProductPrice(Right("1.00")),
@@ -115,7 +131,7 @@ class MatchingEngineTest extends AnyFunSpec {
             new ProductPrice(Right("910.00")),
             orderSide,
             new ProductVolume(Right("1.00")),
-            Exchange.getSimulationMetadata.currentTimeInterval.endTime
+            simulationMetadata.currentTimeInterval.endTime
           )
           .asInstanceOf[List[LimitOrderEvent]]
 
@@ -127,12 +143,15 @@ class MatchingEngineTest extends AnyFunSpec {
           .toList
           .when(orderSide.isbuy)(_.reverse)
 
+        implicit val makerOrderBookState =
+          matchingEngineState.getOrderBookState(orderSide)
         openOrders.foreach { expectedBestOrder =>
           assert(
             expectedBestOrder equalTo MatchingEngine
-              .getBestMakerOrder(orderSide.getOppositeSide)
+              .getBestMakerOrder(makerOrderBookState)
               .get
           )
+
           val cancelledOrder = MatchingEngine.cancelOrder(expectedBestOrder)
           assert(cancelledOrder.orderStatus.isdone)
         }

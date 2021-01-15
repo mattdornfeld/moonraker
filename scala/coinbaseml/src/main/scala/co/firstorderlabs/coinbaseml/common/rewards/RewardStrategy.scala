@@ -1,6 +1,6 @@
 package co.firstorderlabs.coinbaseml.common.rewards
 
-import co.firstorderlabs.coinbaseml.fakebase.MatchingEngine
+import co.firstorderlabs.coinbaseml.fakebase.{MatchingEngine, MatchingEngineState, SimulationState}
 
 /** RewardStrategy is a base trait for all reward strategies
   */
@@ -11,20 +11,20 @@ trait RewardStrategy {
     *
     * @return
     */
-  def calcMidPrice: Double = MatchingEngine.calcMidPrice
+  def calcMidPrice(implicit matchingEngineState: MatchingEngineState): Double = MatchingEngine.calcMidPrice
 
   /** All RewardStrategy objects must implement this method
     *
     * @return
     */
-  def calcReward: Double
+  def calcReward(implicit simulationState: SimulationState): Double
 
-  def currentPortfolioValue: Double = MatchingEngine.currentPortfolioValue match {
+  def currentPortfolioValue(implicit matchingEngineState: MatchingEngineState): Double = matchingEngineState.currentPortfolioValue match {
     case Some(currentPortfolioValue) => currentPortfolioValue
     case None => throw new IllegalStateException
   }
 
-  protected def previousPortfolioValue: Double = MatchingEngine.previousPortfolioValue match {
+  protected def previousPortfolioValue(implicit matchingEngineState: MatchingEngineState): Double = matchingEngineState.previousPortfolioValue match {
     case Some(previousPortfolioValue) => previousPortfolioValue
     case None => throw new IllegalStateException
   }

@@ -2,6 +2,7 @@
  [summary]
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
 from math import inf
 from typing import Optional, NamedTuple, Tuple
@@ -10,6 +11,7 @@ import numpy as np
 from gym.spaces import Box
 from gym.spaces import Tuple as TupleSpace
 
+import coinbase_ml.common.types
 from coinbase_ml.common import constants as c
 from coinbase_ml.common.protos.environment_pb2 import Observation as ObservationProto
 from coinbase_ml.common.utils.arrow_utils import read_from_arrow_socket
@@ -55,7 +57,9 @@ class Observation(NamedTuple):
         )
 
     @staticmethod
-    def from_arrow_sockets(simulation_id: str) -> Observation:
+    def from_arrow_sockets(
+        simulation_id: coinbase_ml.common.types.SimulationId,
+    ) -> Observation:
         """Reconstructs the latest observation for the current simulation from an Arrow socket
         """
         arrow_sockets_dir = c.ARROW_SOCKETS_BASE_DIR / simulation_id
