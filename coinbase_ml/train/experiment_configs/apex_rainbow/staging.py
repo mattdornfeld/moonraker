@@ -42,7 +42,7 @@ def build_common_configs(
         "num_cpus_per_worker": 4,
         "num_gpus": c.NUM_GPUS,
         "num_workers": train_environment_configs["num_actors"],
-        "train_batch_size": 2 ** 7,
+        "train_batch_size": 2 ** 8,
     }
 
 
@@ -60,8 +60,8 @@ def build_apex_configs(train_environment_configs: dict) -> dict:
             "num_replay_buffer_shards": 2,
             "debug": False,
         },
-        "buffer_size": 150000,
-        "learning_starts": 20000,
+        "buffer_size": 200000,
+        "learning_starts": 40000,
         "rollout_fragment_length": 10,
         "timesteps_per_iteration": _train_environment_configs.timesteps_per_iteration,
         "worker_side_prioritization": True,
@@ -80,8 +80,8 @@ def build_rainbow_configs(
     )
     return {
         "num_atoms": 51,
-        "v_min": -1.0,
-        "v_max": 1.0,
+        "v_min": -5.0,
+        "v_max": 5.0,
         "noisy": True,
         "sigma0": 0.5,
         "dueling": True,
@@ -100,7 +100,7 @@ def build_rainbow_configs(
         "final_prioritized_replay_beta": 1.0,
         "prioritized_replay_beta_annealing_timesteps": num_train_iterations
         * _train_environment_configs.timesteps_per_iteration,
-        "prioritized_replay_eps": 0.0,
+        "prioritized_replay_eps": 1e-6,
         "target_network_update_freq": 0,
     }
 
@@ -133,7 +133,7 @@ def apex_rainbow_staging():
     initial_product_funds = "0.000000"
     initial_quote_funds = "10000.00"
     num_warmup_time_steps = 100
-    num_train_iterations = 15
+    num_train_iterations = 30
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
     test_end_dt = "2020-11-20 12:00:00.00"
