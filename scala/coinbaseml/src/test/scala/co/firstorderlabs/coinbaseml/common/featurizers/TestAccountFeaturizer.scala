@@ -2,7 +2,7 @@ package co.firstorderlabs.coinbaseml.common.featurizers
 
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{When, getResult}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
-import co.firstorderlabs.coinbaseml.fakebase.{Account, Configs, Exchange}
+import co.firstorderlabs.coinbaseml.fakebase.{Account, Configs, Exchange, SimulationState}
 import org.scalatest.funspec.AnyFunSpec
 
 class TestAccountFeaturizer extends AnyFunSpec {
@@ -12,7 +12,8 @@ class TestAccountFeaturizer extends AnyFunSpec {
     it(
       "The AccountFeaturizer should return a feature vector of the form (quote_balance, quote_holds, product_balance, product_holds"
     ) {
-      Exchange.start(simulationStartRequest)
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
       List(observationRequest, normalizeObservationRequest).foreach { request =>
         val accountFeatures = AccountFeaturizer.construct(request)
         val expectedAccountFeatures = List(
@@ -32,10 +33,11 @@ class TestAccountFeaturizer extends AnyFunSpec {
     it(
       "When orders are put on the order book the holds should appear in the feature vector returned from AccountFeaturizer"
     ) {
-      Exchange.start(simulationStartRequest)
-      val buyOrder = getResult(Account.placeBuyLimitOrder(buyLimitOrderRequest))
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+      val buyOrder = getResult(Account.placeBuyLimitOrder(buyLimitOrderRequest(simulationInfo.simulationId.get)))
       val sellOrder =
-        getResult(Account.placeSellLimitOrder(sellLimitOrderRequest))
+        getResult(Account.placeSellLimitOrder(sellLimitOrderRequest(simulationInfo.simulationId.get)))
       List(observationRequest, normalizeObservationRequest).foreach { request =>
         val accountFeatures = AccountFeaturizer.construct(request)
         val expectedAccountFeatures = List(

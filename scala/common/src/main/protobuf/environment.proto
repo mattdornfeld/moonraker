@@ -2,7 +2,6 @@ syntax = "proto3";
 
 import "events.proto";
 
-import "google/protobuf/empty.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -45,7 +44,7 @@ enum RewardStrategy {
 service EnvironmentService {
     rpc executeAction (ActionRequest) returns (Order) {
     }
-    rpc getInfoDict (google.protobuf.Empty) returns (InfoDictProto) {
+    rpc getInfoDict (SimulationId) returns (InfoDictProto) {
     }
     rpc getObservation (ObservationRequest) returns (Observation) {
     }
@@ -56,6 +55,7 @@ service EnvironmentService {
 message ActionRequest {
     repeated double actorOutput = 1;
     Actionizer actionizer = 2;
+    SimulationId simulationId = 4;
 }
 
 message InfoDictProto {
@@ -67,6 +67,7 @@ message ObservationRequest {
     int32 orderBookDepth = 1;
     bool normalize = 2;
     RewardRequest rewardRequest = 3;
+    SimulationId simulationId = 4;
 }
 
 message Features {
@@ -84,6 +85,7 @@ message Observation {
 
 message RewardRequest {
     RewardStrategy rewardStrategy = 1;
+    SimulationId simulationId = 2;
 }
 
 message Reward {

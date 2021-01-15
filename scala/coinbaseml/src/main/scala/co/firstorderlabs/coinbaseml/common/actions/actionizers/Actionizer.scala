@@ -3,15 +3,19 @@ package co.firstorderlabs.coinbaseml.common.actions.actionizers
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{Action, NoTransaction}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.Interval.IntervalType
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{DoubleUtils, Interval}
+import co.firstorderlabs.coinbaseml.fakebase.SimulationState
 
 sealed trait Actionizer {
-  def construct(actorOutput: Seq[Double]): Action
+  def construct(actorOutput: Seq[Double])(implicit simulationState: SimulationState): Action
 }
 
 object EntrySignal extends Actionizer with PositionRebalancer {
   val validEntrySignalValues = List(0, 1)
   val positionSizeFraction = 0.1
-  override def construct(actorOutput: Seq[Double]): Action = {
+  override def construct(actorOutput: Seq[Double])(implicit simulationState: SimulationState): Action = {
+    implicit val matchingEngineState = simulationState.matchingEngineState
+    implicit val simulationMetadata = simulationState.simulationMetadata
+    implicit val walletState = simulationState.accountState.walletsState
     require(actorOutput.size == 1)
     val entrySignal = actorOutput(0).toInt
     require(validEntrySignalValues.contains(entrySignal))
@@ -31,7 +35,10 @@ object EntrySignal extends Actionizer with PositionRebalancer {
   * that should be made up of the product.
   */
 object PositionSize extends Actionizer with PositionRebalancer {
-  override def construct(actorOutput: Seq[Double]): Actions.Action = {
+  override def construct(actorOutput: Seq[Double])(implicit simulationState: SimulationState): Actions.Action = {
+    implicit val matchingEngineState = simulationState.matchingEngineState
+    implicit val simulationMetadata = simulationState.simulationMetadata
+    implicit val walletState = simulationState.accountState.walletsState
     require(actorOutput.size == 1)
     val positionSizeFraction = actorOutput(0).clamp(0, 1)
     updateOpenPositions(positionSizeFraction)
@@ -53,7 +60,10 @@ object SignalPositionSize extends Actionizer with PositionRebalancer {
   val noTransactionRange = Interval(0.333, 0.667)
   val openNewPositionRange = Interval(0.667, 1)
 
-  override def construct(actorOutput: Seq[Double]): Action = {
+  override def construct(actorOutput: Seq[Double])(implicit simulationState: SimulationState): Action = {
+    implicit val matchingEngineState = simulationState.matchingEngineState
+    implicit val simulationMetadata = simulationState.simulationMetadata
+    implicit val walletState = simulationState.accountState.walletsState
     require(actorOutput.size == 2)
     val entrySignal = actorOutput.head.clamp(0, 1)
     val positionSizeFraction = actorOutput(1).clamp(0, 1)

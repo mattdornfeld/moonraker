@@ -1,12 +1,13 @@
 package co.firstorderlabs.coinbaseml.common.rewards
 
-import co.firstorderlabs.coinbaseml.fakebase.Exchange
+import co.firstorderlabs.coinbaseml.fakebase.SimulationState
 
 /** Calculates reward as currentPortfolioValue - previousPortfolioValue
   */
 object ReturnRewardStrategy extends RewardStrategy {
-  override def calcReward: Double = {
-    if (Exchange.getSimulationMetadata.currentStep >= 2) {
+  override def calcReward(implicit simulationState: SimulationState): Double = {
+    implicit val matchingEngineState = simulationState.matchingEngineState
+    if (simulationState.simulationMetadata.currentStep >= 2) {
       val _formerPreviousPortfolioValue = previousPortfolioValue
       val _currentPortfolioValue = currentPortfolioValue
       _previousPortfolioValue = Some(_currentPortfolioValue)

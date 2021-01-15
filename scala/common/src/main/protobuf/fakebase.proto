@@ -17,13 +17,13 @@ option (scalapb.options) = {
 service AccountService {
     rpc cancelOrder (CancellationRequest) returns (Cancellation) {
     }
-    rpc getAccountInfo (google.protobuf.Empty) returns (AccountInfo) {
+    rpc getAccountInfo (SimulationId) returns (AccountInfo) {
     }
-    rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
+    rpc getMatches (SimulationId) returns (MatchEvents) {
     }
-    rpc getOrders (google.protobuf.Empty) returns (Orders) {
+    rpc getOrders (SimulationId) returns (Orders) {
     }
-    rpc getWallets (google.protobuf.Empty) returns (Wallets) {
+    rpc getWallets (SimulationId) returns (Wallets) {
     }
     rpc placeBuyLimitOrder (BuyLimitOrderRequest) returns (BuyLimitOrder) {
     }
@@ -70,6 +70,7 @@ message BuyLimitOrderRequest {
     string size = 3 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     bool postOnly = 4;
     google.protobuf.Duration timeToLive = 5 [(scalapb.field).type = "java.time.Duration"];
+    SimulationId simulationId = 6 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.SimulationId"];
 }
 
 message BuyMarketOrderRequest {
@@ -78,10 +79,12 @@ message BuyMarketOrderRequest {
 
     string funds = 1 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.QuoteVolume"];
     string productId = 2 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.ProductId"];
+    SimulationId simulationId = 3 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.SimulationId"];
 }
 
 message CancellationRequest {
     string orderId = 1 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.OrderId"];
+    SimulationId simulationId = 2;
 }
 
 message SellLimitOrderRequest {
@@ -93,6 +96,7 @@ message SellLimitOrderRequest {
     string size = 3 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     bool postOnly = 4;
     google.protobuf.Duration timeToLive = 5 [(scalapb.field).type = "java.time.Duration"];
+    SimulationId simulationId = 6 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.SimulationId"];
 }
 
 message SellMarketOrderRequest {
@@ -101,6 +105,7 @@ message SellMarketOrderRequest {
 
     string productId = 1 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.ProductId"];
     string size = 2 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
+    SimulationId simulationId = 3 [(scalapb.field).type = "co.firstorderlabs.common.types.Types.SimulationId"];
 }
 
 message WalletProto {
@@ -115,23 +120,25 @@ message Wallets {
 }
 
 service ExchangeService {
-    rpc checkpoint (google.protobuf.Empty) returns (google.protobuf.Empty) {
+    rpc checkpoint (SimulationId) returns (google.protobuf.Empty) {
     }
-    rpc getExchangeInfo (google.protobuf.Empty) returns (ExchangeInfo) {
+    rpc getExchangeInfo (SimulationId) returns (ExchangeInfo) {
     }
-    rpc getMatches (google.protobuf.Empty) returns (MatchEvents) {
+    rpc getMatches (SimulationId) returns (MatchEvents) {
     }
     rpc getOrderBooks (OrderBooksRequest) returns (OrderBooks) {
     }
+    rpc getSimulationIds (google.protobuf.Empty) returns (SimulationIds) {
+    }
     rpc populateStorage (PopulateStorageRequest) returns (google.protobuf.Empty) {
     }
-    rpc reset (SimulationInfoRequest) returns (SimulationInfo) {
+    rpc reset (ObservationRequest) returns (SimulationInfo) {
     }
     rpc start (SimulationStartRequest) returns (SimulationInfo) {
     }
     rpc step (StepRequest) returns (SimulationInfo) {
     }
-    rpc stop (google.protobuf.Empty) returns (google.protobuf.Empty) {
+    rpc stop (SimulationId) returns (google.protobuf.Empty) {
     }
 }
 
@@ -139,11 +146,12 @@ message ExchangeInfo {
     string intervalStartTime = 1 [(scalapb.field).type = "java.time.Instant"];
     string intervalEndTime = 2 [(scalapb.field).type = "java.time.Instant"];
     AccountInfo accountInfo = 3;
-    string simulationId = 4;
+    SimulationId simulationId = 4;
 }
 
 message OrderBooksRequest {
     int32 orderBookDepth = 1;
+    SimulationId simulationId = 2;
 }
 
 message OrderBooks {
@@ -164,13 +172,14 @@ message PopulateStorageRequest {
     DatabaseBackend databaseBackend = 4;
 }
 
+message SimulationIds {
+    repeated SimulationId simulationIds = 1;
+}
+
 message SimulationInfo {
     ExchangeInfo exchangeInfo = 1;
     Observation observation = 2;
-}
-
-message SimulationInfoRequest {
-    ObservationRequest observationRequest = 1;
+    SimulationId simulationId = 3;
 }
 
 message SimulationStartRequest {
@@ -180,18 +189,19 @@ message SimulationStartRequest {
     int32 numWarmUpSteps = 4;
     string initialProductFunds = 5 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     string initialQuoteFunds = 6 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.QuoteVolume"];
-    SimulationInfoRequest simulationInfoRequest = 7;
-    int32 snapshotBufferSize = 8;
-    ObservationRequest observationRequest = 9;
-    bool enableProgressBar = 10;
-    SimulationType simulationType = 11;
-    DatabaseBackend databaseBackend = 12;
-    bool backupToCloudStorage = 13;
+    int32 snapshotBufferSize = 7;
+    ObservationRequest observationRequest = 8;
+    bool enableProgressBar = 9;
+    SimulationType simulationType = 10;
+    DatabaseBackend databaseBackend = 11;
+    bool backupToCloudStorage = 12;
+    bool stopInProgressSimulations = 13; // Used by unit tests to make sure only one simulation is in progress at a time
 }
 
 message StepRequest {
     repeated Order insertOrders = 1;
     repeated Cancellation insertCancellations = 2;
-    SimulationInfoRequest simulationInfoRequest = 3;
+    ObservationRequest observationRequest = 3;
     ActionRequest actionRequest = 4;
+    SimulationId simulationId = 5;
 }

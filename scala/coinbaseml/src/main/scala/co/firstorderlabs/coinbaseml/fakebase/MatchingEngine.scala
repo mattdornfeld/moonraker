@@ -4,7 +4,7 @@ import java.math.{BigDecimal, RoundingMode}
 import java.util.UUID
 import java.util.logging.Logger
 
-import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.SelfTrade
+import co.firstorderlabs.coinbaseml.fakebase.Types.Exceptions.SelfTrade
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{
@@ -12,6 +12,7 @@ import co.firstorderlabs.common.currency.Configs.ProductPrice.{
   QuoteVolume
 }
 import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
   BuyMarketOrder,
   Cancellation,
   DoneReason,
@@ -19,6 +20,7 @@ import co.firstorderlabs.common.protos.events.{
   Match,
   OrderSide,
   OrderStatus,
+  SellLimitOrder,
   SellMarketOrder
 }
 import co.firstorderlabs.common.types.Events._
@@ -27,33 +29,73 @@ import co.firstorderlabs.common.types.Types._
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-final case class MatchingEngineSnapshot(
-    buyOrderBookSnapshot: OrderBookSnapshot,
+final case class MatchingEngineState(
+    buyOrderBookState: BuyOrderBookState,
     matches: ListBuffer[Match],
-    sellOrderBookSnapshot: OrderBookSnapshot,
-    currentPortfolioValue: Option[Double],
-    previousPortfolioValue: Option[Double]
-) extends Snapshot
+    sellOrderBookState: SellOrderBookState,
+    var currentPortfolioValue: Option[Double] = None,
+    var previousPortfolioValue: Option[Double] = None,
+    var checkpointPortfolioValue: Option[Double] = None
+) extends State[MatchingEngineState] {
+  override val companion = MatchingEngineState
+  override def createSnapshot(implicit simulationMetadata: SimulationMetadata): MatchingEngineState = {
+    checkpointPortfolioValue = currentPortfolioValue
+    MatchingEngineState(
+      buyOrderBookState.createSnapshot,
+      matches.clone,
+      sellOrderBookState.createSnapshot,
+      currentPortfolioValue,
+      previousPortfolioValue
+    )
+  }
 
-object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
+  def getOrderBookState(side: OrderSide): OrderBookState =
+    if (side.isbuy) buyOrderBookState else sellOrderBookState
+
+}
+
+object MatchingEngineState extends StateCompanion[MatchingEngineState] {
+  override def create(implicit
+      simulationMetadata: SimulationMetadata
+  ): MatchingEngineState =
+    MatchingEngineState(
+      BuyOrderBookState.create,
+      new ListBuffer[Match],
+      SellOrderBookState.create
+    )
+
+  override def fromSnapshot(
+      snapshot: MatchingEngineState
+  ): MatchingEngineState = {
+    val matchingEngineState = MatchingEngineState(
+      BuyOrderBookState.fromSnapshot(snapshot.buyOrderBookState),
+      new ListBuffer[Match],
+      SellOrderBookState.fromSnapshot(snapshot.sellOrderBookState),
+      snapshot.currentPortfolioValue,
+      snapshot.previousPortfolioValue,
+      snapshot.checkpointPortfolioValue
+    )
+    matchingEngineState.matches.addAll(snapshot.matches.iterator)
+    matchingEngineState
+  }
+}
+
+object MatchingEngine {
   private val logger = Logger.getLogger(this.toString)
-  var checkpointPortfolioValue: Option[Double] = None
-  var currentPortfolioValue: Option[Double] = None
-  var previousPortfolioValue: Option[Double] = None
-  val matches = new ListBuffer[Match]
-  val orderBooks = Map[OrderSide, OrderBook](
-    OrderSide.buy -> new OrderBook,
-    OrderSide.sell -> new OrderBook
-  )
 
-  def cancelOrder(order: OrderEvent): OrderEvent = {
+  def cancelOrder(order: OrderEvent)(implicit
+      accountState: AccountState,
+      orderBookState: OrderBookState,
+      simulationMetadata: SimulationMetadata
+  ): OrderEvent = {
     require(
       List(OrderStatus.open, OrderStatus.received).contains(order.orderStatus),
       "can only cancel open or received orders"
     )
 
-    if (order.orderStatus.isopen)
-      orderBooks(order.side).removeByOrderId(order.orderId)
+    if (order.orderStatus.isopen) {
+      OrderBook.removeByOrderId(order.orderId)
+    }
 
     if (Account.belongsToAccount(order))
       Account.closeOrder(order, DoneReason.canceled)
@@ -61,27 +103,20 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
       OrderUtils.setOrderStatusToDone(order, DoneReason.canceled)
   }
 
-  override def createSnapshot: MatchingEngineSnapshot = {
-    checkpointPortfolioValue = currentPortfolioValue
-    MatchingEngineSnapshot(
-      orderBooks(OrderSide.buy).createSnapshot,
-      matches.clone,
-      orderBooks(OrderSide.sell).createSnapshot,
-      currentPortfolioValue,
-      previousPortfolioValue
-    )
-  }
-
-  def checkIsTaker(order: LimitOrderEvent): Boolean = {
+  def checkIsTaker(
+      order: LimitOrderEvent
+  )(implicit matchingEngineState: MatchingEngineState): Boolean = {
     order match {
       case order: BuyOrderEvent => {
-        val minSellPrice = orderBooks(OrderSide.sell).minPrice
+        val minSellPrice = OrderBook
+          .minPrice(matchingEngineState.sellOrderBookState)
           .getOrElse(ProductPrice.maxPrice)
 
         order.price >= minSellPrice
       }
       case order: SellOrderEvent => {
-        val maxBuyPrice = orderBooks(OrderSide.buy).maxPrice
+        val maxBuyPrice = OrderBook
+          .maxPrice(matchingEngineState.buyOrderBookState)
           .getOrElse(ProductPrice.zeroPrice)
 
         order.price <= maxBuyPrice
@@ -89,52 +124,47 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     }
   }
 
-  override def clear: Unit = {
-    orderBooks.values.foreach(orderBook => orderBook.clear)
-    matches.clear
-    currentPortfolioValue = None
-    previousPortfolioValue = None
-  }
-
-  override def isCleared: Boolean = {
-    (orderBooks.values.forall(orderBook => orderBook.isCleared)
-    && matches.isEmpty
-    && currentPortfolioValue.isEmpty
-    && previousPortfolioValue.isEmpty)
-  }
-
-  def processEvents(events: List[Event]): Unit = {
+  def processEvents(events: List[Event])(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
     val _events = events.iterator
     while (_events.hasNext) {
       _events.next match {
-        case cancellation: Cancellation => processCancellation(cancellation)
-        case order: OrderEvent          => processOrder(order)
+        case cancellation: Cancellation if cancellation.side.isbuy =>
+          processCancellation(cancellation)(
+            accountState,
+            matchingEngineState.buyOrderBookState,
+            simulationMetadata
+          )
+        case cancellation: Cancellation if cancellation.side.issell =>
+          processCancellation(cancellation)(
+            accountState,
+            matchingEngineState.sellOrderBookState,
+            simulationMetadata
+          )
+        case order: OrderEvent => processOrder(order)
       }
     }
   }
 
-  override def restore(snapshot: MatchingEngineSnapshot): Unit = {
-    clear
-    orderBooks(OrderSide.buy).restore(snapshot.buyOrderBookSnapshot)
-    orderBooks(OrderSide.sell).restore(snapshot.sellOrderBookSnapshot)
-    matches.addAll(snapshot.matches.iterator)
-    currentPortfolioValue = snapshot.currentPortfolioValue
-    previousPortfolioValue = snapshot.previousPortfolioValue
-  }
-
   @tailrec
-  private def addToOrderBook(order: LimitOrderEvent): Unit = {
-    if (orderBooks(order.side).getOrderByOrderId(order.orderId).isEmpty) {
+  private def addToOrderBook(order: LimitOrderEvent)(implicit
+      accountState: AccountState,
+      orderBookState: OrderBookState
+  ): Unit = {
+    if (OrderBook.getOrderByOrderId(order.orderId).isEmpty) {
       val orderBookKey = OrderBook.getOrderBookKey(order)
 
-      if (orderBooks(order.side).getOrderByOrderBookKey(orderBookKey).isEmpty) {
+      if (OrderBook.getOrderByOrderBookKey(orderBookKey).isEmpty) {
         val updatedOrder =
           if (Account.belongsToAccount(order))
             Account.openOrder(order.orderId)
           else
             OrderUtils.openOrder(order)
 
-        orderBooks(order.side).update(orderBookKey, updatedOrder)
+        OrderBook.update(orderBookKey, updatedOrder)
       } else {
         order.incrementDegeneracy
         addToOrderBook(order)
@@ -145,7 +175,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   private def checkForSelfTrade(
       makerOrder: LimitOrderEvent,
       takerOrder: OrderEvent
-  ): Boolean = {
+  )(implicit accountState: AccountState): Boolean = {
     List(makerOrder, takerOrder)
       .map(Account.belongsToAccount)
       .forall(_ == true)
@@ -154,7 +184,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   private def getLiquidity(
       makerOrder: LimitOrderEvent,
       takerOrder: OrderEvent
-  ): Liquidity = {
+  )(implicit accountState: AccountState): Liquidity = {
     (
       Account.belongsToAccount(makerOrder),
       Account.belongsToAccount(takerOrder)
@@ -166,27 +196,31 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     }
   }
 
-  def calcMidPrice: Double = {
-    val (buyOrderBook, sellOrderBook) =
-      (orderBooks(OrderSide.buy), orderBooks(OrderSide.sell))
-
-    val bestAskPrice = sellOrderBook.minPrice.getOrElse {
-      logger.warning(
-        "The best ask price is 0. This indicates the sell order book is empty"
-      )
-      ProductPrice.zeroPrice
-    }
-    val bestBidPrice = buyOrderBook.maxPrice.getOrElse {
-      logger.warning(
-        "The best bid price is 0. This indicates the buy order book is empty"
-      )
-      ProductPrice.zeroPrice
-    }
+  def calcMidPrice(implicit
+      matchingEngineState: MatchingEngineState
+  ): Double = {
+    val bestAskPrice =
+      OrderBook.minPrice(matchingEngineState.sellOrderBookState).getOrElse {
+        logger.warning(
+          "The best ask price is 0. This indicates the sell order book is empty"
+        )
+        ProductPrice.zeroPrice
+      }
+    val bestBidPrice =
+      OrderBook.maxPrice(matchingEngineState.buyOrderBookState).getOrElse {
+        logger.warning(
+          "The best bid price is 0. This indicates the buy order book is empty"
+        )
+        ProductPrice.zeroPrice
+      }
 
     ((bestAskPrice + bestBidPrice) / Right(2.0)).toDouble
   }
 
-  def calcPortfolioValue: Double = {
+  def calcPortfolioValue(implicit
+      matchingEngineState: MatchingEngineState,
+      walletsState: WalletsState
+  ): Double = {
     val (productWallet, quoteWallet) =
       (Wallets.getWallet(ProductVolume), Wallets.getWallet(QuoteVolume))
 
@@ -196,15 +230,25 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     productVolume * calcMidPrice + quoteVolume
   }
 
-  def step(events: List[Event]): Unit = {
-    previousPortfolioValue = currentPortfolioValue
+  def step(events: List[Event])(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
+    matchingEngineState.previousPortfolioValue =
+      matchingEngineState.currentPortfolioValue
     processEvents(events)
-    currentPortfolioValue = Some(calcPortfolioValue)
+    matchingEngineState.currentPortfolioValue = Some(
+      calcPortfolioValue(matchingEngineState, accountState.walletsState)
+    )
   }
 
   private def processMatchedMakerOrder(
       makerOrder: LimitOrderEvent,
       liquidity: Liquidity
+  )(implicit
+      accountState: AccountState,
+      simulationMetadata: SimulationMetadata
   ): LimitOrderEvent = {
     if (makerOrder.remainingSize.isZero) {
       if (liquidity.ismaker) {
@@ -220,6 +264,9 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   private def processMatchedTakerOrder(
       takerOrder: OrderEvent,
       liquidity: Liquidity
+  )(implicit
+      accountState: AccountState,
+      simulationMetadata: SimulationMetadata
   ): OrderEvent = {
     val isFilled = takerOrder match {
       case takerOrder: SpecifiesSize  => takerOrder.remainingSize.isZero
@@ -241,6 +288,10 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
       filledVolume: ProductVolume,
       makerOrder: LimitOrderEvent,
       takerOrder: OrderEvent
+  )(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
   ): Unit = {
     val liquidity = getLiquidity(makerOrder, takerOrder)
 
@@ -273,7 +324,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
       )
     )
 
-    matches += updatedMatchEvent
+    matchingEngineState.matches += updatedMatchEvent
 
     if (!liquidity.isglobal) {
       Account.addMatch(updatedMatchEvent)
@@ -339,23 +390,32 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     filledVolume
   }
 
-  def getBestMakerOrder(orderSide: OrderSide): Option[LimitOrderEvent] =
-    if (orderSide.isbuy) {
-      orderBooks(OrderSide.sell).minOrder
-    } else if (orderSide.issell) {
-      orderBooks(OrderSide.buy).maxOrder
-    } else {
-      throw new IllegalStateException
+  def getBestMakerOrder(implicit
+      orderBookState: OrderBookState
+  ): Option[LimitOrderEvent] =
+    orderBookState match {
+      case orderBookState: BuyOrderBookState =>
+        OrderBook.maxOrder(orderBookState)
+      case orderBookState: SellOrderBookState =>
+        OrderBook.minOrder(orderBookState)
     }
 
-  def start: Unit = {
-    currentPortfolioValue = Some(calcPortfolioValue)
+  def start(implicit
+      matchingEngineState: MatchingEngineState,
+      walletsState: WalletsState
+  ): Unit = {
+    matchingEngineState.currentPortfolioValue = Some(calcPortfolioValue)
   }
 
   @tailrec
-  private def processBuyMarketOrder(order: BuyMarketOrder): Unit = {
+  private def processBuyMarketOrder(order: BuyMarketOrder)(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      sellOrderBookState: SellOrderBookState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
     if (order.remainingFunds > QuoteVolume.zeroVolume) {
-      val makerOrder = getBestMakerOrder(order.side)
+      val makerOrder = getBestMakerOrder
 
       makerOrder match {
         case None => {
@@ -376,7 +436,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
           createMatch(filledVolume, makerOrder, order)
 
           if (makerOrder.remainingSize.isZero) {
-            orderBooks(makerOrder.side).removeByOrderId(makerOrder.orderId)
+            OrderBook.removeByOrderId(makerOrder.orderId)
           }
 
           processBuyMarketOrder(order)
@@ -386,9 +446,14 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
   }
 
   @tailrec
-  private def processSellMarketOrder(order: SellMarketOrder): Unit = {
+  private def processSellMarketOrder(order: SellMarketOrder)(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      buyOrderBookState: BuyOrderBookState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
     if (order.remainingSize > ProductVolume.zeroVolume) {
-      val makerOrder = getBestMakerOrder(order.side)
+      val makerOrder = getBestMakerOrder
 
       makerOrder match {
         case None => {
@@ -409,7 +474,7 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
           createMatch(filledVolume, makerOrder, order)
 
           if (makerOrder.remainingSize.isZero) {
-            orderBooks(makerOrder.side).removeByOrderId(makerOrder.orderId)
+            OrderBook.removeByOrderId(makerOrder.orderId)
           }
 
           processSellMarketOrder(order)
@@ -420,18 +485,38 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
 
   private def processCancellation(
       cancellation: Cancellation
+  )(implicit
+      accountState: AccountState,
+      orderBookState: OrderBookState,
+      simulationMetadata: SimulationMetadata
   ): Option[OrderEvent] = {
-    orderBooks(cancellation.side)
+    OrderBook
       .getOrderByOrderId(cancellation.orderId)
       .map { order =>
         cancelOrder(order)
       }
   }
 
-  private def processMarketOrder(order: MarketOrderEvent): Unit = {
+  private def processMarketOrder(order: MarketOrderEvent)(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
     order match {
-      case order: BuyMarketOrder  => processBuyMarketOrder(order)
-      case order: SellMarketOrder => processSellMarketOrder(order)
+      case order: BuyMarketOrder =>
+        processBuyMarketOrder(order)(
+          accountState,
+          matchingEngineState,
+          matchingEngineState.sellOrderBookState,
+          simulationMetadata
+        )
+      case order: SellMarketOrder =>
+        processSellMarketOrder(order)(
+          accountState,
+          matchingEngineState,
+          matchingEngineState.buyOrderBookState,
+          simulationMetadata
+        )
     }
 
   }
@@ -450,18 +535,26 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
     * @param order
     */
   @tailrec
-  private def processLimitOrder(order: LimitOrderEvent): Unit = {
+  private def processLimitOrder(
+      order: LimitOrderEvent,
+      makerOrderBookState: OrderBookState,
+      takerOrderBookState: OrderBookState
+  )(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
     if (!checkIsTaker(order)) {
-      addToOrderBook(order)
+      addToOrderBook(order)(accountState, takerOrderBookState)
       return
     }
 
     if (order.remainingSize > ProductVolume.zeroVolume) {
-      val makerOrder = getBestMakerOrder(order.side)
+      val makerOrder = getBestMakerOrder(makerOrderBookState)
 
       makerOrder match {
         case None => {
-          addToOrderBook(order)
+          addToOrderBook(order)(accountState, takerOrderBookState)
         }
         case Some(makerOrder) => {
           val shouldCancel =
@@ -469,7 +562,11 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
               .checkSlippageGreaterThanMax(makerOrder.price)
 
           if (shouldCancel) {
-            cancelOrder(order)
+            cancelOrder(order)(
+              accountState,
+              takerOrderBookState,
+              simulationMetadata
+            )
             return
           }
 
@@ -478,19 +575,34 @@ object MatchingEngine extends Snapshotable[MatchingEngineSnapshot] {
           createMatch(filledVolume, makerOrder, order)
 
           if (makerOrder.remainingSize.isZero) {
-            orderBooks(makerOrder.side).removeByKey(makerOrder.orderBookKey)
+            OrderBook.removeByKey(makerOrder.orderBookKey)(makerOrderBookState)
           }
 
-          processLimitOrder(order)
+          processLimitOrder(order, makerOrderBookState, takerOrderBookState)
         }
       }
     }
   }
 
-  private def processOrder(order: OrderEvent): Unit = {
+  private def processOrder(order: OrderEvent)(implicit
+      accountState: AccountState,
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
     SlippageProtection.reset
     order match {
-      case order: LimitOrderEvent  => processLimitOrder(order)
+      case order: BuyLimitOrder =>
+        processLimitOrder(
+          order,
+          matchingEngineState.sellOrderBookState,
+          matchingEngineState.buyOrderBookState
+        )
+      case order: SellLimitOrder =>
+        processLimitOrder(
+          order,
+          matchingEngineState.buyOrderBookState,
+          matchingEngineState.sellOrderBookState
+        )
       case order: MarketOrderEvent => processMarketOrder(order)
     }
   }

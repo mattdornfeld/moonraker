@@ -1,21 +1,15 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
-import java.time.{Duration, Instant}
+import java.time.Duration
 import java.util.logging.Logger
 
 import cats.effect.IO.ioConcurrentEffect
-import cats.effect.{Blocker, IO, Resource, Timer}
+import cats.effect.{Blocker, IO, Resource}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.ParallelSeq
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
-import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange, Snapshotable}
+import co.firstorderlabs.coinbaseml.fakebase.{Configs, SimulationMetadata, State, StateCompanion}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.productId
-import co.firstorderlabs.common.protos.events.{
-  BuyLimitOrder,
-  BuyMarketOrder,
-  Cancellation,
-  SellLimitOrder,
-  SellMarketOrder
-}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, SellLimitOrder, SellMarketOrder}
 import co.firstorderlabs.common.types.Events.Event
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
@@ -35,11 +29,10 @@ final class QueryResultMap(
     maxSize: Int,
     trieMap: Option[TrieMap[TimeInterval, QueryResult]] = None
 ) extends BoundedTrieMap[TimeInterval, QueryResult](maxSize, trieMap) {
-  override def put(
+  def put(
       key: TimeInterval,
       value: QueryResult
-  ): Option[QueryResult] = {
-    val simulationMetadata = Exchange.getSimulationMetadata
+  )(implicit simulationMetadata: SimulationMetadata): Option[QueryResult] = {
     val currentTimeInterval = simulationMetadata.currentTimeInterval
     val timeDelta = simulationMetadata.timeDelta
 
@@ -56,22 +49,13 @@ final class QueryResultMap(
   }
 }
 
-abstract class DatabaseReader(
-    driverClassName: String,
-    url: String,
-    user: String,
-    password: String,
-    strategy: Strategy
-) extends Snapshotable[DatabaseReaderSnapshot] {
-  protected implicit val contextShift = IO.contextShift(ExecutionContext.global)
-  private implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
-
-  protected val logger = Logger.getLogger(toString)
-  protected val transactor =
-    buildTransactor(driverClassName, url, user, password)
-  protected val queryResultMap = new QueryResultMap(
-    SqlConfigs.maxQueryResultMapSize
-  )
+final case class DatabaseReaderState(simulationTimeInterval: TimeInterval) extends State[DatabaseReaderState] {
+  private var _shouldStop = false
+  override val companion = DatabaseReaderState
+  var streamFuture: Option[Future[Unit]] = None
+  val queryResultMap = new QueryResultMap(SqlConfigs.maxQueryResultMapSize)
+  val interrupter =
+    Stream.repeatEval(shouldStop).metered(10.millisecond)
   private val giveUpWhenStopped = RetryPolicy.lift[IO] { _ =>
     if (_shouldStop) {
       PolicyDecision.GiveUp
@@ -79,19 +63,59 @@ abstract class DatabaseReader(
       PolicyDecision.DelayAndRetry(duration.Duration.Zero)
     }
   }
+  val removeRetryPolicyMaxRetries = 1000 * 60 * 5
+  val addRetryPolicy = constantDelay[IO](10.milliseconds) join giveUpWhenStopped
+  val removeRetryPolicy = limitRetries[IO](
+    removeRetryPolicyMaxRetries
+  ) join constantDelay[IO](1.milliseconds) join giveUpWhenStopped
+
+  override def createSnapshot(implicit
+      simulationMetadata: SimulationMetadata
+  ): DatabaseReaderState = {
+    val snapshotSimulationTimeInterval = TimeInterval(
+      simulationMetadata.currentTimeInterval.startTime,
+      simulationMetadata.endTime
+    )
+    DatabaseReaderState(snapshotSimulationTimeInterval)
+  }
+
+  def getResultMapSize: Int = queryResultMap.size
+
+  def queryResultMapKeys: Iterable[TimeInterval] = queryResultMap.keys
+
+  def shouldStop: IO[Boolean] = IO(_shouldStop)
+
+  def stop: Unit = {
+    _shouldStop = true
+    streamFuture.map(Await.ready(_, 1.minute))
+  }
+}
+
+object DatabaseReaderState extends StateCompanion[DatabaseReaderState] {
+  override def create(implicit
+      simulationMetadata: SimulationMetadata
+  ): DatabaseReaderState =
+    DatabaseReaderState(
+      TimeInterval(simulationMetadata.startTime, simulationMetadata.endTime)
+    )
+
+  override def fromSnapshot(snapshot: DatabaseReaderState): DatabaseReaderState = {
+    DatabaseReaderState(snapshot.simulationTimeInterval)
+  }
+}
+
+abstract class DatabaseReader(
+    driverClassName: String,
+    url: String,
+    user: String,
+    password: String,
+    strategy: Strategy
+) {
+  protected implicit val contextShift = IO.contextShift(ExecutionContext.global)
+  protected val logger = Logger.getLogger(toString)
+  protected val transactor =
+    buildTransactor(driverClassName, url, user, password)
   private val blockerResource = Blocker[IO]
-  private val addRetryPolicy =
-    constantDelay[IO](10.milliseconds) join
-      giveUpWhenStopped
-  private val removeRetryPolicyMaxRetries = 1000 * 60 * 5
-  private val removeRetryPolicy =
-    limitRetries[IO](1000 * 60 * 5) join
-      constantDelay[IO](1.milliseconds) join
-      giveUpWhenStopped
-  private val interrupter =
-    Stream.repeatEval(shouldStop).metered(10.millisecond)
-  private var _shouldStop = false
-  private var _streamFuture: Option[Future[Unit]] = None
 
   def buildQueryResult(timeInterval: TimeInterval): Option[QueryResult] = {
     if (Configs.testMode) {
@@ -110,21 +134,13 @@ abstract class DatabaseReader(
     }
   }
 
-  def clear: Unit = {
-    _shouldStop = true
-    _streamFuture.map(Await.ready(_, 1.minute))
-    queryResultMap.clear
-    _shouldStop = false
-  }
-
-  def getResultMapSize: Int = queryResultMap.size
-
   def createSstFiles(
       timeInterval: TimeInterval,
       timeDelta: Duration,
       backupToCloudStorage: Boolean
+  )(implicit
+      databaseReaderState: DatabaseReaderState
   ): Seq[QueryResultSstFileWriter] = {
-    clear
     val createSstFiles: Stream[IO, Option[QueryResultSstFileWriter]] =
       timeInterval
         .chunkBy(SqlConfigs.bigQueryReadTimeDelta)
@@ -145,11 +161,11 @@ abstract class DatabaseReader(
     createSstFiles.compile.toList.unsafeRunSync.flatten
   }
 
-  def queryResultMapKeys: Iterable[TimeInterval] = queryResultMap.keys
-
-  def removeQueryResult(timeInterval: TimeInterval): QueryResult = {
+  def removeQueryResult(
+      timeInterval: TimeInterval
+  )(implicit databaseReaderState: DatabaseReaderState): QueryResult = {
     retryingOnAllErrors[QueryResult](
-      removeRetryPolicy,
+      databaseReaderState.removeRetryPolicy,
       (throwable: Throwable, retryDetails: RetryDetails) =>
         IO {
           if (retryDetails.cumulativeDelay == 10.seconds) {
@@ -157,7 +173,9 @@ abstract class DatabaseReader(
               s"The QueryResult for ${timeInterval} was not found in queryResultMap. " +
                 s"Waiting for it to be retrieved from LocalStorage."
             )
-          } else if (retryDetails.retriesSoFar >= removeRetryPolicyMaxRetries) {
+          } else if (
+            retryDetails.retriesSoFar >= databaseReaderState.removeRetryPolicyMaxRetries
+          ) {
             throw throwable
           } else {}
         }
@@ -166,71 +184,57 @@ abstract class DatabaseReader(
     ).unsafeRunSync
   }
 
-  def start(
-      startTime: Instant,
-      endTime: Instant,
-      timeDelta: Duration,
-      backupToCloudStorage: Boolean = false
+  def start(implicit
+      databaseReaderState: DatabaseReaderState,
+      simulationMetadata: SimulationMetadata
   ): Unit = {
-    clear
-    val timeInterval = TimeInterval(startTime, endTime)
     val sstFileWriters =
-      createSstFiles(timeInterval, timeDelta, backupToCloudStorage)
+      createSstFiles(
+        databaseReaderState.simulationTimeInterval,
+        simulationMetadata.timeDelta,
+        simulationMetadata.backupToCloudStorage
+      )
     if (sstFileWriters.size > 0) {
       LocalStorage.QueryResults.bulkIngest(sstFileWriters)
       LocalStorage.compact
     }
 
-    startPopulateQueryResultMapStream(
-      TimeInterval(startTime, endTime),
-      timeDelta
-    )
+    startPopulateQueryResultMapStream
     logger.info(
-      s"${getClass.getSimpleName} started for ${startTime}-${endTime} with timeDelta ${timeDelta}"
+      s"${getClass.getSimpleName} started for ${databaseReaderState.simulationTimeInterval.startTime}-" +
+        s"${databaseReaderState.simulationTimeInterval.endTime} with timeDelta ${simulationMetadata.timeDelta}"
     )
   }
 
-  def startPopulateQueryResultMapStream(
-      timeInterval: TimeInterval,
-      timeDelta: Duration
+  def startPopulateQueryResultMapStream(implicit
+      databaseReaderState: DatabaseReaderState,
+      simulationMetadata: SimulationMetadata
   ): Unit = {
     val stream = buildPopulateQueryResultMapStream(
-      timeInterval.chunkBy(timeDelta)
+      databaseReaderState.simulationTimeInterval.chunkBy(
+        simulationMetadata.timeDelta
+      )
     )
-    _streamFuture = Some(stream.compile.drain.unsafeToFuture)
-  }
-
-  def streamFuture: Option[Future[Unit]] = _streamFuture
-
-  override def createSnapshot: DatabaseReaderSnapshot = {
-    val simulationMetaData = Exchange.getSimulationMetadata
-    val timeInterval = TimeInterval(
-      simulationMetaData.currentTimeInterval.startTime,
-      simulationMetaData.endTime
-    )
-    DatabaseReaderSnapshot(timeInterval)
-  }
-
-  override def isCleared: Boolean =
-    queryResultMap.isEmpty
-
-  override def restore(snapshot: DatabaseReaderSnapshot): Unit = {
-    val timeDelta = Exchange.getSimulationMetadata.timeDelta
-    clear
-    startPopulateQueryResultMapStream(snapshot.timeInterval, timeDelta)
+    databaseReaderState.streamFuture = Some(stream.compile.drain.unsafeToFuture)
   }
 
   private def addToQueryResultMap(
       timeInterval: TimeInterval,
       queryResult: QueryResult
+  )(implicit
+      databaseReaderState: DatabaseReaderState,
+      simulationMetadata: SimulationMetadata
   ): IO[QueryResult] =
-    queryResultMap.put(timeInterval, queryResult) match {
+    databaseReaderState.queryResultMap.put(timeInterval, queryResult) match {
       case Some(queryResult) => IO { queryResult }
       case None              => IO.raiseError(new IllegalAccessException)
     }
 
   private def buildPopulateQueryResultMapStream(
       timeIntervals: Seq[TimeInterval]
+  )(implicit
+      databaseReaderState: DatabaseReaderState,
+      simulationMetadata: SimulationMetadata
   ): Stream[IO, Unit] = {
     timeIntervals
       .toStreams(SqlConfigs.numLocalStorageReaderThreads)
@@ -242,7 +246,7 @@ abstract class DatabaseReader(
         )
       )
       .reduce(_ merge _)
-      .interruptWhen(interrupter)
+      .interruptWhen(databaseReaderState.interrupter)
   }
 
   private def loadQueryResultToMemory(
@@ -281,7 +285,8 @@ abstract class DatabaseReader(
     } else {
       logger.info(s"Querying database for events in ${queryHistoryKey}")
 
-      val queryResultsSstFileWriter = QueryResultSstFileWriter(queryHistoryKey, true)
+      val queryResultsSstFileWriter =
+        QueryResultSstFileWriter(queryHistoryKey, true)
 
       val queryResults = if (Configs.testMode) {
         QueryResult(List(), timeInterval).chunkByTimeDelta(timeDelta)
@@ -334,10 +339,15 @@ abstract class DatabaseReader(
     }
   }
 
-  private def populateQueryResultMap(timeInterval: TimeInterval): IO[Unit] = {
+  private def populateQueryResultMap(
+      timeInterval: TimeInterval
+  )(implicit
+      databaseReaderState: DatabaseReaderState,
+      simulationMetadata: SimulationMetadata
+  ): IO[Unit] = {
     for {
       queryResult <- retryingOnAllErrors[QueryResult](
-        addRetryPolicy,
+        databaseReaderState.addRetryPolicy,
         (_: Throwable, retryDetails: RetryDetails) =>
           IO {
             if (retryDetails.cumulativeDelay == 10.seconds) {
@@ -351,7 +361,7 @@ abstract class DatabaseReader(
       )
 
       _ <- retryingOnAllErrors[QueryResult](
-        addRetryPolicy,
+        databaseReaderState.addRetryPolicy,
         (_: Throwable, retryDetails: RetryDetails) =>
           IO {
             if (retryDetails.cumulativeDelay == 10.seconds) {
@@ -368,8 +378,8 @@ abstract class DatabaseReader(
 
   private def removeFromQueryResultMap(
       timeInterval: TimeInterval
-  ): IO[QueryResult] = {
-    queryResultMap.remove(timeInterval) match {
+  )(implicit databaseReaderState: DatabaseReaderState): IO[QueryResult] = {
+    databaseReaderState.queryResultMap.remove(timeInterval) match {
       case Some(queryResult) => IO { queryResult }
       case None              => IO.raiseError(new IllegalAccessException)
     }
@@ -420,16 +430,4 @@ abstract class DatabaseReader(
         blocker
       )
     } yield transactor.copy(strategy0 = strategy)
-
-  private def shouldStop: IO[Boolean] = IO(_shouldStop)
-}
-
-object DatabaseReader {
-  def clearAllReaders: Unit = {
-    BigQueryReader.clear
-    PostgresReader.clear
-  }
-
-  def areReadersCleared: Boolean =
-    BigQueryReader.isCleared && PostgresReader.isCleared
 }

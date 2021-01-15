@@ -3,20 +3,61 @@ package co.firstorderlabs.coinbaseml.common.featurizers
 import java.util.logging.Logger
 
 import co.firstorderlabs.coinbaseml.common.featurizers.Aggregators._
+import co.firstorderlabs.coinbaseml.common.featurizers.TimeSeriesFeaturizer.TimeSeriesFeature
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
-import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.ObservationRequest
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, Cancellation, Match, SellLimitOrder}
-import co.firstorderlabs.common.types.Events.{Event, OrderEvent, SpecifiesPrice, SpecifiesSize}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  Cancellation,
+  Match,
+  SellLimitOrder
+}
+import co.firstorderlabs.common.types.Events.{
+  Event,
+  OrderEvent,
+  SpecifiesPrice,
+  SpecifiesSize
+}
 
-final case class TimeSeriesFeaturizerSnapshot(
-    featureBuffer: List[TimeSeriesFeaturizer.TimeSeriesFeature]
-) extends Snapshot
+final case class TimeSeriesFeaturizerState(
+    featureBuffer: FiniteQueue[TimeSeriesFeature]
+) extends co.firstorderlabs.coinbaseml.fakebase.State[TimeSeriesFeaturizerState] {
+  override val companion = TimeSeriesFeaturizerState
 
-object TimeSeriesFeaturizer
-    extends FeaturizerBase
-    with Snapshotable[TimeSeriesFeaturizerSnapshot] {
+  override def createSnapshot(implicit
+      simulationMetadata: SimulationMetadata
+  ): TimeSeriesFeaturizerState = {
+    val timeSeriesFeaturizerState = TimeSeriesFeaturizerState.create
+    timeSeriesFeaturizerState.featureBuffer.addAll(featureBuffer.iterator)
+    timeSeriesFeaturizerState
+  }
+
+}
+
+object TimeSeriesFeaturizerState
+    extends StateCompanion[TimeSeriesFeaturizerState] {
+  override def create(implicit
+      simulationMetadata: SimulationMetadata
+  ): TimeSeriesFeaturizerState =
+    TimeSeriesFeaturizerState(
+      new FiniteQueue[TimeSeriesFeature](simulationMetadata.featureBufferSize)
+    )
+
+  override def fromSnapshot(
+      snapshot: TimeSeriesFeaturizerState
+  ): TimeSeriesFeaturizerState = {
+    val timeSeriesFeaturizerState = TimeSeriesFeaturizerState(
+      new FiniteQueue[TimeSeriesFeature](snapshot.featureBuffer.getMaxSize)
+    )
+    snapshot.featureBuffer.foreach(feature =>
+      timeSeriesFeaturizerState.featureBuffer.enqueue(feature)
+    )
+    timeSeriesFeaturizerState
+  }
+}
+
+object TimeSeriesFeaturizer extends FeaturizerBase {
   type TimeSeriesFeature = List[Double]
   private val logger = Logger.getLogger(TimeSeriesFeaturizer.toString)
   import co.firstorderlabs.coinbaseml.common.featurizers.Filters._
@@ -55,7 +96,6 @@ object TimeSeriesFeaturizer
   val eventAggregators = (getCountAggregators
     ++ getPriceAggregators
     ++ getSizeAggregators)
-  private val featureBuffer = new FiniteQueue[TimeSeriesFeature](0)
 
   def getCountAggregators: List[Counter] = {
     eventFilters
@@ -77,25 +117,6 @@ object TimeSeriesFeaturizer
       .flatten
   }
 
-  def step: Unit = {
-    val startTime = System.currentTimeMillis()
-    eventAggregators.foreach(_.clear)
-    val events = Exchange.getReceivedEvents ++ getResult(
-      Exchange.getMatches(Constants.emptyProto)
-    ).matchEvents
-
-    events.foreach { event =>
-      eventAggregators.foreach { featureAggregator =>
-        featureAggregator.update(event)
-      }
-    }
-
-    featureBuffer enqueue eventAggregators.map(_.value)
-
-    val endTime = System.currentTimeMillis()
-    logger.fine(s"TimeSeriesFeaturizer.step took ${endTime - startTime} ms")
-  }
-
   def numEventCountFeatureChannels: Int = eventFilters.size
 
   def numPriceFeatureChannels: Int =
@@ -107,34 +128,31 @@ object TimeSeriesFeaturizer
   def numChannels: Int =
     numEventCountFeatureChannels + numPriceFeatureChannels + numSizeFeatureChannels
 
-  def start(snapshotBufferSize: Int): Unit = {
-    clear
-    featureBuffer.setMaxSize(snapshotBufferSize)
-  }
-
-  override def clear: Unit = {
-    featureBuffer.clear
-    eventAggregators.foreach(_.clear)
-  }
-
-  override def createSnapshot: TimeSeriesFeaturizerSnapshot =
-    TimeSeriesFeaturizerSnapshot(
-      featureBuffer.toList
-    )
-
-  override def isCleared: Boolean = {
-    featureBuffer.isEmpty
-    eventAggregators.forall(_.value == 0.0)
-  }
-
-  override def restore(snapshot: TimeSeriesFeaturizerSnapshot): Unit = {
-    clear
-    snapshot.featureBuffer.foreach(feature => featureBuffer.enqueue(feature))
-  }
-
-  override def construct(observationRequest: ObservationRequest): List[Double] =
+  override def construct(
+      observationRequest: ObservationRequest
+  )(implicit simulationState: SimulationState): List[Double] = {
+    val featureBuffer = simulationState.environmentState.timeSeriesFeaturizerState.featureBuffer
     featureBuffer.toList.reverse.flatten
       .padTo(numChannels * featureBuffer.getMaxSize, 0.0)
+  }
+
+  override def step(implicit simulationState: SimulationState): Unit = {
+    val startTime = System.currentTimeMillis()
+    eventAggregators.foreach(_.clear)
+    val events =
+      simulationState.exchangeState.receivedEvents ++ simulationState.matchingEngineState.matches
+
+    events.foreach { event =>
+      eventAggregators.foreach { featureAggregator =>
+        featureAggregator.update(event)
+      }
+    }
+
+    simulationState.environmentState.timeSeriesFeaturizerState.featureBuffer enqueue eventAggregators.map(_.value)
+
+    val endTime = System.currentTimeMillis()
+    logger.fine(s"TimeSeriesFeaturizer.step took ${endTime - startTime} ms")
+  }
 }
 
 object Filters {

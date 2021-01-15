@@ -1,13 +1,15 @@
 package co.firstorderlabs.coinbaseml.common.rewards
 
-import co.firstorderlabs.coinbaseml.common.InfoAggregator
+import co.firstorderlabs.coinbaseml.common.utils.TestUtils.buildStepRequest
+import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.environment.InfoDictKey
 import co.firstorderlabs.common.protos.events.OrderSide
-import co.firstorderlabs.common.protos.fakebase.{CancellationRequest, SimulationInfoRequest, StepRequest}
+import co.firstorderlabs.common.protos.fakebase.{CancellationRequest, StepRequest}
+import co.firstorderlabs.common.types.Types.SimulationId
 import org.scalatest.funspec.AnyFunSpec
 
 class TestReturnRewardStrategy extends AnyFunSpec {
@@ -17,8 +19,12 @@ class TestReturnRewardStrategy extends AnyFunSpec {
       "The total portfolio value should equal the total quote funds in the account if no orders are " +
         "placed on the order book"
     ) {
-      Exchange.start(simulationStartRequest)
-      (1 to 2) foreach (_ => Exchange.step(Constants.emptyStepRequest))
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      implicit val walletsState = simulationState.accountState.walletsState
+      val stepRequest = buildStepRequest(simulationInfo.simulationId.get)
+      (1 to 2) foreach (_ => Exchange.step(stepRequest))
       assert(
         ReturnRewardStrategy.currentPortfolioValue == Wallets.getWallet(QuoteVolume).balance.toDouble
       )
@@ -27,10 +33,12 @@ class TestReturnRewardStrategy extends AnyFunSpec {
     it(
       "The mid price should equal the average of the best bid and ask prices on the order book"
     ) {
-      Exchange.start(simulationStartRequest)
-      TestReturnRewardStrategy.populateOrderBook
+      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      val simulationState = SimulationState.getOrFail(simulationId)
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      TestReturnRewardStrategy.populateOrderBook(simulationId)
       val expectedMidPrice =
-        ((buyLimitOrderRequest.price + sellLimitOrderRequest.price) / Right(
+        ((buyLimitOrderRequest(simulationId).price + sellLimitOrderRequest(simulationId).price) / Right(
           2.0
         )).toDouble
 
@@ -43,10 +51,11 @@ class TestReturnRewardStrategy extends AnyFunSpec {
       "The total portfolio value should equal the total quote funds in the account plus the value of the product funds " +
         "at the price when orders are placed on the order book"
     ) {
-      Exchange.start(simulationStartRequest)
-      TestReturnRewardStrategy.populateOrderBook
-      val currentTimeInterval =
-        Exchange.getSimulationMetadata.currentTimeInterval
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      implicit val walletsState = simulationState.accountState.walletsState
+      TestReturnRewardStrategy.populateOrderBook(simulationInfo.simulationId.get)
       val midPrice = ReturnRewardStrategy.calcMidPrice
       val productVolume = Wallets.getWallet(ProductVolume).balance.toDouble
       val quoteVolume = Wallets.getWallet(QuoteVolume).balance.toDouble
@@ -59,12 +68,16 @@ class TestReturnRewardStrategy extends AnyFunSpec {
 
     it("The reward calculated by ReturnRewardStrategy should be the difference in portfolio value " +
       "between two consecutive time steps") {
-      Exchange.start(simulationStartRequest)
-      TestReturnRewardStrategy.populateOrderBook
+      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      implicit val simulationState = SimulationState.getOrFail(simulationId)
+      val accountState = simulationState.accountState
+      implicit val walletsState = accountState.walletsState
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      TestReturnRewardStrategy.populateOrderBook(simulationId)
       val portfolioValue1 = ReturnRewardStrategy.currentPortfolioValue
       val productValue = portfolioValue1 - Wallets.getWallet(QuoteVolume).balance.toDouble
-      Account.placedOrders.keys.foreach(orderId => Account.cancelOrder(new CancellationRequest(orderId)))
-      Exchange.step(Constants.emptyStepRequest)
+      accountState.placedOrders.keys.foreach(orderId => Account.cancelOrder(new CancellationRequest(orderId, Some(simulationId))))
+      Exchange.step(buildStepRequest(simulationId))
       val portfolioValue2 = ReturnRewardStrategy.currentPortfolioValue
       val expectedReward = (portfolioValue2 - portfolioValue1)
 
@@ -73,9 +86,13 @@ class TestReturnRewardStrategy extends AnyFunSpec {
     }
 
     it("") {
-      Exchange.start(simulationStartRequest)
-      TestReturnRewardStrategy.populateOrderBook
-      Exchange.checkpoint(Constants.emptyProto)
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+      val simulationMetadata = simulationState.simulationMetadata
+      val infoDict = SimulationState.getInfoDictOrFail(simulationInfo.simulationId.get)
+      implicit val matchingEngineState = simulationState.matchingEngineState
+      TestReturnRewardStrategy.populateOrderBook(simulationInfo.simulationId.get)
+      Exchange.checkpoint(simulationInfo.simulationId.get)
       val portfolioValue = ReturnRewardStrategy.currentPortfolioValue
       println(portfolioValue)
 
@@ -86,22 +103,22 @@ class TestReturnRewardStrategy extends AnyFunSpec {
           new ProductPrice(Right("1005.00")),
           OrderSide.buy,
           new ProductVolume(Right("1.00")),
-          Exchange.getSimulationMetadata.currentTimeInterval.endTime
+          simulationMetadata.currentTimeInterval.endTime
         )
 
-      Exchange.step(new StepRequest(insertOrders = buyOrders))
+      Exchange.step(new StepRequest(insertOrders = buyOrders, simulationId = simulationInfo.simulationId))
       println(ReturnRewardStrategy.currentPortfolioValue)
-      Exchange.reset(new SimulationInfoRequest)
+      Exchange.reset(simulationInfo.simulationId.get.toObservationRequest)
       println(ReturnRewardStrategy.currentPortfolioValue)
-      println(InfoAggregator.getInfoDict(InfoDictKey.portfolioValue))
+      println(infoDict(InfoDictKey.portfolioValue))
     }
   }
 }
 
 object TestReturnRewardStrategy {
-  def populateOrderBook: Unit = {
-    Account.placeBuyLimitOrder(buyLimitOrderRequest)
-    Account.placeSellLimitOrder(sellLimitOrderRequest)
-    Exchange.step(Constants.emptyStepRequest)
+  def populateOrderBook(simulationId: SimulationId): Unit = {
+    Account.placeBuyLimitOrder(buyLimitOrderRequest(simulationId))
+    Account.placeSellLimitOrder(sellLimitOrderRequest(simulationId))
+    Exchange.step(buildStepRequest(simulationId))
   }
 }

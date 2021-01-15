@@ -53,7 +53,7 @@ def environment_configs(request: SubRequest) -> EnvironmentConfigs:
 
 
 @pytest.fixture(
-    scope="module", params=product(EXPERIMENT_CONFIGS, ["test_environment_configs"]),
+    scope="module", params=product(EXPERIMENT_CONFIGS, ["test_environment_configs"])
 )
 def train_environment_configs(request: SubRequest) -> EnvironmentConfigs:
     """Train environment configs fixture

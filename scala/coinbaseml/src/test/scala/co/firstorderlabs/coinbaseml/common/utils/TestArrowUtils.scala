@@ -4,8 +4,9 @@ import java.time.{Duration, Instant}
 
 import co.firstorderlabs.coinbaseml.common.Environment
 import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatureUtils
+import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.observationRequest
-import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange}
+import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange, SimulationState}
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.fakebase.SimulationStartRequest
 import org.scalatest.funspec.AnyFunSpec
@@ -27,7 +28,9 @@ class TestArrowUtils extends AnyFunSpec{
         observationRequest = Some(observationRequest),
       )
 
-      Exchange.start(simulationStartRequest)
+      val simulationInfo = getResult(Exchange.start(simulationStartRequest))
+      implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
+      implicit val simulationMetadata = simulationState.simulationMetadata
       TestUtils.advanceExchangeAndPlaceOrders
       val writeFeatures = Environment.construct(observationRequest)
       writeFeatures.writeToSockets

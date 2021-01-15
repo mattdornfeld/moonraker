@@ -3,10 +3,7 @@ from datetime import timedelta
 from dateutil import parser
 
 from coinbase_ml.common.models.rainbow_model import ModelConfigs
-from coinbase_ml.common.protos.environment_pb2 import (
-    InfoDictKey,
-    RewardStrategy,
-)
+from coinbase_ml.common.protos.environment_pb2 import InfoDictKey, RewardStrategy
 from coinbase_ml.common.utils.ray_utils import Callbacks
 from coinbase_ml.common.utils.time_utils import TimeInterval
 from coinbase_ml.train import constants as c

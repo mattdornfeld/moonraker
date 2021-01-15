@@ -52,9 +52,9 @@ object TestUtils {
     )).map(amount => new ProductPrice(Right(amount.toString)))
   }
 
-  def getOrderBookPrices(depth: Int, orderSide: OrderSide): Seq[ProductPrice] = {
-    val orderBookSeq = Exchange.getOrderBook(orderSide).iterator.toSeq
-    orderSide match {
+  def getOrderBookPrices(depth: Int)(implicit orderBookState: OrderBookState): Seq[ProductPrice] = {
+    val orderBookSeq = OrderBook.iterator.toSeq
+    orderBookState.side match {
       case OrderSide.buy => orderBookSeq.reverse.take(depth).map(item => item._2.price)
       case OrderSide.sell => orderBookSeq.take(depth).map(item => item._2.price)
     }

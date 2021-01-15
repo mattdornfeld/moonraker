@@ -5,7 +5,7 @@ from collections.abc import ItemsView
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
 from gym import Env
@@ -19,10 +19,11 @@ from coinbase_ml.common.observations import (
     ObservationSpace,
     ObservationSpaceShape,
 )
-from coinbase_ml.common.protos.environment_pb2 import InfoDictKey
+from coinbase_ml.common.protos.environment_pb2 import InfoDictKey, RewardStrategy
 from coinbase_ml.common.utils.ray_utils import get_actionizer
 from coinbase_ml.common.utils.time_utils import TimeInterval
-from coinbase_ml.fakebase.exchange import Exchange
+from coinbase_ml.fakebase.exchange import Exchange, SimulationMetadata
+from coinbase_ml.common.types import SimulationId
 from coinbase_ml.fakebase.protos import fakebase_pb2  # pylint: disable=unused-import
 from coinbase_ml.fakebase.protos.fakebase_pb2 import SimulationType
 from coinbase_ml.fakebase.types import ProductVolume, QuoteVolume
@@ -130,6 +131,7 @@ class Environment(Env):  # pylint: disable=W0223
     """
 
     def __init__(self, config: EnvContext) -> None:
+        self._simulation_metadata: Optional[SimulationMetadata] = None
         self._warmed_up = False
         self.config = EnvironmentConfigs.from_sacred_config(config)
         self.actionizer = self.config.actionizer
@@ -176,14 +178,7 @@ class Environment(Env):  # pylint: disable=W0223
             ]
             self._start_dt = environment_time_interval.start_dt
             self._end_dt = environment_time_interval.end_dt
-            self.exchange = Exchange(
-                end_dt=self._end_dt,
-                product_id=cc.PRODUCT_ID,
-                start_dt=self._start_dt,
-                time_delta=self.config.time_delta,
-                reward_strategy=self.config.reward_strategy,
-                actionizer=self.actionizer.proto_value,
-            )
+            self.exchange = Exchange()
             self.reset()
 
     def _exchange_step(self, action: NDArray[float]) -> None:
@@ -193,7 +188,7 @@ class Environment(Env):  # pylint: disable=W0223
         Args:
             action (NDArray[float]): [description]
         """
-        self.exchange.step(actor_output=action)
+        self.exchange.step(simulation_id=self.simulation_id, actor_output=action)
 
         if c.VERBOSE:
             interval_end_dt = self.exchange.interval_end_dt
@@ -213,7 +208,9 @@ class Environment(Env):  # pylint: disable=W0223
         """
         return (
             not self.is_test_environment
-            and self.exchange.info_dict[InfoDictKey.Name(InfoDictKey.roi)]
+            and self.exchange.info_dict(self.simulation_id)[
+                InfoDictKey.Name(InfoDictKey.roi)
+            ]
             < -self.config.max_negative_roi
         )
 
@@ -223,39 +220,39 @@ class Environment(Env):  # pylint: disable=W0223
 
     @property
     def episode_finished(self) -> bool:
-        """Summary
+        return self.exchange.finished(self.simulation_id) or self._should_end_early()
 
-        Returns:
-            bool: True if training episode is finished.
-        """
-        return self.exchange.finished or self._should_end_early()
+    @property
+    def simulation_id(self) -> SimulationId:
+        return self._simulation_metadata.simulation_id
 
     def reset(self) -> Observation:
-        """Summary
-
-        Returns:
-            Observation: Description
-        """
         self.episode_number += 1
         if c.VERBOSE:
             LOGGER.info("Resetting the environment.")
 
         if not self._warmed_up:
-            self.exchange.start(
+            self._simulation_metadata = self.exchange.start(
+                actionizer=self.actionizer.proto_value,
+                backup_to_cloud_storage=self._should_backup_to_cloud_storage(),
+                enable_progress_bar=self.config.enable_progress_bar,
+                end_dt=self._end_dt,
                 initial_product_funds=self.config.initial_product_funds,
                 initial_quote_funds=self.config.initial_quote_funds,
                 num_warmup_time_steps=self.config.num_warmup_time_steps,
-                snapshot_buffer_size=self.config.time_series_feature_buffer_size,
-                enable_progress_bar=self.config.enable_progress_bar,
+                product_id=cc.PRODUCT_ID,
+                reward_strategy=RewardStrategy.Value(self.config.reward_strategy),
                 simulation_type=self.config.simulation_type,
-                backup_to_cloud_storage=self._should_backup_to_cloud_storage(),
+                snapshot_buffer_size=self.config.time_series_feature_buffer_size,
+                start_dt=self._start_dt,
+                time_delta=self.config.time_delta,
             )
 
             self._warmed_up = True
         else:
-            self.exchange.reset()
+            self.exchange.reset(self.simulation_id)
 
-        observation = self.exchange.observation
+        observation = self.exchange.observation(self.simulation_id)
 
         if c.VERBOSE:
             LOGGER.info("Environment reset.")
@@ -265,27 +262,17 @@ class Environment(Env):  # pylint: disable=W0223
     def step(
         self, action: Union[NDArray[float], np.int64]
     ) -> Tuple[Observation, float, bool, Dict[str, float]]:
-        """Summary
-
-        Args:
-            action (NDArray[float]): Description
-
-        Returns:
-            Tuple[Observation, float, bool, Dict]: Description
-
-        Raises:
-            EnvironmentFinishedException: Description
-        """
         if self.episode_finished:
             raise EnvironmentFinishedException
 
         _action = np.array([action]) if isinstance(action, np.int64) else action
         self._exchange_step(_action)
 
-        observation = self.exchange.observation
-        reward = self.exchange.reward
+        observation = self.exchange.observation(self.simulation_id)
+        reward = self.exchange.reward(self.simulation_id)
+        info_dict = self.exchange.info_dict(self.simulation_id)
 
         if c.VERBOSE:
             LOGGER.info("reward = %s", reward)
 
-        return observation, reward, self.episode_finished, self.exchange.info_dict
+        return observation, reward, self.episode_finished, info_dict

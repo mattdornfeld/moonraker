@@ -5,12 +5,38 @@ import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.{InfoDict, InfoDictKey}
 import co.firstorderlabs.common.protos.events.Match
 import co.firstorderlabs.common.types.Events.OrderEvent
+import co.firstorderlabs.common.types.Types.SimulationId
 
-final case class InfoAggregatorSnapshot(infoDict: InfoDict) extends Snapshot
+final case class InfoAggregatorState(infoDict: InfoDict)
+    extends State[InfoAggregatorState] {
+  override val companion = InfoAggregatorState
 
-object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
-  private val infoDict = new InfoDict
-  instantiateInfoDict
+  override def createSnapshot(implicit
+      simulationMetadata: SimulationMetadata
+  ): InfoAggregatorState =
+    InfoAggregatorState(infoDict.clone)
+
+}
+
+object InfoAggregatorState extends StateCompanion[InfoAggregatorState] {
+  override def create(implicit
+      simulationMetadata: SimulationMetadata
+  ): InfoAggregatorState = {
+    val infoDict = new InfoDict
+    infoDict.instantiate
+    InfoAggregatorState(infoDict)
+  }
+
+  override def fromSnapshot(
+      snapshot: InfoAggregatorState
+  ): InfoAggregatorState = {
+    val infoDict = new InfoDict
+    snapshot.infoDict.foreach(item => infoDict.put(item._1, item._2))
+    InfoAggregatorState(infoDict)
+  }
+}
+
+object InfoAggregator {
 
   private val buyMatchFilter = (matchEvent: Match) =>
     matchEvent.side.isbuy && matchEvent.liquidity.ismaker || matchEvent.side.issell && matchEvent.liquidity.istaker
@@ -20,9 +46,9 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
   private val sellOrderFilter = (orderEvent: OrderEvent) =>
     orderEvent.side.issell
 
-  private def instantiateInfoDict: Unit = infoDict.instantiate
-
-  private def incrementFeesPaid(matches: Seq[Match]): Unit =
+  private def incrementFeesPaid(
+      matches: Seq[Match]
+  )(implicit infoAggregatorState: InfoAggregatorState): Unit =
     Seq(
       (buyMatchFilter, InfoDictKey.buyFeesPaid),
       (sellMatchFilter, InfoDictKey.sellFeesPaid)
@@ -32,10 +58,13 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
         .map(_.fee.toDouble)
         .reduceOption(_ + _)
         .getOrElse(0.0)
-      infoDict.increment(item._2, feesPaid)
+      infoAggregatorState.infoDict.increment(item._2, feesPaid)
     }
 
-  private def incrementOrdersPlaced: Unit = {
+  private def incrementOrdersPlaced(implicit
+      accountState: AccountState,
+      infoAggregatorState: InfoAggregatorState
+  ): Unit = {
     val placedOrders = Account.getReceivedOrders
 
     Seq(
@@ -43,12 +72,16 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
       (sellOrderFilter, InfoDictKey.sellOrdersPlaced)
     ).foreach { item =>
       val numOrdersPlaced = placedOrders.filter(item._1).size
-      infoDict.increment(item._2, numOrdersPlaced)
+      infoAggregatorState.infoDict.increment(item._2, numOrdersPlaced)
     }
   }
 
-  private def incrementOrdersRejected: Unit = {
-    val currentTimeInterval = Exchange.getSimulationMetadata.currentTimeInterval
+  private def incrementOrdersRejected(implicit
+      accountState: AccountState,
+      infoAggregatorState: InfoAggregatorState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
+    val currentTimeInterval = simulationMetadata.currentTimeInterval
     val numOrdersRejected = Account
       .getFilteredOrders((orderEvent: OrderEvent) =>
         orderEvent.orderStatus.isrejected && currentTimeInterval.contains(
@@ -57,10 +90,10 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
       )
       .size
 
-    infoDict.increment(InfoDictKey.numOrdersRejected, numOrdersRejected)
+    infoAggregatorState.infoDict.increment(InfoDictKey.numOrdersRejected, numOrdersRejected)
   }
 
-  private def incrementVolumeTraded(matches: Seq[Match]): Unit =
+  private def incrementVolumeTraded(matches: Seq[Match])(implicit infoAggregatorState: InfoAggregatorState): Unit =
     Seq(
       (buyMatchFilter, InfoDictKey.buyVolumeTraded),
       (sellMatchFilter, InfoDictKey.sellVolumeTraded)
@@ -71,35 +104,43 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
           .map(_.quoteVolume.toDouble)
           .reduceOption(_ + _)
           .getOrElse(0.0)
-      infoDict.increment(item._2, volumeTraded)
+      infoAggregatorState.infoDict.increment(item._2, volumeTraded)
     }
 
-  private def updatePortfolioValue: Unit = {
-    val simulationMetadata = Exchange.getSimulationMetadata
-    val portfolioValue = MatchingEngine.currentPortfolioValue.getOrElse(
+  private def updatePortfolioValue(implicit
+      matchingEngineState: MatchingEngineState,
+      infoAggregatorState: InfoAggregatorState,
+      simulationMetadata: SimulationMetadata
+  ): Unit = {
+    val portfolioValue = matchingEngineState.currentPortfolioValue.getOrElse(
       simulationMetadata.initialQuoteFunds.toDouble
     )
 
-    infoDict.put(InfoDictKey.portfolioValue, portfolioValue)
+    infoAggregatorState.infoDict.put(InfoDictKey.portfolioValue, portfolioValue)
   }
 
-  private def updateRoi: Unit = {
-    MatchingEngine.checkpointPortfolioValue
-      .zip(MatchingEngine.currentPortfolioValue)
+  private def updateRoi(implicit
+      infoAggregatorState: InfoAggregatorState,
+      matchingEngineState: MatchingEngineState
+  ): Unit = {
+    matchingEngineState.checkpointPortfolioValue
+      .zip(matchingEngineState.currentPortfolioValue)
       .map { item =>
         val roi = (item._2 - item._1) / item._1
-        infoDict.put(InfoDictKey.roi, roi)
+        infoAggregatorState.infoDict.put(InfoDictKey.roi, roi)
       }
   }
 
-  def getInfoDict: InfoDict = infoDict
+  def increment(key: InfoDictKey)(implicit infoAggregatorState: InfoAggregatorState): Unit = infoAggregatorState.infoDict(key) += 1
 
-  def increment(key: InfoDictKey): Unit = infoDict(key) += 1
-
-  def preStep: Unit = {
-    // These methods must be directly after orders are placed with Account
-    incrementOrdersPlaced
-    incrementOrdersRejected
+  def preStep(implicit simulationState: SimulationState): Unit = {
+    // These methods must be called directly after orders are placed with Account
+    incrementOrdersPlaced(simulationState.accountState, simulationState.environmentState.infoAggregatorState)
+    incrementOrdersRejected(
+      simulationState.accountState,
+      simulationState.environmentState.infoAggregatorState,
+      simulationState.simulationMetadata,
+    )
   }
 
   def step(
@@ -107,11 +148,14 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
       dataGetDuration: Double,
       matchingEngineDuration: Double,
       environmentDuration: Double,
-      numEvents: Double
-  ): Unit = {
+      numEvents: Double,
+      simulationId: SimulationId
+  )(implicit simulationState: SimulationState): Unit = {
     val matches = getResult(
-      Account.getMatches(Constants.emptyProto)
+      Account.getMatches(simulationId)
     ).matchEvents
+    implicit val infoAggregatorState = simulationState.environmentState.infoAggregatorState
+    val infoDict = infoAggregatorState.infoDict
 
     // Make sure to increment numSamples before calling incrementRunningMean
     infoDict.increment(InfoDictKey.numSamples, 1.0)
@@ -125,24 +169,11 @@ object InfoAggregator extends Snapshotable[InfoAggregatorSnapshot] {
 
     incrementFeesPaid(matches)
     incrementVolumeTraded(matches)
-    updatePortfolioValue
-    updateRoi
-  }
-
-  def clear: Unit = {
-    infoDict.clear
-    instantiateInfoDict
-  }
-
-  def isCleared: Boolean =
-    (InfoDictKey.values.forall(key => infoDict.contains(key))
-      && infoDict.values.forall(_ == 0.0))
-
-  override def createSnapshot: InfoAggregatorSnapshot =
-    InfoAggregatorSnapshot(infoDict.clone)
-
-  override def restore(snapshot: InfoAggregatorSnapshot): Unit = {
-    clear
-    snapshot.infoDict.foreach(item => infoDict.put(item._1, item._2))
+    updatePortfolioValue(
+      simulationState.matchingEngineState,
+      infoAggregatorState,
+      simulationState.simulationMetadata
+    )
+    updateRoi(infoAggregatorState, simulationState.matchingEngineState)
   }
 }

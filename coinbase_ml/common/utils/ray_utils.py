@@ -26,6 +26,7 @@ from coinbase_ml.common.protos.environment_pb2 import (
     Actionizer as ActionizerProto,
     InfoDictKey,
 )
+from coinbase_ml.common.types import SimulationId
 from coinbase_ml.fakebase.protos import fakebase_pb2
 
 if TYPE_CHECKING:
@@ -107,7 +108,7 @@ class Callbacks(DefaultCallbacks):
         episode_reward: float,
         worker_index: int,
         simulation_duration: float,
-        simulation_id: str,
+        simulation_id: SimulationId,
         simulation_type: "fakebase_pb2.SimulationTypeValue",
     ) -> None:
         _simulation_type = fakebase_pb2.SimulationType.Name(simulation_type)
@@ -163,7 +164,7 @@ class Callbacks(DefaultCallbacks):
             episode.total_reward,
             env.worker_index,
             time() - self._episode_start_time,
-            env.exchange.simulation_id,
+            env.simulation_id,
             env.config.simulation_type,
         )
         if env.is_test_environment:

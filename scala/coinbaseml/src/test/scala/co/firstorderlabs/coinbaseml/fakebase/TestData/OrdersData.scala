@@ -3,9 +3,9 @@ package co.firstorderlabs.coinbaseml.fakebase.TestData
 import java.time.Instant
 
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
-import co.firstorderlabs.coinbaseml.fakebase.{Exchange, TestUtils}
-import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
+import co.firstorderlabs.coinbaseml.fakebase.{SimulationMetadata, TestUtils}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
+import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.protos.events.{OrderSide, _}
 
 object OrdersData {
@@ -15,26 +15,26 @@ object OrdersData {
     maxPrice: ProductPrice,
     productVolume: ProductVolume = new ProductVolume(Right("1.000000")),
     numOrders: Int = 100,
-  ): List[Order] = TestUtils.generateOrdersForRangeOfPrices(
+  )(implicit simulationMetadata: SimulationMetadata): List[Order] = TestUtils.generateOrdersForRangeOfPrices(
     priceDelta,
     maxPrice - priceDelta / Right(1.0 / numOrders),
     maxPrice,
     OrderSide.buy,
     productVolume,
-    Exchange.getSimulationMetadata.currentTimeInterval.endTime
+    simulationMetadata.currentTimeInterval.endTime
   )
 
   def insertSellOrders(
     minPrice: ProductPrice,
     productVolume: ProductVolume = new ProductVolume(Right("1.000000")),
     numOrders: Int = 100,
-  ): List[Order] = TestUtils.generateOrdersForRangeOfPrices(
+  )(implicit simulationMetadata: SimulationMetadata): List[Order] = TestUtils.generateOrdersForRangeOfPrices(
     priceDelta,
     minPrice,
     minPrice + priceDelta / Right(1.0 / numOrders),
     OrderSide.sell,
     productVolume,
-    Exchange.getSimulationMetadata.currentTimeInterval.endTime
+    simulationMetadata.currentTimeInterval.endTime
   )
 
   val lowerOrder = BuyLimitOrder(
@@ -67,5 +67,5 @@ object OrdersData {
     Instant.now
   )
 
-  val cancellation = OrderUtils.cancellationFromOrder(higherOrder)
+  def cancellation(implicit simulationMetadata: SimulationMetadata) = OrderUtils.cancellationFromOrder(higherOrder)
 }

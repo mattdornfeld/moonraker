@@ -1,40 +1,40 @@
 """Simulates the Coinbase Pro exchange
 """
 from __future__ import annotations
+
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from dateutil import parser
 from google.protobuf.duration_pb2 import Duration
-from nptyping import NDArray
 from grpc._channel import _InactiveRpcError as InactiveRpcError
+from nptyping import NDArray
 
-import coinbase_ml.fakebase.account as _account
+import coinbase_ml.fakebase.account as account
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common.protos.environment_pb2 import (
-    Observation as ObservationProto,
-    ObservationRequest,
-    RewardRequest,
-    RewardStrategy,
-)
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.protos.environment_pb2 import ActionRequest
+from coinbase_ml.common.protos.environment_pb2 import (
+    ObservationRequest,
+    RewardRequest,
+)
+from coinbase_ml.common.protos.events_pb2 import SimulationId as SimulationIdProto
+from coinbase_ml.common.types import SimulationId
+from coinbase_ml.fakebase import constants as c
+from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.protos import fakebase_pb2  # pylint: disable=unused-import
 from coinbase_ml.fakebase.protos.fakebase_pb2 import (
     ExchangeInfo,
     OrderBooksRequest,
     OrderBooks,
     SimulationInfo,
-    SimulationInfoRequest,
     SimulationStartRequest,
     SimulationType,
     StepRequest,
 )
 from coinbase_ml.fakebase.protos.fakebase_pb2_grpc import ExchangeServiceStub
-from coinbase_ml.fakebase import constants as c
-from coinbase_ml.fakebase.base_classes.exchange import ExchangeBase
-from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.types import (
     BinnedOrderBook,
     OrderSide,
@@ -42,6 +42,7 @@ from coinbase_ml.fakebase.types import (
     ProductVolume,
     QuoteVolume,
 )
+from coinbase_ml.fakebase.utils.exceptions import ExchangeFinishedException
 from coinbase_ml.fakebase.utils.grpc_utils import (
     create_channel,
     get_random_free_port,
@@ -52,38 +53,28 @@ if TYPE_CHECKING:
     import coinbase_ml.common.protos.environment_pb2 as environment_pb2
 
 
-class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
-    """Summary
-    """
+@dataclass
+class SimulationMetadata:
+    account: account.Account
+    actionizer: "environment_pb2.ActionizerValue"
+    end_dt: datetime
+    observation_request: ObservationRequest
+    product_id: ProductId
+    simulation_id: SimulationId
+    simulation_info: SimulationInfo
+    start_dt: datetime
+    time_delta: timedelta
 
+    @property
+    def exchange_info(self) -> ExchangeInfo:
+        return self.simulation_info.exchangeInfo
+
+
+class Exchange:
     def __init__(
-        self,
-        end_dt: datetime,
-        product_id: ProductId,
-        start_dt: datetime,
-        time_delta: timedelta,
-        reward_strategy: str,
-        actionizer: "environment_pb2.ActionizerValue",
-        create_exchange_process: bool = True,
-        test_mode: bool = False,
+        self, create_exchange_process: bool = True, test_mode: bool = False,
     ) -> None:
-        """
-        __init__ [summary]
-
-        Args:
-            end_dt (datetime): [description]
-            product_id (ProductId): [description]
-            start_dt (datetime): [description]
-            time_delta (timedelta): [description]
-            create_exchange_process (bool): [description]
-        """
-        super().__init__(end_dt, product_id, start_dt, time_delta)
-
-        self._simulation_info_request = SimulationInfoRequest()
-        self._observation = ObservationProto()
-        self._reward_strategy = RewardStrategy.Value(reward_strategy)
-        self._actionizer = actionizer
-        self.simulation_id = ""
+        self._simulation_metadatas: Dict[SimulationId, SimulationMetadata] = {}
 
         if create_exchange_process:
             port = get_random_free_port()
@@ -94,32 +85,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
 
         self.channel = create_channel(port)
         self.stub = ExchangeServiceStub(self.channel)
-        self.account = _account.Account(self)
         self._exchange_server_health_check()
-
-    def __eq__(self, other: Any) -> bool:
-        """
-        __eq__ [summary]
-
-        Args:
-            other (Any): [description]
-
-        Returns:
-            bool: [description]
-        """
-        if isinstance(other, Exchange):
-            _other: Exchange = other
-            return_val = (
-                self.end_dt == _other.end_dt
-                and self.interval_end_dt == _other.interval_end_dt
-                and self.interval_start_dt == _other.interval_start_dt
-                and self.time_delta == _other.time_delta
-                and self.account == _other.account
-            )
-        else:
-            raise TypeError
-
-        return return_val
 
     @staticmethod
     def _bin_order_books_by_price(
@@ -151,7 +117,7 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         max_tries = 100
         for i in range(max_tries + 1):
             try:
-                self.stub.getExchangeInfo(c.EMPTY_PROTO)
+                self.stub.getSimulationIds(c.EMPTY_PROTO)
             except InactiveRpcError as inactive_rpc_error:
                 if i >= max_tries:
                     raise inactive_rpc_error
@@ -159,171 +125,138 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
                 sleep(0.3)
                 continue
 
+    @staticmethod
     def _generate_action_request(
-        self, actor_output: Optional[NDArray[float]]
+        actionizer: "environment_pb2.ActionizerValue",
+        actor_output: Optional[NDArray[float]],
+        simulation_id: SimulationId,
     ) -> Optional[ActionRequest]:
         return (
-            ActionRequest(actorOutput=list(actor_output), actionizer=self._actionizer)
+            ActionRequest(
+                actorOutput=list(actor_output),
+                actionizer=actionizer,
+                simulationId=Exchange._generate_simulation_id_proto(simulation_id),
+            )
             if actor_output is not None
             else None
         )
 
-    def _generate_observation_request(self) -> ObservationRequest:
-        reward_request = RewardRequest(rewardStrategy=self._reward_strategy)
+    @staticmethod
+    def _generate_observation_request(
+        reward_strategy: "environment_pb2.RewardStrategyValue",
+        simulation_id: Optional[SimulationId] = None,
+    ) -> ObservationRequest:
         return ObservationRequest(
             orderBookDepth=cc.ORDER_BOOK_DEPTH,
             normalize=False,
-            rewardRequest=reward_request,
+            rewardRequest=RewardRequest(rewardStrategy=reward_strategy),
+            simulationId=Exchange._generate_simulation_id_proto(simulation_id),
         )
 
     @staticmethod
-    def _generate_order_book_request() -> OrderBooksRequest:
-        return OrderBooksRequest(orderBookDepth=cc.ORDER_BOOK_DEPTH)
-
-    def _generate_simulation_info_request(self) -> SimulationInfoRequest:
-        return SimulationInfoRequest(
-            observationRequest=self._generate_observation_request()
+    def _generate_order_book_request(simulation_id: SimulationId) -> OrderBooksRequest:
+        return OrderBooksRequest(
+            orderBookDepth=cc.ORDER_BOOK_DEPTH,
+            simulationId=Exchange._generate_simulation_id_proto(simulation_id),
         )
 
-    def _update_exchange_info(self, exchange_info: ExchangeInfo) -> None:
-        """
-        _update_exchange_info [summary]
+    @staticmethod
+    def _generate_simulation_id_proto(simulation_id: SimulationId) -> SimulationIdProto:
+        return SimulationIdProto(simulationId=simulation_id)
 
-        Args:
-            exchange_info (ExchangeInfo): [description]
-        """
-        self.simulation_id = exchange_info.simulationId
-        self.account.account_info = exchange_info.accountInfo
-        self.interval_start_dt = parser.parse(exchange_info.intervalStartTime).replace(
-            tzinfo=None
+    def _update_simulation_metadata(self, simulation_info: SimulationInfo) -> None:
+        simulation_metadata = self.simulation_metadata(
+            SimulationId(simulation_info.simulationId.simulationId)
         )
-        self._interval_end_dt = parser.parse(exchange_info.intervalEndTime).replace(
-            tzinfo=None
+        simulation_metadata.simulation_info = simulation_info
+        simulation_metadata.account.account_info = (
+            simulation_info.exchangeInfo.accountInfo
         )
 
-    def _update_simulation_info(self, simulation_info: SimulationInfo) -> None:
-        self._observation = simulation_info.observation
-        self._update_exchange_info(simulation_info.exchangeInfo)
+    def account(self, simulation_id: SimulationId) -> account.Account:
+        return self._simulation_metadatas[simulation_id].account
 
-    @property
-    def account(self) -> _account.Account:
-        """
-        account [summary]
-
-        Returns:
-            _account.Account: [description]
-        """
-        return self._account
-
-    @account.setter
-    def account(self, value: _account.Account) -> None:
-        """
-        account [summary]
-
-        Args:
-            value (Account): [description]
-        """
-        self._account = value
-
-    def bin_order_book_by_price(self, order_side: OrderSide) -> BinnedOrderBook:
-        """
-        bin_order_book_by_price [summary]
-
-        Args:
-            order_side (OrderSide)
-
-        Returns:
-            BinnedOrderBook
-        """
+    def bin_order_book_by_price(
+        self, order_side: OrderSide, simulation_id: SimulationId
+    ) -> BinnedOrderBook:
         order_books: OrderBooks = self.stub.getOrderBooks(
-            self._generate_order_book_request()
+            self._generate_order_book_request(simulation_id)
         )
 
         return self._bin_order_books_by_price(order_books)[order_side]
 
-    @property
-    def info_dict(self) -> Dict[str, float]:
+    def finished(self, simulation_id: SimulationId) -> bool:
+        time_delta = self.simulation_metadata(simulation_id).time_delta
+        end_dt = self.simulation_metadata(simulation_id).end_dt
+        return self.interval_end_dt(simulation_id) + time_delta >= end_dt
+
+    def info_dict(self, simulation_id: SimulationId) -> Dict[str, float]:
         """Retrieves the InfoDict which contains summary information about the exchange
         """
-        return dict(self._observation.infoDict.infoDict)
+        return dict(
+            self.simulation_metadata(
+                simulation_id
+            ).simulation_info.observation.infoDict.infoDict
+        )
 
-    @property
-    def matches(self) -> List[CoinbaseMatch]:
-        """
-        matches [summary]
+    def interval_end_dt(self, simulation_id: SimulationId) -> datetime:
+        return parser.parse(
+            self.simulation_metadata(simulation_id).exchange_info.intervalEndTime
+        ).replace(tzinfo=None)
 
-        Returns:
-            List[CoinbaseMatch]: [description]
-        """
-        match_events = self.stub.getMatches(c.EMPTY_PROTO).matchEvents
+    def interval_start_dt(self, simulation_id: SimulationId) -> datetime:
+        return parser.parse(
+            self.simulation_metadata(simulation_id).exchange_info.intervalStartTime
+        ).replace(tzinfo=None)
+
+    def matches(self, simulation_id: SimulationId) -> List[CoinbaseMatch]:
+        match_events = self.stub.getMatches(simulation_id).matchEvents
         return [CoinbaseMatch.from_proto(m) for m in match_events]
 
-    @property
-    def observation(self) -> Observation:
+    @staticmethod
+    def observation(simulation_id: SimulationId) -> Observation:
         """Observation from latest step
         """
-        return Observation.from_arrow_sockets(self.simulation_id)
+        return Observation.from_arrow_sockets(simulation_id)
 
-    @property
-    def received_cancellations(self) -> List[CoinbaseCancellation]:
-        """
-        received_cancellations [summary]
-
-        Returns:
-            CoinbaseEvent: [description]
-        """
-        return []
-
-    @property
-    def received_orders(self) -> List[CoinbaseOrder]:
-        """
-        received_orders [summary]
-
-        Returns:
-            CoinbaseEvent: [description]
-        """
-        return []
-
-    @received_orders.setter
-    def received_orders(self, value: List[CoinbaseOrder]) -> None:
-        """
-        received_orders [summary]
-
-        Args:
-            value (List[CoinbaseEvent]): [description]
-        """
-        self._received_orders = value
-
-    @property
-    def reward(self) -> float:
+    def reward(self, simulation_id: SimulationId) -> float:
         """Reward from latest step
         """
-        return self._observation.reward.reward
+        return self.simulation_metadata(
+            simulation_id
+        ).simulation_info.observation.reward.reward
+
+    def simulation_metadata(self, simulation_id: SimulationId) -> SimulationMetadata:
+        return self._simulation_metadatas[simulation_id]
 
     def start(
         self,
+        actionizer: "environment_pb2.ActionizerValue",
+        end_dt: datetime,
         initial_product_funds: ProductVolume,
         initial_quote_funds: QuoteVolume,
         num_warmup_time_steps: int,
+        product_id: ProductId,
+        reward_strategy: "environment_pb2.RewardStrategyValue",
         snapshot_buffer_size: int,
+        start_dt: datetime,
+        time_delta: timedelta,
         backup_to_cloud_storage: bool = False,
         enable_progress_bar: bool = False,
         simulation_type: "fakebase_pb2.SimulationTypeValue" = SimulationType.evaluation,
-    ) -> None:
+    ) -> SimulationMetadata:
         """Start a simulation
         """
-        self._simulation_info_request = self._generate_simulation_info_request()
-
+        observation_request = self._generate_observation_request(reward_strategy)
         simulation_start_request = SimulationStartRequest(
-            startTime=self.start_dt.isoformat() + "Z",
-            endTime=self.end_dt.isoformat() + "Z",
-            timeDelta=Duration(seconds=int(self.time_delta.total_seconds())),
+            startTime=start_dt.isoformat() + "Z",
+            endTime=end_dt.isoformat() + "Z",
+            timeDelta=Duration(seconds=int(time_delta.total_seconds())),
             numWarmUpSteps=num_warmup_time_steps,
             initialProductFunds=str(initial_product_funds),
             initialQuoteFunds=str(initial_quote_funds),
-            simulationInfoRequest=self._simulation_info_request,
             snapshotBufferSize=snapshot_buffer_size,
-            observationRequest=self._generate_observation_request(),
+            observationRequest=observation_request,
             enableProgressBar=enable_progress_bar,
             simulationType=simulation_type,
             databaseBackend=c.DATABASE_BACKEND,
@@ -331,52 +264,69 @@ class Exchange(ExchangeBase[_account.Account]):  # pylint: disable=R0903,R0902
         )
 
         simulation_info: SimulationInfo = self.stub.start(simulation_start_request)
-        self._update_simulation_info(simulation_info)
+        simulation_id = SimulationId(simulation_info.simulationId.simulationId)
+        simulation_metadata = SimulationMetadata(
+            account=account.Account(
+                self.channel, simulation_info.exchangeInfo.accountInfo, simulation_id,
+            ),
+            actionizer=actionizer,
+            end_dt=end_dt,
+            observation_request=observation_request,
+            product_id=product_id,
+            simulation_id=SimulationId(simulation_info.simulationId.simulationId),
+            simulation_info=simulation_info,
+            start_dt=start_dt,
+            time_delta=time_delta,
+        )
+        self._simulation_metadatas[simulation_id] = simulation_metadata
 
-    def reset(self) -> None:
+        return simulation_metadata
+
+    def reset(self, simulation_id: SimulationId) -> None:
         """
         Reset the exchange to the state created with `checkpoint`. Useful when
         doing multiple simulations that need to start from the same warmed up state.
         """
-        simulation_info: SimulationInfo = self.stub.reset(self._simulation_info_request)
-        self._update_simulation_info(simulation_info)
+        reward_strategy = self.simulation_metadata(
+            simulation_id
+        ).observation_request.rewardRequest.rewardStrategy
+        observation_request = self._generate_observation_request(
+            reward_strategy, simulation_id
+        )
+        simulation_info: SimulationInfo = self.stub.reset(observation_request)
+        self._update_simulation_metadata(simulation_info)
 
     def step(
         self,
+        simulation_id: SimulationId,
         insert_cancellations: Optional[List[CoinbaseCancellation]] = None,
         insert_orders: Optional[List[CoinbaseOrder]] = None,
         actor_output: Optional[NDArray[float]] = None,
     ) -> None:
-        """
-        step calls the Exchange.step method on the Fakebase Scala server
+        if self.finished(simulation_id):
+            raise ExchangeFinishedException
 
-        Args:
-            insert_cancellations (Optional[List[CoinbaseCancellation]], optional): Defaults to None
-            insert_orders (Optional[List[CoinbaseOrder]], optional): Defaults to None
-        """
-        super().step(insert_cancellations, insert_orders, actor_output)
         _insert_cancellations = (
             [] if insert_cancellations is None else insert_cancellations
         )
         _insert_orders = [] if insert_orders is None else insert_orders
 
+        simulation_metadata = self.simulation_metadata(simulation_id)
+        actionizer = simulation_metadata.actionizer
         step_request = StepRequest(
             insertOrders=[order.to_proto() for order in _insert_orders],
             insertCancellations=[
                 cancellation.to_proto() for cancellation in _insert_cancellations
             ],
-            simulationInfoRequest=self._simulation_info_request,
-            actionRequest=self._generate_action_request(actor_output),
+            observationRequest=simulation_metadata.observation_request,
+            actionRequest=self._generate_action_request(
+                actionizer, actor_output, simulation_id
+            ),
+            simulationId=Exchange._generate_simulation_id_proto(simulation_id),
         )
 
         simulation_info: SimulationInfo = self.stub.step(step_request)
-        self._update_simulation_info(simulation_info)
+        self._update_simulation_metadata(simulation_info)
 
-        self.account.placed_cancellations.clear()
-        self.account.placed_orders.clear()
-
-    def stop(self) -> None:
-        """
-        stop [summary]
-        """
-        self.stub.stop(c.EMPTY_PROTO)
+    def stop(self, simulation_id: SimulationId) -> None:
+        self.stub.stop(self._generate_simulation_id_proto(simulation_id))

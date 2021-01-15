@@ -1,10 +1,11 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
-import co.firstorderlabs.coinbaseml.fakebase.types.Exceptions.OrderBookEmpty
+import co.firstorderlabs.coinbaseml.fakebase.Types.Exceptions.OrderBookEmpty
 import co.firstorderlabs.coinbaseml.fakebase.utils.IndexedLinkedList
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
+import co.firstorderlabs.common.protos.events.OrderSide
 import co.firstorderlabs.common.types.Events.{LimitOrderEvent, OrderBookKey}
 import co.firstorderlabs.common.types.Types.OrderId
 
@@ -17,11 +18,6 @@ final class AggregatedMap extends HashMap[ProductPrice, ProductVolume] {
   override def apply(key: ProductPrice): ProductVolume =
     super.getOrElseUpdate(key, ProductVolume.zeroVolume)
 }
-
-final case class OrderBookSnapshot(
-    orderIdLookup: mutable.HashMap[OrderId, LimitOrderEvent],
-    priceTree: PriceTree
-) extends Snapshot
 
 final case class PriceGlob(price: ProductPrice) {
   val orders = new IndexedLinkedList[OrderBookKey, LimitOrderEvent]
@@ -103,152 +99,86 @@ final case class PriceTree(
   }
 }
 
-final class OrderBook(snapshot: Option[OrderBookSnapshot] = None)
-    extends Snapshotable[OrderBookSnapshot] {
-  private val orderIdLookup = new HashMap[OrderId, LimitOrderEvent]
-  private val priceTree = new PriceTree
-  snapshot.map(restore(_))
-
-  override def createSnapshot: OrderBookSnapshot = {
-    OrderBookSnapshot(
-      orderIdLookup.clone,
-      priceTree.clone
-    )
-  }
-
-  override def restore(snapshot: OrderBookSnapshot): Unit = {
-    clear
-    orderIdLookup.addAll(snapshot.orderIdLookup.iterator)
-    priceTree.addAll(snapshot.priceTree.iterator)
-  }
-
-  override def clear: Unit = {
+sealed abstract case class OrderBookState (
+    orderIdLookup: mutable.HashMap[OrderId, LimitOrderEvent],
+    priceTree: PriceTree,
+    side: OrderSide
+) {
+  def clear: Unit = {
     orderIdLookup.clear
     priceTree.clear
   }
 
-  override def isCleared: Boolean = {
+  def isCleared: Boolean = {
     orderIdLookup.isEmpty && priceTree.isEmpty
   }
+}
 
-  def aggregateToMap(
-      depth: Int,
-      fromTop: Boolean = false
-  ): Map[ProductPrice, ProductVolume] = {
-    val priceTreeIterator =
-      priceTree.whenElse(fromTop)(_.toList.reverseIterator, _.iterator)
-    val aggregatedMap = new AggregatedMap
+final class BuyOrderBookState(
+    orderIdLookup: mutable.HashMap[OrderId, LimitOrderEvent],
+    priceTree: PriceTree
+) extends OrderBookState(orderIdLookup, priceTree, OrderSide.buy) with State[BuyOrderBookState] {
+  override val companion = BuyOrderBookState
 
-    @tailrec
-    def populateAggregatedMap: Unit = {
-      if (!priceTreeIterator.hasNext) return
-
-      val (_, priceGlob) = priceTreeIterator.next()
-      if (
-        aggregatedMap.size >= depth && !aggregatedMap.contains(priceGlob.price)
-      ) {} else {
-        aggregatedMap(priceGlob.price) = priceGlob.aggregateVolume
-        populateAggregatedMap
-      }
-    }
-
-    populateAggregatedMap
-    aggregatedMap.toMap
-  }
-
-  def getOrderByOrderBookKey(
-      orderBookKey: OrderBookKey
-  ): Option[LimitOrderEvent] = {
-    val priceGlob = priceTree.get(orderBookKey.price)
-    priceGlob.flatMap(_.get(orderBookKey))
-  }
-
-  def getOrderByOrderId(orderId: OrderId): Option[LimitOrderEvent] =
-    orderIdLookup.get(orderId)
-
-  def isEmpty: Boolean = {
-    orderIdLookup.isEmpty
-  }
-
-  def iterator: Iterator[(OrderBookKey, LimitOrderEvent)] =
-    for {
-      (_, priceGlob) <- priceTree.iterator
-      item <- priceGlob.iterator
-    } yield item
-
-  def maxOrder: Option[LimitOrderEvent] =
-    for {
-      (_, priceGlob: PriceGlob) <- priceTree.lastOption
-      order <- priceGlob.oldestOrder
-    } yield order
-
-  def maxPrice: Option[ProductPrice] =
-    priceTree.lastOption.map(_._1)
-
-  def minOrder: Option[LimitOrderEvent] =
-    for {
-      (_, priceGlob: PriceGlob) <- priceTree.headOption
-      order <- priceGlob.oldestOrder
-    } yield order
-
-  def minPrice: Option[ProductPrice] = {
-    priceTree.headOption.map(_._1)
-  }
-
-  def removeByKey(key: OrderBookKey): Option[LimitOrderEvent] = {
-    val price = key.price
-    val priceGlob = priceTree.get(price).get
-    val order = priceGlob.remove(key).get
-
-    if (priceGlob.isEmpty) {
-      priceTree.remove(price)
-    }
-    orderIdLookup.remove(order.orderId)
-  }
-
-  def removeByOrderId(orderId: OrderId): Option[LimitOrderEvent] = {
-    val order = orderIdLookup.get(orderId).get
-    removeByKey(order.orderBookKey)
-  }
-
-  @throws[OrderBookEmpty]
-  def throwExceptionIfEmpty: Unit = {
-    if (isEmpty) {
-      throw new OrderBookEmpty
-    }
-  }
-
-  def update(key: OrderBookKey, order: LimitOrderEvent): Unit = {
-    require(
-      order.orderStatus.isopen,
-      "can only add open orders to the order book"
+  override def createSnapshot(implicit simulationMetadata: SimulationMetadata): BuyOrderBookState =
+    new BuyOrderBookState(
+      orderIdLookup.clone,
+      priceTree.clone,
     )
-    if (orderIdLookup.contains(order.orderId)) { return }
+}
 
-    val price = order.price
-    priceTree.get(price) match {
-      case Some(priceGlob) => priceGlob.put(key, order)
-      case None => {
-        val priceGlob = PriceGlob(price)
-        priceGlob.put(key, order)
-        priceTree.put(price, priceGlob)
-      }
-    }
+object BuyOrderBookState extends StateCompanion[BuyOrderBookState] {
+  override def create(implicit simulationMetadata: SimulationMetadata): BuyOrderBookState =
+    new BuyOrderBookState(
+      new mutable.HashMap,
+      new PriceTree
+    )
 
-    orderIdLookup.update(order.orderId, order)
+  override def fromSnapshot(snapshot: BuyOrderBookState): BuyOrderBookState = {
+    val buyOrderBookState = new BuyOrderBookState(
+      new mutable.HashMap,
+      new PriceTree
+    )
+
+    buyOrderBookState.orderIdLookup.addAll(snapshot.orderIdLookup.iterator)
+    buyOrderBookState.priceTree.addAll(snapshot.priceTree.iterator)
+    buyOrderBookState
+  }
+}
+
+final class SellOrderBookState(
+    orderIdLookup: mutable.HashMap[OrderId, LimitOrderEvent],
+    priceTree: PriceTree
+) extends OrderBookState(orderIdLookup, priceTree, OrderSide.sell) with State[SellOrderBookState] {
+  override val companion = SellOrderBookState
+
+  override def createSnapshot(implicit simulationMetadata: SimulationMetadata): SellOrderBookState =
+    new SellOrderBookState(
+      orderIdLookup.clone,
+      priceTree.clone,
+    )
+}
+
+object SellOrderBookState extends StateCompanion[SellOrderBookState] {
+  override def create(implicit simulationMetadata: SimulationMetadata): SellOrderBookState =
+    new SellOrderBookState(
+      new mutable.HashMap,
+      new PriceTree
+    )
+
+  override def fromSnapshot(snapshot: SellOrderBookState): SellOrderBookState = {
+    val sellOrderBookState = new SellOrderBookState(
+      new mutable.HashMap,
+      new PriceTree
+    )
+
+    sellOrderBookState.orderIdLookup.addAll(snapshot.orderIdLookup.iterator)
+    sellOrderBookState.priceTree.addAll(snapshot.priceTree.iterator)
+    sellOrderBookState
   }
 }
 
 object OrderBook {
-  implicit class PriceIndexUtils(
-      priceIndex: mutable.HashMap[ProductPrice, PriceGlob]
-  ) {
-    def customClone: mutable.HashMap[ProductPrice, PriceGlob] = {
-      val clonedPriceIndex = new mutable.HashMap[ProductPrice, PriceGlob]
-      clonedPriceIndex.addAll(priceIndex.iterator.map(i => (i._1, i._2.clone)))
-    }
-  }
-
   implicit val PriceOrdering = new Ordering[ProductPrice] {
     override def compare(a: ProductPrice, b: ProductPrice): Int = {
       a.amount compareTo b.amount
@@ -275,6 +205,155 @@ object OrderBook {
       }
     }
 
+  def aggregateToMap(
+      depth: Int,
+      fromTop: Boolean = false
+  )(implicit
+      orderBookState: OrderBookState
+  ): Map[ProductPrice, ProductVolume] = {
+    val priceTreeIterator =
+      orderBookState.priceTree
+        .whenElse(fromTop)(_.toList.reverseIterator, _.iterator)
+    val aggregatedMap = new AggregatedMap
+
+    @tailrec
+    def populateAggregatedMap: Unit = {
+      if (!priceTreeIterator.hasNext) return
+
+      val (_, priceGlob) = priceTreeIterator.next()
+      if (
+        aggregatedMap.size >= depth && !aggregatedMap.contains(priceGlob.price)
+      ) {} else {
+        aggregatedMap(priceGlob.price) = priceGlob.aggregateVolume
+        populateAggregatedMap
+      }
+    }
+
+    populateAggregatedMap
+    aggregatedMap.toMap
+  }
+
   def getOrderBookKey(order: LimitOrderEvent): OrderBookKey =
     order.orderBookKey
+
+  def getOrderByOrderBookKey(
+      orderBookKey: OrderBookKey
+  )(implicit orderBookState: OrderBookState): Option[LimitOrderEvent] = {
+    val priceGlob = orderBookState.priceTree.get(orderBookKey.price)
+    priceGlob.flatMap(_.get(orderBookKey))
+  }
+
+  def getOrderByOrderId(
+      orderId: OrderId
+  )(implicit orderBookState: OrderBookState): Option[LimitOrderEvent] =
+    orderBookState.orderIdLookup.get(orderId)
+
+  def isEmpty(implicit orderBookState: OrderBookState): Boolean = {
+    orderBookState.orderIdLookup.isEmpty
+  }
+
+  def iterator(implicit
+      orderBookState: OrderBookState
+  ): Iterator[(OrderBookKey, LimitOrderEvent)] =
+    for {
+      (_, priceGlob) <- orderBookState.priceTree.iterator
+      item <- priceGlob.iterator
+    } yield item
+
+  def bestOrder(implicit orderBookState: OrderBookState): Option[LimitOrderEvent] =
+    orderBookState match {
+      case buyOrderBookState: BuyOrderBookState => maxOrder(buyOrderBookState)
+      case sellOrderBookState: SellOrderBookState => minOrder(sellOrderBookState)
+    }
+
+  def bestPrice(implicit orderBookState: OrderBookState): Option[ProductPrice] =
+    orderBookState match {
+      case buyOrderBookState: BuyOrderBookState => maxPrice(buyOrderBookState)
+      case sellOrderBookState: SellOrderBookState => minPrice(sellOrderBookState)
+    }
+
+  def maxOrder(implicit
+      orderBookState: BuyOrderBookState
+  ): Option[LimitOrderEvent] =
+    for {
+      (_, priceGlob: PriceGlob) <- orderBookState.priceTree.lastOption
+      order <- priceGlob.oldestOrder
+    } yield order
+
+  def maxPrice(implicit
+      orderBookState: BuyOrderBookState
+  ): Option[ProductPrice] =
+    orderBookState.priceTree.lastOption.map(_._1)
+
+  def minOrder(implicit
+      orderBookState: SellOrderBookState
+  ): Option[LimitOrderEvent] =
+    for {
+      (_, priceGlob: PriceGlob) <- orderBookState.priceTree.headOption
+      order <- priceGlob.oldestOrder
+    } yield order
+
+  def minPrice(implicit
+      orderBookState: SellOrderBookState
+  ): Option[ProductPrice] = {
+    orderBookState.priceTree.headOption.map(_._1)
+  }
+
+  def removeByKey(
+      key: OrderBookKey
+  )(implicit orderBookState: OrderBookState): Option[LimitOrderEvent] = {
+    val price = key.price
+    val priceGlob = orderBookState.priceTree.get(price).get
+    val order = priceGlob.remove(key).get
+
+    if (priceGlob.isEmpty) {
+      orderBookState.priceTree.remove(price)
+    }
+    orderBookState.orderIdLookup.remove(order.orderId)
+  }
+
+  def removeByOrderId(
+      orderId: OrderId
+  )(implicit orderBookState: OrderBookState): Option[LimitOrderEvent] = {
+    val order = orderBookState.orderIdLookup.get(orderId).get
+    removeByKey(order.orderBookKey)
+  }
+
+  @throws[OrderBookEmpty]
+  def throwExceptionIfEmpty(implicit orderBookState: OrderBookState): Unit = {
+    if (isEmpty) {
+      throw new OrderBookEmpty
+    }
+  }
+
+  def update(key: OrderBookKey, order: LimitOrderEvent)(implicit
+      orderBookState: OrderBookState
+  ): Unit = {
+    require(
+      order.orderStatus.isopen,
+      "can only add open orders to the order book"
+    )
+    if (orderBookState.orderIdLookup.contains(order.orderId)) { return }
+
+    val price = order.price
+    orderBookState.priceTree.get(price) match {
+      case Some(priceGlob) => priceGlob.put(key, order)
+      case None => {
+        val priceGlob = PriceGlob(price)
+        priceGlob.put(key, order)
+        orderBookState.priceTree.put(price, priceGlob)
+      }
+    }
+
+    orderBookState.orderIdLookup.update(order.orderId, order)
+  }
+
+  implicit class PriceIndexUtils(
+      priceIndex: mutable.HashMap[ProductPrice, PriceGlob]
+  ) {
+    def customClone: mutable.HashMap[ProductPrice, PriceGlob] = {
+      val clonedPriceIndex = new mutable.HashMap[ProductPrice, PriceGlob]
+      clonedPriceIndex.addAll(priceIndex.iterator.map(i => (i._1, i._2.clone)))
+    }
+  }
 }

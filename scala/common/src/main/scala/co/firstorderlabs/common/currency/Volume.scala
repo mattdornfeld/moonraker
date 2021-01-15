@@ -18,7 +18,7 @@ object Volume {
     */
   trait VolumeCompanion[T <: Volume[T]] {
     type volume = Volume[T]
-    val currency: Currency
+    val currency: Currency.Recognized
     val maxVolume: T
     val minVolume: T
     val normalizationFactor: Double

@@ -8,7 +8,7 @@ import java.util.concurrent.{LinkedBlockingQueue => LinkedBlockingQueueBase}
 
 import boopickle.Default._
 import boopickle.UnpickleImpl
-import co.firstorderlabs.coinbaseml.fakebase.Snapshot
+import cats.effect.{IO, Timer}
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SQLConfigs}
 import co.firstorderlabs.common.currency.Configs.ProductPrice
@@ -23,10 +23,7 @@ import doobie.util.meta.Meta
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-
-final case class DatabaseReaderSnapshot(
-    timeInterval: TimeInterval
-) extends Snapshot
+import scala.concurrent.ExecutionContext
 
 final case class QueryResult(
     events: List[Event],
@@ -157,6 +154,8 @@ final class LinkedBlockingQueue[A] extends LinkedBlockingQueueBase[A] {
 }
 
 object Implicits {
+  implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
+
   // Specify how to convert from JDBC supported data types to custom data types
   implicit val javaTimeInstantMeta = JavaTimeInstantMeta
   implicit val doneReasonConverter: Meta[DoneReason] =

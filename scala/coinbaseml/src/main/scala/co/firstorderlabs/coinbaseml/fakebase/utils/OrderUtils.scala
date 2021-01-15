@@ -2,13 +2,29 @@ package co.firstorderlabs.coinbaseml.fakebase.utils
 
 import java.util.UUID
 
-import co.firstorderlabs.coinbaseml.fakebase.Exchange
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, Match, Order, OrderMessage, OrderSide, OrderStatus, RejectReason, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.coinbaseml.fakebase.SimulationMetadata
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  BuyMarketOrder,
+  Cancellation,
+  DoneReason,
+  Match,
+  Order,
+  OrderMessage,
+  OrderSide,
+  OrderStatus,
+  RejectReason,
+  SellLimitOrder,
+  SellMarketOrder
+}
 import co.firstorderlabs.common.types.Events._
 import co.firstorderlabs.common.types.Types.OrderId
 
 object OrderUtils {
-  def addMatchesToOrder[A <: OrderEvent](order: A, matchEvents: Seq[Match]): A = {
+  def addMatchesToOrder[A <: OrderEvent](
+      order: A,
+      matchEvents: Seq[Match]
+  ): A = {
     val _matchEvents = order.matchEvents.get.addAllMatchEvents(matchEvents)
     val updatedOrder = order match {
       case order: BuyLimitOrder =>
@@ -24,14 +40,16 @@ object OrderUtils {
     copyVars(order, updatedOrder)
     updatedOrder.asInstanceOf[A]
   }
-  def cancellationFromOrder(order: LimitOrderEvent): Cancellation = {
+  def cancellationFromOrder(
+      order: LimitOrderEvent
+  )(implicit simulationMetadata: SimulationMetadata): Cancellation = {
     Cancellation(
       order.orderId,
       order.price,
       order.productId,
       order.side,
       order.remainingSize,
-      Exchange.getSimulationMetadata.currentTimeInterval.endTime
+      simulationMetadata.currentTimeInterval.endTime
     )
   }
 
@@ -61,10 +79,11 @@ object OrderUtils {
 
   def generateOrderId: OrderId = OrderId(UUID.randomUUID.toString)
 
-  def getOppositeSide(side: OrderSide): OrderSide = side match {
-    case OrderSide.buy  => OrderSide.sell
-    case OrderSide.sell => OrderSide.buy
-  }
+  def getOppositeSide(side: OrderSide): OrderSide =
+    side match {
+      case OrderSide.buy  => OrderSide.sell
+      case OrderSide.sell => OrderSide.buy
+    }
 
   def orderEventToSealedOneOf(order: OrderEvent): Order = {
     val orderMessage = order match {
@@ -129,30 +148,31 @@ object OrderUtils {
     updatedOrder.asInstanceOf[A]
   }
 
-  def setOrderStatusToDone[A <: OrderEvent](order: A,
-                                            doneReason: DoneReason): A = {
+  def setOrderStatusToDone[A <: OrderEvent](order: A, doneReason: DoneReason)(
+      implicit simulationMetadata: SimulationMetadata
+  ): A = {
     val updatedOrder = order match {
       case order: BuyLimitOrder =>
         order.update(
-          _.doneAt := Exchange.getSimulationMetadata.currentTimeInterval.startTime,
+          _.doneAt := simulationMetadata.currentTimeInterval.startTime,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: BuyMarketOrder =>
         order.update(
-          _.doneAt := Exchange.getSimulationMetadata.currentTimeInterval.startTime,
+          _.doneAt := simulationMetadata.currentTimeInterval.startTime,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: SellLimitOrder =>
         order.update(
-          _.doneAt := Exchange.getSimulationMetadata.currentTimeInterval.startTime,
+          _.doneAt := simulationMetadata.currentTimeInterval.startTime,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
       case order: SellMarketOrder =>
         order.update(
-          _.doneAt := Exchange.getSimulationMetadata.currentTimeInterval.startTime,
+          _.doneAt := simulationMetadata.currentTimeInterval.startTime,
           _.doneReason := doneReason,
           _.orderStatus := OrderStatus.done
         )
