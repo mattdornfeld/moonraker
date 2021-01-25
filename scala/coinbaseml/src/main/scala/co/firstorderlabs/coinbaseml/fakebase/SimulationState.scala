@@ -4,23 +4,13 @@ import java.time.{Duration, Instant}
 import java.util.UUID.randomUUID
 
 import co.firstorderlabs.coinbaseml.common.EnvironmentState
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actionizer
+import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils
 import co.firstorderlabs.coinbaseml.fakebase.Types.Exceptions.SimulationNotStarted
-import co.firstorderlabs.coinbaseml.fakebase.sql.{
-  DatabaseReader,
-  DatabaseReaderState
-}
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
-import co.firstorderlabs.common.protos.environment.{
-  InfoDict,
-  ObservationRequest
-}
-import co.firstorderlabs.common.protos.fakebase.{
-  SimulationStartRequest,
-  SimulationType
-}
+import co.firstorderlabs.coinbaseml.fakebase.sql.{DatabaseReader, DatabaseReaderState}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.environment.{InfoDict, ObservationRequest}
+import co.firstorderlabs.common.protos.fakebase.{SimulationStartRequest, SimulationType}
 import co.firstorderlabs.common.types.Types.{SimulationId, TimeInterval}
 
 import scala.collection.mutable
@@ -28,7 +18,7 @@ import scala.collection.mutable
 trait State[A <: State[A]] {
   val companion: StateCompanion[A]
 
-  def createSnapshot(implicit simulationMetadata: SimulationMetadata): A
+  def createSnapshot(implicit simulationState: SimulationState): A
 }
 
 trait StateCompanion[A <: State[A]] {
@@ -51,6 +41,8 @@ final case class SimulationMetadata(
     databaseReader: DatabaseReader,
     featureBufferSize: Int,
     backupToCloudStorage: Boolean,
+    actionizerConfigs: Map[String, Double],
+    actionizer: Actionizer,
     checkpointTimeInterval: Option[TimeInterval] = None,
     checkpointStep: Option[Long] = None
 ) {
@@ -75,6 +67,8 @@ final case class SimulationMetadata(
       databaseReader,
       featureBufferSize,
       backupToCloudStorage,
+      actionizerConfigs,
+      actionizer,
       Some(currentTimeInterval),
       Some(currentStep)
     )
@@ -100,7 +94,10 @@ final case class SimulationMetadata(
 object SimulationMetadata {
   def fromSimulationStartRequest(
       simulationStartRequest: SimulationStartRequest
-  ): SimulationMetadata =
+  ): SimulationMetadata = {
+    val simulationId = SimulationId(randomUUID.toString)
+    val observationRequest = simulationStartRequest.observationRequest.get
+      .update(_.simulationId := simulationId)
     SimulationMetadata(
       simulationStartRequest.startTime,
       simulationStartRequest.endTime,
@@ -108,14 +105,17 @@ object SimulationMetadata {
       simulationStartRequest.numWarmUpSteps,
       simulationStartRequest.initialProductFunds,
       simulationStartRequest.initialQuoteFunds,
-      SimulationId(randomUUID.toString),
-      simulationStartRequest.observationRequest.get,
+      simulationId,
+      observationRequest,
       simulationStartRequest.enableProgressBar,
       simulationStartRequest.simulationType,
       Exchange.getDatabaseReader(simulationStartRequest.databaseBackend),
       simulationStartRequest.snapshotBufferSize,
-      simulationStartRequest.backupToCloudStorage
+      simulationStartRequest.backupToCloudStorage,
+      simulationStartRequest.actionizerConfigs,
+      Actionizer.fromProto(simulationStartRequest.actionizer),
     )
+  }
 
   def fromSnapshot(snapshot: SimulationMetadata): SimulationMetadata =
     SimulationMetadata(
@@ -132,21 +132,23 @@ object SimulationMetadata {
       snapshot.databaseReader,
       snapshot.featureBufferSize,
       snapshot.backupToCloudStorage,
+      snapshot.actionizerConfigs,
+      snapshot.actionizer,
       snapshot.checkpointTimeInterval,
       snapshot.checkpointStep
     )
 }
 
 final case class SimulationState(
-    simulationMetadata: SimulationMetadata,
-    accountState: AccountState,
-    databaseReaderState: DatabaseReaderState,
-    exchangeState: ExchangeState,
-    environmentState: EnvironmentState,
-    matchingEngineState: MatchingEngineState
+                                  simulationMetadata: SimulationMetadata,
+                                  accountState: AccountState,
+                                  databaseReaderState: DatabaseReaderState,
+                                  exchangeState: ExchangeState,
+                                  environmentState: EnvironmentState,
+                                  matchingEngineState: MatchingEngineState
 ) {
   def createSnapshot(implicit
-      simulationMetadata: SimulationMetadata
+      simulationState: SimulationState
   ): SimulationState =
     SimulationState(
       simulationMetadata.createSnapshot,
@@ -199,6 +201,7 @@ object SimulationState {
     simulationStates.get(simulationId) match {
       case Some(simulationState) => {
         simulationState.databaseReaderState.stop
+        ArrowUtils.socketFile(simulationState.simulationMetadata).delete
         simulationStates.remove(simulationId)
         simulationSnapshots.remove(simulationId)
       }
@@ -223,12 +226,8 @@ object SimulationState {
 
   def snapshot(
       simulationId: SimulationId
-  )(implicit simulationMetadata: SimulationMetadata): Option[SimulationState] =
-    simulationStates.get(simulationId) match {
-      case Some(simulationState) =>
-        simulationSnapshots.put(simulationId, simulationState.createSnapshot)
-      case None => None
-    }
+  )(implicit simulationState: SimulationState): Option[SimulationState] =
+    simulationSnapshots.put(simulationId, simulationState.createSnapshot)
 
   def getSnapshot(simulationId: SimulationId): Option[SimulationState] =
     simulationSnapshots.get(simulationId)

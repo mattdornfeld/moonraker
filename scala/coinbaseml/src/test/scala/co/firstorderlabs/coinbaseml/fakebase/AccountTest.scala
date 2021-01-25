@@ -905,7 +905,7 @@ class AccountTest extends AnyFunSpec {
         SimulationState.getOrFail(simulationId)
       val simulationMetadata = simulationState.simulationMetadata
       val walletsSnapshot =
-        simulationState.accountState.walletsState.createSnapshot(simulationMetadata)
+        simulationState.accountState.walletsState.createSnapshot(simulationState)
       for (_ <- 1 to 2) {
         val stepRequest = new StepRequest(
           insertOrders = OrdersData.insertSellOrders(
@@ -924,7 +924,7 @@ class AccountTest extends AnyFunSpec {
       val restoredSimulationMetadata = restoredSimulationState.simulationMetadata
 
       assert(
-        walletsSnapshot == restoredSimulationState.accountState.walletsState.createSnapshot(restoredSimulationMetadata)
+        walletsSnapshot == restoredSimulationState.accountState.walletsState.createSnapshot(restoredSimulationState)
       )
       assert(
         walletsSnapshot

@@ -15,7 +15,7 @@ class TestAccountFeaturizer extends AnyFunSpec {
       val simulationInfo = getResult(Exchange.start(simulationStartRequest))
       implicit val simulationState = SimulationState.getOrFail(simulationInfo.simulationId.get)
       List(observationRequest, normalizeObservationRequest).foreach { request =>
-        val accountFeatures = AccountFeaturizer.construct(request)
+        val accountFeatures = AccountVectorizer.construct(request)
         val expectedAccountFeatures = List(
           simulationStartRequest.initialQuoteFunds
             .whenElse(request.normalize)(_.normalize, _.toDouble),
@@ -39,7 +39,7 @@ class TestAccountFeaturizer extends AnyFunSpec {
       val sellOrder =
         getResult(Account.placeSellLimitOrder(sellLimitOrderRequest(simulationInfo.simulationId.get)))
       List(observationRequest, normalizeObservationRequest).foreach { request =>
-        val accountFeatures = AccountFeaturizer.construct(request)
+        val accountFeatures = AccountVectorizer.construct(request)
         val expectedAccountFeatures = List(
           simulationStartRequest.initialQuoteFunds
             .whenElse(request.normalize)(_.normalize, _.toDouble),

@@ -18,7 +18,7 @@ object Aggregators {
     def value: Double
   }
 
-  case class Counter(
+  final case class Counter(
       eventFilter: Event => Boolean,
       eventMapper: Event => Double
   ) extends EventAggregator {
@@ -38,7 +38,7 @@ object Aggregators {
     def value: Double = state("count")
   }
 
-  case class RunningMean(
+  final case class RunningMean(
       eventFilter: Event => Boolean,
       eventMapper: Event => Double
   ) extends EventAggregator {
@@ -62,7 +62,7 @@ object Aggregators {
     def value: Double = state("mean")
   }
 
-  case class RunningStandardDeviation(
+  final case class RunningStandardDeviation(
       eventFilter: Event => Boolean,
       eventMapper: Event => Double
   ) extends EventAggregator {

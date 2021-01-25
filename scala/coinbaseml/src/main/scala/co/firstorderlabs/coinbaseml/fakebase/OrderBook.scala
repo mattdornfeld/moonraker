@@ -120,7 +120,7 @@ final class BuyOrderBookState(
 ) extends OrderBookState(orderIdLookup, priceTree, OrderSide.buy) with State[BuyOrderBookState] {
   override val companion = BuyOrderBookState
 
-  override def createSnapshot(implicit simulationMetadata: SimulationMetadata): BuyOrderBookState =
+  override def createSnapshot(implicit simulationState: SimulationState): BuyOrderBookState =
     new BuyOrderBookState(
       orderIdLookup.clone,
       priceTree.clone,
@@ -152,7 +152,7 @@ final class SellOrderBookState(
 ) extends OrderBookState(orderIdLookup, priceTree, OrderSide.sell) with State[SellOrderBookState] {
   override val companion = SellOrderBookState
 
-  override def createSnapshot(implicit simulationMetadata: SimulationMetadata): SellOrderBookState =
+  override def createSnapshot(implicit simulationState: SimulationState): SellOrderBookState =
     new SellOrderBookState(
       orderIdLookup.clone,
       priceTree.clone,

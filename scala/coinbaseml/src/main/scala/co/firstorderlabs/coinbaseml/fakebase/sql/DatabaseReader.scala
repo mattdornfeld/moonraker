@@ -7,9 +7,21 @@ import cats.effect.{Blocker, IO, Resource}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.ParallelSeq
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
-import co.firstorderlabs.coinbaseml.fakebase.{Configs, SimulationMetadata, State, StateCompanion}
+import co.firstorderlabs.coinbaseml.fakebase.{
+  Configs,
+  SimulationMetadata,
+  SimulationState,
+  State,
+  StateCompanion
+}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.productId
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, SellLimitOrder, SellMarketOrder}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  BuyMarketOrder,
+  Cancellation,
+  SellLimitOrder,
+  SellMarketOrder
+}
 import co.firstorderlabs.common.types.Events.Event
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
@@ -49,7 +61,8 @@ final class QueryResultMap(
   }
 }
 
-final case class DatabaseReaderState(simulationTimeInterval: TimeInterval) extends State[DatabaseReaderState] {
+final case class DatabaseReaderState(simulationTimeInterval: TimeInterval)
+    extends State[DatabaseReaderState] {
   private var _shouldStop = false
   override val companion = DatabaseReaderState
   var streamFuture: Option[Future[Unit]] = None
@@ -70,11 +83,11 @@ final case class DatabaseReaderState(simulationTimeInterval: TimeInterval) exten
   ) join constantDelay[IO](1.milliseconds) join giveUpWhenStopped
 
   override def createSnapshot(implicit
-      simulationMetadata: SimulationMetadata
+      simulationState: SimulationState
   ): DatabaseReaderState = {
     val snapshotSimulationTimeInterval = TimeInterval(
-      simulationMetadata.currentTimeInterval.startTime,
-      simulationMetadata.endTime
+      simulationState.simulationMetadata.currentTimeInterval.startTime,
+      simulationState.simulationMetadata.endTime
     )
     DatabaseReaderState(snapshotSimulationTimeInterval)
   }
@@ -99,7 +112,9 @@ object DatabaseReaderState extends StateCompanion[DatabaseReaderState] {
       TimeInterval(simulationMetadata.startTime, simulationMetadata.endTime)
     )
 
-  override def fromSnapshot(snapshot: DatabaseReaderState): DatabaseReaderState = {
+  override def fromSnapshot(
+      snapshot: DatabaseReaderState
+  ): DatabaseReaderState = {
     DatabaseReaderState(snapshot.simulationTimeInterval)
   }
 }
@@ -184,23 +199,25 @@ abstract class DatabaseReader(
     ).unsafeRunSync
   }
 
-  def start(implicit
+  def start(skipDatabaseQuery: Boolean = false)(implicit
       databaseReaderState: DatabaseReaderState,
       simulationMetadata: SimulationMetadata
   ): Unit = {
-    val sstFileWriters =
-      createSstFiles(
-        databaseReaderState.simulationTimeInterval,
-        simulationMetadata.timeDelta,
-        simulationMetadata.backupToCloudStorage
-      )
-    if (sstFileWriters.size > 0) {
-      LocalStorage.QueryResults.bulkIngest(sstFileWriters)
-      LocalStorage.compact
+    if (!skipDatabaseQuery) {
+      val sstFileWriters =
+        createSstFiles(
+          databaseReaderState.simulationTimeInterval,
+          simulationMetadata.timeDelta,
+          simulationMetadata.backupToCloudStorage
+        )
+      if (sstFileWriters.size > 0) {
+        LocalStorage.QueryResults.bulkIngest(sstFileWriters)
+        LocalStorage.compact
+      }
     }
 
     startPopulateQueryResultMapStream
-    logger.info(
+    logger.fine(
       s"${getClass.getSimpleName} started for ${databaseReaderState.simulationTimeInterval.startTime}-" +
         s"${databaseReaderState.simulationTimeInterval.endTime} with timeDelta ${simulationMetadata.timeDelta}"
     )

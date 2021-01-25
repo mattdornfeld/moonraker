@@ -12,7 +12,7 @@ final case class InfoAggregatorState(infoDict: InfoDict)
   override val companion = InfoAggregatorState
 
   override def createSnapshot(implicit
-      simulationMetadata: SimulationMetadata
+      simulationState: SimulationState
   ): InfoAggregatorState =
     InfoAggregatorState(infoDict.clone)
 

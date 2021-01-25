@@ -3,32 +3,34 @@ package co.firstorderlabs.coinbaseml.common
 import java.util.logging.Logger
 
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, LimitOrderTransaction, SellMarketOrderTransaction}
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.{EntrySignal, PositionSize, SignalPositionSize}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.{Actionizer, ActionizerState}
 import co.firstorderlabs.coinbaseml.common.featurizers._
 import co.firstorderlabs.coinbaseml.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
-import co.firstorderlabs.coinbaseml.common.types.Exceptions.{UnrecognizedActionizer, UnrecognizedRewardStrategy}
-import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatureUtils
+import co.firstorderlabs.coinbaseml.common.types.Exceptions.UnrecognizedRewardStrategy
+import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatures
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.coinbaseml.fakebase.{SimulationMetadata, SimulationState, State, StateCompanion}
 import co.firstorderlabs.common.protos.environment.EnvironmentServiceGrpc.EnvironmentService
-import co.firstorderlabs.common.protos.environment.{ActionRequest, Actionizer, Features, InfoDict, InfoDictKey, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
+import co.firstorderlabs.common.protos.environment.{ActionRequest, InfoDict, InfoDictKey, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.protos.events.{Order, OrderMessage}
-import co.firstorderlabs.common.types.Types.SimulationId
+import co.firstorderlabs.common.types.Types.{Features, SimulationId}
 
 import scala.concurrent.Future
 
 final case class EnvironmentState(
+    actionizerState: ActionizerState,
     infoAggregatorState: InfoAggregatorState,
-    orderBookFeaturizerState: OrderBookFeaturizerState,
-    timeSeriesFeaturizerState: TimeSeriesFeaturizerState
+    orderBookFeaturizerState: OrderBookVectorizerState,
+    timeSeriesFeaturizerState: TimeSeriesVectorizerState
 ) extends State[EnvironmentState] {
   override val companion = EnvironmentState
 
   override def createSnapshot(implicit
-      simulationMetadata: SimulationMetadata
+      simulationState: SimulationState
   ): EnvironmentState =
     EnvironmentState(
+      actionizerState.createSnapshot,
       infoAggregatorState.createSnapshot,
       orderBookFeaturizerState.createSnapshot,
       timeSeriesFeaturizerState.createSnapshot
@@ -41,17 +43,20 @@ object EnvironmentState extends StateCompanion[EnvironmentState] {
       simulationMetadata: SimulationMetadata
   ): EnvironmentState =
     EnvironmentState(
+      simulationMetadata.actionizer.actionizerState.create,
       InfoAggregatorState.create,
-      OrderBookFeaturizerState.create,
-      TimeSeriesFeaturizerState.create
+      OrderBookVectorizerState.create,
+      TimeSeriesVectorizerState.create
     )
 
-  override def fromSnapshot(snapshot: EnvironmentState): EnvironmentState =
+  override def fromSnapshot(snapshot: EnvironmentState): EnvironmentState = {
     EnvironmentState(
+      snapshot.actionizerState.companion.fromSnapshot(snapshot.actionizerState),
       InfoAggregatorState.fromSnapshot(snapshot.infoAggregatorState),
-      OrderBookFeaturizerState.fromSnapshot(snapshot.orderBookFeaturizerState),
-      TimeSeriesFeaturizerState.fromSnapshot(snapshot.timeSeriesFeaturizerState)
+      OrderBookVectorizerState.fromSnapshot(snapshot.orderBookFeaturizerState),
+      TimeSeriesVectorizerState.fromSnapshot(snapshot.timeSeriesFeaturizerState)
     )
+  }
 }
 
 object Environment extends EnvironmentService {
@@ -62,12 +67,7 @@ object Environment extends EnvironmentService {
       SimulationState.getOrFail(actionRequest.simulationId.get)
     implicit val infoAggregatorState =
       simulationState.environmentState.infoAggregatorState
-    val action = (actionRequest.actionizer match {
-      case Actionizer.SignalPositionSize => SignalPositionSize
-      case Actionizer.PositionSize       => PositionSize
-      case Actionizer.EntrySignal        => EntrySignal
-      case _                             => throw new UnrecognizedActionizer
-    }).construct(actionRequest.actorOutput)
+    val action = Actionizer.fromProto(actionRequest.actionizer).construct(actionRequest.actorOutput)
 
     action match {
       case action: LimitOrderTransaction if action.side.isbuy =>
@@ -99,12 +99,20 @@ object Environment extends EnvironmentService {
     implicit val simulationMetadata = simulationState.simulationMetadata
     val startTime = System.currentTimeMillis
     val reward = observationRequest.rewardRequest match {
-      case Some(rewardRequest) => Some(getResult(getReward(rewardRequest.update(_.simulationId := simulationMetadata.simulationId))))
-      case None                => None
+      case Some(rewardRequest) =>
+        Some(
+          getResult(
+            getReward(
+              rewardRequest
+                .update(_.simulationId := simulationMetadata.simulationId)
+            )
+          )
+        )
+      case None => None
     }
 
     //Features are too large to send via grpc. Instead write to socket files using Arrow.
-    construct(observationRequest).writeToSockets
+    construct(observationRequest).writeToSocket
     val observation =
       Observation(
         reward = reward,
@@ -120,11 +128,9 @@ object Environment extends EnvironmentService {
   def construct(
       observationRequest: ObservationRequest
   )(implicit simulationState: SimulationState): Features =
-    Features(
-      AccountFeaturizer.construct(observationRequest),
-      OrderBookFeaturizer.construct(observationRequest),
-      TimeSeriesFeaturizer.construct(observationRequest)
-    )
+    FeaturizerBase
+      .getFeaturizer(observationRequest.featurizer)
+      .construct(observationRequest)
 
   def getReward(rewardRequest: RewardRequest): Future[Reward] = {
     implicit val simulationState =
@@ -142,7 +148,9 @@ object Environment extends EnvironmentService {
 
   override def getInfoDict(simulationId: SimulationId): Future[InfoDict] = {
     val simulationState = SimulationState.getOrFail(simulationId)
-    Future.successful(simulationState.environmentState.infoAggregatorState.infoDict)
+    Future.successful(
+      simulationState.environmentState.infoAggregatorState.infoDict
+    )
   }
 
   def preStep(actionRequest: Option[ActionRequest]): Unit = {
@@ -152,8 +160,8 @@ object Environment extends EnvironmentService {
     }
   }
 
-  def step(implicit simulationState: SimulationState): Unit = {
-    OrderBookFeaturizer.step
-    TimeSeriesFeaturizer.step
-  }
+  def step(
+      observationRequest: ObservationRequest
+  )(implicit simulationState: SimulationState): Unit =
+    FeaturizerBase.getFeaturizer(observationRequest.featurizer).step
 }

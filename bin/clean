@@ -3,4 +3,4 @@
 find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | xargs rm -rf
 
 # rm all generated protos
-rm -rf scalapb/* *_pb2*
+rm -rf python/scalapb/* python/*_pb2*

@@ -89,8 +89,8 @@ final case class AccountState(
 ) extends State[AccountState] {
   override val companion = AccountState
 
-  def createSnapshot(implicit
-      simulationMetadata: SimulationMetadata
+  override def createSnapshot(implicit
+      simulationState: SimulationState
   ): AccountState =
     AccountState(
       orderRequests.clone,

@@ -26,7 +26,7 @@ class BigQueryReaderTest extends AnyFunSpec {
     ) {
       Configs.testMode = false
       implicit val databaseReaderState = DatabaseReaderState.create
-      BigQueryReader.start
+      BigQueryReader.start()
       val expectedNumKeys =
         TimeInterval(startTime, endTime).chunkBy(timeDelta).size
       waitUntil(() => databaseReaderState.queryResultMapKeys.size == expectedNumKeys)
@@ -45,7 +45,7 @@ class BigQueryReaderTest extends AnyFunSpec {
     ) {
       LocalStorage.clear
       implicit val databaseReaderState = DatabaseReaderState.create
-      BigQueryReader.start
+      BigQueryReader.start()
       assert(expectedTimeIntervals.toSet == LocalStorage.QueryResults.keys.toSet)
       databaseReaderState.streamFuture.get.await(1000.milliseconds)
       assert(
@@ -65,7 +65,7 @@ class BigQueryReaderTest extends AnyFunSpec {
     ) {
       LocalStorage.clear
       implicit val databaseReaderState = DatabaseReaderState.create
-      BigQueryReader.start
+      BigQueryReader.start()
       databaseReaderState.streamFuture.get.await(1000.milliseconds)
       val queryResult = BigQueryReader.removeQueryResult(expectedTimeIntervals(0))
       assert(expectedTimeIntervals(0) == queryResult.timeInterval)
@@ -78,7 +78,8 @@ class BigQueryReaderTest extends AnyFunSpec {
 
     it("The contents of queryResultMap should be properly restored when restore is called.") {
       val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
-      implicit val databaseReaderState = SimulationState.getOrFail(simulationId).databaseReaderState
+      implicit val simulationState = SimulationState.getOrFail(simulationId)
+      implicit val databaseReaderState = simulationState.databaseReaderState
       databaseReaderState.streamFuture.get.await(1000.milliseconds)
       val expectedKeys = databaseReaderState.queryResultMapKeys
       val expectedSnapshot = databaseReaderState.createSnapshot
@@ -102,7 +103,7 @@ class BigQueryReaderTest extends AnyFunSpec {
       )
       implicit val simulationMetadata = SimulationMetadata.fromSimulationStartRequest(simulationStartRequest)
       implicit val databaseReaderState = DatabaseReaderState.create
-      BigQueryReader.start
+      BigQueryReader.start()
       Thread.sleep(1000)
       assert(SQLConfigs.maxQueryResultMapSize == databaseReaderState.queryResultMapKeys.size)
       assert(!databaseReaderState.streamFuture.get.isCompleted)
