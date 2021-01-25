@@ -4,7 +4,7 @@ import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.channels.Channels
 
 import co.firstorderlabs.coinbaseml.fakebase.SimulationMetadata
-import co.firstorderlabs.common.protos.environment.Features
+import co.firstorderlabs.common.types.Types.Features
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.message.IpcOption
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
@@ -17,89 +17,71 @@ import scala.jdk.CollectionConverters._
   */
 object ArrowUtils {
   private val allocator = new RootAllocator()
-  private val socketDir = "/tmp/moonraker/coinbaseml/arrow_sockets"
+  private val socketDir = new File("/tmp/moonraker/coinbaseml/arrow_sockets")
+  socketDir.mkdirs
+  socketDir.deleteOnExit
 
-  def fromArrowSockets(implicit simulationMetadata: SimulationMetadata): Features =
-    new Features(
-      readVectorFromSocket(new File(socketFileDir, "account.socket")),
-      readVectorFromSocket(new File(socketFileDir, "orderBook.socket")),
-      readVectorFromSocket(new File(socketFileDir, "timeSeries.socket"))
-    )
-
-  def socketFileDir(implicit simulationMetadata: SimulationMetadata): File = {
+  def socketFile(implicit
+      simulationMetadata: SimulationMetadata
+  ): File = {
     val file = new File(
-      s"${socketDir}/${simulationMetadata.simulationId.simulationId}"
+      socketDir,
+      s"${simulationMetadata.simulationId.simulationId}.socket"
     )
     file.deleteOnExit
     file
   }
 
-  private def readVectorFromSocket(socketFile: File): List[Double] = {
-    val reader = new ArrowUtils.SocketReader(socketFile)
+  def readVectorFromSocket(implicit
+      simulationMetadata: SimulationMetadata
+  ): List[List[Double]] = {
+    val reader = new SocketReader(socketFile)
     reader.hasNext
-    val vector = reader.next
-    val listDouble =
-      for (i <- (0 to vector.getValueCount - 1).toList)
-        yield vector.getValueAsDouble(i)
+    val vectors = reader.next.map { vector =>
+      val listDouble = (0 to vector.getValueCount - 1).toList.map { i =>
+        val value = vector.getObject(i)
+        if (value != null) Some(value.toDouble) else None
+      }.flatten
+      vector.close
+      listDouble
+    }
     reader.close
-    vector.close
-    listDouble
+    vectors
   }
 
-  implicit class ArrowFeatureUtils(features: Features) {
-    def writeToSockets(implicit simulationMetadata: SimulationMetadata): Unit = {
-      if (!socketFileDir.exists) {
-        socketFileDir.mkdirs
-      }
+  implicit class ArrowFeatures(features: Features) {
+    private def getVectorSchemaRoot(
+        vectors: List[FieldVector]
+    ): VectorSchemaRoot =
+      new VectorSchemaRoot(vectors.asJava)
 
-      Seq(
-        (features.account, "account"),
-        (features.orderBook, "orderBook"),
-        (features.timeSeries, "timeSeries")
-      ).foreach(item =>
-        item._1
-          .writeToSocket(
-            new File(socketFileDir, s"${item._2}.socket")
-          )
-      )
-    }
-  }
-
-  /** Enhances a Seq[Double] with functionality to transmit its contents with Apache Arrow
-    *
-    * @param seq
-    */
-  implicit class ArrowSeq(seq: Seq[Double]) {
-    private def getVectorSchemaRoot(vector: FieldVector): VectorSchemaRoot = {
-      val vectors = List(vector).asJava
-      new VectorSchemaRoot(vectors)
+    private def toArrowVectors: List[Float8Vector] = {
+      val maxVectorLength =
+        features.features.values.map(_.size).maxOption.getOrElse(0)
+      features.features.map { item =>
+        val key = item._1
+        val feature = item._2
+        val vector = new Float8Vector(key, allocator)
+        vector.allocateNew(maxVectorLength)
+        feature.zipWithIndex.foreach(item => vector.setSafe(item._2, item._1))
+        vector.setValueCount(maxVectorLength)
+        vector
+      }.toList
     }
 
-    private def toArrowVector: Float8Vector = {
-      val vector = new Float8Vector("vector", allocator)
-      vector.allocateNew(seq.size)
-      seq.zipWithIndex.foreach(item => vector.set(item._2, item._1))
-      vector.setValueCount(seq.size)
-
-      vector
-    }
-
-    /** Writes the contents of seq to a socket file
-      *
-      * @param socketFile
-      */
-    def writeToSocket(socketFile: File): Unit = {
-      val vector = toArrowVector
-      val vectorSchemaRoot = getVectorSchemaRoot(vector)
+    def writeToSocket(implicit simulationMetadata: SimulationMetadata): Unit = {
+      val vectors = toArrowVectors
+      val vectorSchemaRoot = getVectorSchemaRoot(vectors)
       val channel = Channels.newChannel(new FileOutputStream(socketFile))
-      val ipcOption = (new IpcOption)
+      val ipcOption = new IpcOption
       ipcOption.write_legacy_ipc_format = true
       val writer =
         new ArrowStreamWriter(vectorSchemaRoot, null, channel, ipcOption)
       writer.start
       writer.writeBatch
       writer.close
-      vector.close
+      channel.close
+      vectors.foreach(_.close)
     }
   }
 
@@ -107,11 +89,12 @@ object ArrowUtils {
     *
     * @param socketFile
     */
-  class SocketReader(socketFile: File) extends Iterator[Float8Vector] {
+  class SocketReader(socketFile: File) extends Iterator[List[Float8Vector]] {
     private val reader =
       new ArrowStreamReader(new FileInputStream(socketFile), allocator)
 
-    def close: Unit = reader.close
+    def close: Unit =
+      reader.close
 
     def hasNext: Boolean = {
       if (reader.loadNextBatch) {
@@ -121,7 +104,8 @@ object ArrowUtils {
         false
       }
     }
-    def next: Float8Vector =
-      reader.getVectorSchemaRoot.getVector(0).asInstanceOf[Float8Vector]
+    def next: List[Float8Vector] =
+      reader.getVectorSchemaRoot.getFieldVectors.asScala.toList
+        .map(_.asInstanceOf[Float8Vector])
   }
 }

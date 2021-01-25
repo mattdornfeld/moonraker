@@ -25,13 +25,14 @@ import co.firstorderlabs.common.types.Events.{
 import co.firstorderlabs.common.types.Types.{SimulationId, TimeInterval}
 import com.google.protobuf.empty.Empty
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 final case class ExchangeState(var receivedEvents: List[Event])
     extends State[ExchangeState] {
   override val companion = ExchangeState
   override def createSnapshot(implicit
-      simulationMetadata: SimulationMetadata
+      simulationState: SimulationState
   ): ExchangeState = {
     ExchangeState(receivedEvents)
   }
@@ -77,8 +78,7 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
     logger.info(
       s"creating checkpoint at timeInterval ${SimulationState.getSimulationMetadataOrFail(simulationId).currentTimeInterval}"
     )
-    implicit val simulationMetadata =
-      SimulationState.getSimulationMetadataOrFail(simulationId)
+    implicit val simulationState = SimulationState.getOrFail(simulationId)
     SimulationState.snapshot(simulationId)
     Future.successful(Constants.emptyProto)
   }
@@ -122,8 +122,9 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
     Future.successful(orderBooks)
   }
 
-  override def getSimulationIds(request: Empty): Future[SimulationIds] =
+  override def getSimulationIds(request: Empty): Future[SimulationIds] = {
     Future.successful(SimulationIds(SimulationState.keys))
+  }
 
   override def populateStorage(
       populateStorageRequest: PopulateStorageRequest
@@ -149,7 +150,9 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
         )
     }.flatten
 
-    if (populateStorageRequest.ingestToLocalStorage) {
+    if (
+      populateStorageRequest.ingestToLocalStorage && sstFileWriters.size > 0
+    ) {
       LocalStorage.QueryResults.bulkIngest(sstFileWriters)
     }
     Future.successful(Constants.emptyProto)
@@ -178,6 +181,36 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
     Future successful getSimulationInfo(observationRequest)
   }
 
+  override def run(runRequest: RunRequest): Future[SimulationInfo] = {
+    val simulationMetadata = {
+      SimulationState.getSimulationMetadataOrFail(runRequest.simulationId.get)
+    }
+    val numSteps = runRequest.numSteps
+      .getOrElse(
+        simulationMetadata.numSteps - simulationMetadata.currentStep
+      )
+      .toInt
+
+    val stepRequest = StepRequest(
+      actionRequest = runRequest.actionRequest,
+      observationRequest = runRequest.observationRequest,
+      simulationId = runRequest.simulationId
+    )
+    (1 to numSteps - 1).foreach { _ =>
+      step(stepRequest)
+    }
+
+    step(stepRequest)
+  }
+
+  override def shutdown(request: Empty): Future[Empty] = {
+    Future {
+      Thread.sleep(1000)
+      FakebaseServer.shutdown
+    }
+    Future successful Constants.emptyProto
+  }
+
   override def start(
       simulationStartRequest: SimulationStartRequest
   ): Future[SimulationInfo] = {
@@ -201,7 +234,7 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
       s"starting simulation ${simulationMetadata.simulationId} for parameters ${simulationMetadata}"
     )
 
-    simulationMetadata.databaseReader.start
+    simulationMetadata.databaseReader.start(simulationStartRequest.skipDatabaseQuery)
 
     Account.initializeWallets
     Account.addFunds(simulationStartRequest.initialQuoteFunds)
@@ -215,7 +248,10 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
       (1 to simulationStartRequest.numWarmUpSteps) foreach (_ =>
         step(stepRequest)
       )
-      checkpoint(simulationMetadata.simulationId)
+
+      if (!simulationStartRequest.skipCheckpointAfterWarmup) {
+        checkpoint(simulationMetadata.simulationId)
+      }
     }
 
     val observationRequest = simulationStartRequest.observationRequest.map {
@@ -287,7 +323,7 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
       (System.nanoTime - matchingEngineStartTime) / 1e6
 
     val environmentStartTime = System.nanoTime
-    Environment.step
+    Environment.step(simulationMetadata.observationRequest)
     val environmentDuration = (System.nanoTime - environmentStartTime) / 1e6
 
     val stepDuration = (System.nanoTime - stepStartTime) / 1e6
@@ -329,8 +365,7 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
     if (SimulationState.contains(simulationId)) {
       SimulationState.remove(simulationId)
       logger.info(s"stopping ${simulationId}")
-    }
-    else {
+    } else {
       logger.info(s"${simulationId} not found")
     }
     Future.successful(Constants.emptyProto)

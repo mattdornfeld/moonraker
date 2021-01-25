@@ -37,10 +37,10 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
         SimulationState.getOrFail(simulationId)
       val simulationMetadata = simulationState.simulationMetadata
       Exchange.step(buildStepRequest(simulationId))
-      val features = TimeSeriesFeaturizer.construct(observationRequest)
+      val features = TimeSeriesVectorizer.construct(observationRequest)
 
       assert(
-        features.size == simulationMetadata.featureBufferSize * TimeSeriesFeaturizer.numChannels
+        features.size == simulationMetadata.featureBufferSize * TimeSeriesVectorizer.numChannels
       )
       assert(features.forall(_ == 0))
     }
@@ -72,7 +72,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       )
 
       Exchange.step(simulationId.toStepRequest.update(_.insertOrders := buyOrders))
-      val features = TimeSeriesFeaturizer.construct(observationRequest)
+      val features = TimeSeriesVectorizer.construct(observationRequest)
 
       assert(buyOrders.size === features(2))
       assert(expectedPriceMean === features(14))
@@ -109,7 +109,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       )
 
       Exchange.step(simulationId.toStepRequest.update(_.insertOrders := sellOrders))
-      val features = TimeSeriesFeaturizer.construct(observationRequest)
+      val features = TimeSeriesVectorizer.construct(observationRequest)
 
       assert(sellOrders.size === features(5))
       assert(expectedPriceMean === features(16))
@@ -135,7 +135,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       )
 
       Exchange.step(simulationId.toStepRequest.update(_.insertCancellations := cancellations))
-      val features = TimeSeriesFeaturizer.construct(observationRequest)
+      val features = TimeSeriesVectorizer.construct(observationRequest)
 
       assert(cancellations.size === features(0))
       assert(expectedPriceMean === features(6))
@@ -159,7 +159,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       )
 
       Exchange.step(simulationId.toStepRequest.update(_.insertCancellations := cancellations))
-      val features = TimeSeriesFeaturizer.construct(observationRequest)
+      val features = TimeSeriesVectorizer.construct(observationRequest)
 
       assert(cancellations.size === features(3))
       assert(expectedPriceMean === features(8))
@@ -188,7 +188,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
 
       Exchange.step(simulationId.toStepRequest.update(_.insertOrders := sellOrders))
 
-      val features = TimeSeriesFeaturizer.construct(observationRequest)
+      val features = TimeSeriesVectorizer.construct(observationRequest)
 
       val expectedBuyMatchPriceMean = mean(
         buyOrders
@@ -227,7 +227,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
 
       Exchange.step(simulationId.toStepRequest.update(_.insertOrders := buyOrders))
 
-      val features = TimeSeriesFeaturizer.construct(observationRequest)
+      val features = TimeSeriesVectorizer.construct(observationRequest)
 
       val expectedSellMatchPriceMean = mean(
         sellOrders
@@ -290,15 +290,15 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       )
 
       val stepRequest = buildStepRequest(simulationId)
-      val features1 = TimeSeriesFeaturizer.construct(observationRequest)
+      val features1 = TimeSeriesVectorizer.construct(observationRequest)
       Exchange.step(stepRequest)
-      val features2 = TimeSeriesFeaturizer.construct(observationRequest)
+      val features2 = TimeSeriesVectorizer.construct(observationRequest)
       Exchange.step(stepRequest)
-      val features3 = TimeSeriesFeaturizer.construct(observationRequest)
+      val features3 = TimeSeriesVectorizer.construct(observationRequest)
       Exchange.step(stepRequest)
-      val features4 = TimeSeriesFeaturizer.construct(observationRequest)
+      val features4 = TimeSeriesVectorizer.construct(observationRequest)
 
-      val numChannels = TimeSeriesFeaturizer.numChannels
+      val numChannels = TimeSeriesVectorizer.numChannels
       assert(
         features1.take(numChannels) sameElements features2
           .drop(numChannels)

@@ -6,6 +6,7 @@ import "environment.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "scalapb/scalapb.proto";
+import "google/protobuf/wrappers.proto";
 
 option (scalapb.options) = {
   scope: FILE
@@ -134,6 +135,10 @@ service ExchangeService {
     }
     rpc reset (ObservationRequest) returns (SimulationInfo) {
     }
+    rpc run (RunRequest) returns (SimulationInfo) {
+    }
+    rpc shutdown (google.protobuf.Empty) returns (google.protobuf.Empty) {
+    }
     rpc start (SimulationStartRequest) returns (SimulationInfo) {
     }
     rpc step (StepRequest) returns (SimulationInfo) {
@@ -172,6 +177,13 @@ message PopulateStorageRequest {
     DatabaseBackend databaseBackend = 4;
 }
 
+message RunRequest {
+    SimulationId simulationId = 1;
+    google.protobuf.Int64Value numSteps = 2;
+    ObservationRequest observationRequest = 3;
+    ActionRequest actionRequest = 4;
+}
+
 message SimulationIds {
     repeated SimulationId simulationIds = 1;
 }
@@ -196,6 +208,10 @@ message SimulationStartRequest {
     DatabaseBackend databaseBackend = 11;
     bool backupToCloudStorage = 12;
     bool stopInProgressSimulations = 13; // Used by unit tests to make sure only one simulation is in progress at a time
+    Actionizer actionizer = 14;
+    map<string, double> actionizerConfigs = 15;
+    bool skipDatabaseQuery = 16;
+    bool skipCheckpointAfterWarmup = 17;
 }
 
 message StepRequest {

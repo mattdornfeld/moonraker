@@ -54,7 +54,7 @@ final case class WalletsState(
   override val companion = WalletsState
 
   override def createSnapshot(implicit
-      simulationMetadata: SimulationMetadata
+      simulationState: SimulationState
   ): WalletsState = {
     val walletMap: Wallets.WalletMap = HashMap(
       ProductVolume.currency -> getWallet(ProductVolume).clone,

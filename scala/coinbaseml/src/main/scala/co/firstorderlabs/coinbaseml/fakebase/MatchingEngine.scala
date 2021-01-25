@@ -38,7 +38,9 @@ final case class MatchingEngineState(
     var checkpointPortfolioValue: Option[Double] = None
 ) extends State[MatchingEngineState] {
   override val companion = MatchingEngineState
-  override def createSnapshot(implicit simulationMetadata: SimulationMetadata): MatchingEngineState = {
+  override def createSnapshot(implicit
+      simulationState: SimulationState
+  ): MatchingEngineState = {
     checkpointPortfolioValue = currentPortfolioValue
     MatchingEngineState(
       buyOrderBookState.createSnapshot,
@@ -51,6 +53,9 @@ final case class MatchingEngineState(
 
   def getOrderBookState(side: OrderSide): OrderBookState =
     if (side.isbuy) buyOrderBookState else sellOrderBookState
+
+  def orderBookIsEmpty: Boolean =
+    buyOrderBookState.orderIdLookup.isEmpty && buyOrderBookState.orderIdLookup.isEmpty
 
 }
 
@@ -219,6 +224,7 @@ object MatchingEngine {
 
   def calcPortfolioValue(implicit
       matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata,
       walletsState: WalletsState
   ): Double = {
     val (productWallet, quoteWallet) =
@@ -226,8 +232,15 @@ object MatchingEngine {
 
     val productVolume = productWallet.balance.toDouble
     val quoteVolume = quoteWallet.balance.toDouble
+    val orderBookIsEmpty =
+      matchingEngineState.buyOrderBookState.orderIdLookup.isEmpty && matchingEngineState.buyOrderBookState.orderIdLookup.isEmpty
 
-    productVolume * calcMidPrice + quoteVolume
+    // calcMidPrice logs a warning when order books is empty so don't call it on initial step when order book is empty
+    if (simulationMetadata.currentStep == 0 && matchingEngineState.orderBookIsEmpty) {
+      quoteVolume
+    } else {
+      productVolume * calcMidPrice + quoteVolume
+    }
   }
 
   def step(events: List[Event])(implicit
@@ -238,9 +251,8 @@ object MatchingEngine {
     matchingEngineState.previousPortfolioValue =
       matchingEngineState.currentPortfolioValue
     processEvents(events)
-    matchingEngineState.currentPortfolioValue = Some(
-      calcPortfolioValue(matchingEngineState, accountState.walletsState)
-    )
+    implicit val walletsState = accountState.walletsState
+    matchingEngineState.currentPortfolioValue = Some(calcPortfolioValue)
   }
 
   private def processMatchedMakerOrder(
@@ -402,7 +414,8 @@ object MatchingEngine {
 
   def start(implicit
       matchingEngineState: MatchingEngineState,
-      walletsState: WalletsState
+      walletsState: WalletsState,
+      simulationMetadata: SimulationMetadata
   ): Unit = {
     matchingEngineState.currentPortfolioValue = Some(calcPortfolioValue)
   }

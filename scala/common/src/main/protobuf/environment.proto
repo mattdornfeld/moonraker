@@ -14,6 +14,12 @@ enum Actionizer {
     SignalPositionSize = 0;
     PositionSize = 1;
     EntrySignal = 2;
+    EmaCrossOver = 3;
+}
+
+enum Featurizer {
+    TimeSeriesOrderBook = 0;
+    NoOp = 1;
 }
 
 enum InfoDictKey {
@@ -55,7 +61,7 @@ service EnvironmentService {
 message ActionRequest {
     repeated double actorOutput = 1;
     Actionizer actionizer = 2;
-    SimulationId simulationId = 4;
+    SimulationId simulationId = 3;
 }
 
 message InfoDictProto {
@@ -68,13 +74,15 @@ message ObservationRequest {
     bool normalize = 2;
     RewardRequest rewardRequest = 3;
     SimulationId simulationId = 4;
+    Featurizer featurizer = 5;
+}
+
+message Feature {
+    repeated double feature = 1;
 }
 
 message Features {
-//    option (scalapb.message).extends = "co.firstorderlabs.common.types.FeaturesBase";
-    repeated double account = 1;
-    repeated double orderBook = 2;
-    repeated double timeSeries = 3;
+    map<string, Feature> features = 1;
 }
 
 message Observation {

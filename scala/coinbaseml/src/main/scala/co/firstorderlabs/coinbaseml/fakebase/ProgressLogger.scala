@@ -26,15 +26,17 @@ object StepProgressLogger {
   }
 
   def reset(implicit
-            matchingEngineState: MatchingEngineState,
-            simulationMetadata: SimulationMetadata
+      matchingEngineState: MatchingEngineState,
+      simulationMetadata: SimulationMetadata
   ): Unit = {
-    render(
-      simulationMetadata.taskName,
-      simulationMetadata.numSteps,
-      simulationMetadata.currentStep,
-      matchingEngineState.currentPortfolioValue
-    )
+    if (simulationMetadata.enableProgressBar) {
+      render(
+        simulationMetadata.taskName,
+        simulationMetadata.numSteps,
+        simulationMetadata.currentStep,
+        matchingEngineState.currentPortfolioValue
+      )
+    }
   }
 
   def step(
@@ -47,19 +49,21 @@ object StepProgressLogger {
       matchingEngineState: MatchingEngineState,
       simulationMetadata: SimulationMetadata
   ): Unit = {
-    val eventsPerMillSecond =
-      if (stepDuration > 0) numEvents / stepDuration else 0L
-    render(
-      simulationMetadata.taskName,
-      simulationMetadata.numSteps,
-      simulationMetadata.currentStep,
-      matchingEngineState.currentPortfolioValue,
-      Some(stepDuration),
-      Some(dataGetDuration),
-      Some(matchingEngineDuration),
-      Some(environmentDuration),
-      Some(numEvents),
-      Some(eventsPerMillSecond)
-    )
+    if (simulationMetadata.enableProgressBar) {
+      val eventsPerMillSecond =
+        if (stepDuration > 0) numEvents / stepDuration else 0L
+      render(
+        simulationMetadata.taskName,
+        simulationMetadata.numSteps,
+        simulationMetadata.currentStep,
+        matchingEngineState.currentPortfolioValue,
+        Some(stepDuration),
+        Some(dataGetDuration),
+        Some(matchingEngineDuration),
+        Some(environmentDuration),
+        Some(numEvents),
+        Some(eventsPerMillSecond)
+      )
+    }
   }
 }

@@ -3,12 +3,28 @@ package co.firstorderlabs.common.types
 import java.nio.ByteBuffer
 import java.time.{Duration, Instant}
 
-import co.firstorderlabs.common.protos.environment.ObservationRequest
-import co.firstorderlabs.common.protos.events.{SimulationId => SimulationIdProto}
+import co.firstorderlabs.common.protos.environment.{
+  ObservationRequest,
+  Feature => FeatureProto,
+  Features => FeaturesProto
+}
+import co.firstorderlabs.common.protos.events.{
+  SimulationId => SimulationIdProto
+}
 import co.firstorderlabs.common.protos.fakebase.{Currency, StepRequest}
 import scalapb.TypeMapper
 
 object Types {
+  final case class Features(features: Map[String, Seq[Double]]) extends AnyVal
+
+  object Features {
+    implicit val typeMapper = TypeMapper[FeaturesProto, Features](features =>
+      Features(features.features.map(i => (i._1, i._2.feature)))
+    )(features =>
+      FeaturesProto(features.features.map(i => (i._1, FeatureProto(i._2))))
+    )
+  }
+
   final case class OrderId(orderId: String) extends AnyVal
   final case class OrderRequestId(orderRequestId: String) extends AnyVal
   final case class SimulationId(simulationId: String) extends AnyVal {

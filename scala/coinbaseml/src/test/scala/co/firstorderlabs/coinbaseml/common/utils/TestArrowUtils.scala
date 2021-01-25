@@ -3,7 +3,8 @@ package co.firstorderlabs.coinbaseml.common.utils
 import java.time.{Duration, Instant}
 
 import co.firstorderlabs.coinbaseml.common.Environment
-import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatureUtils
+import co.firstorderlabs.coinbaseml.common.featurizers.TimeSeriesOrderBook
+import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatures
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.observationRequest
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange, SimulationState}
@@ -26,6 +27,7 @@ class TestArrowUtils extends AnyFunSpec{
         new QuoteVolume(Right("10000.00")),
         snapshotBufferSize = 5,
         observationRequest = Some(observationRequest),
+        stopInProgressSimulations = true,
       )
 
       val simulationInfo = getResult(Exchange.start(simulationStartRequest))
@@ -33,8 +35,8 @@ class TestArrowUtils extends AnyFunSpec{
       implicit val simulationMetadata = simulationState.simulationMetadata
       TestUtils.advanceExchangeAndPlaceOrders
       val writeFeatures = Environment.construct(observationRequest)
-      writeFeatures.writeToSockets
-      val readFeatures = ArrowUtils.fromArrowSockets
+      writeFeatures.writeToSocket
+      val readFeatures = TimeSeriesOrderBook.constructFromArrowSocket
 
       assert(writeFeatures == readFeatures)
     }

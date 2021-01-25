@@ -1,35 +1,32 @@
 #!/bin/bash
-EVENTS_PROTOS_DIR=./
-SCALAPB_PROTOS_DIR=./
-FAKEBASE_PROTOS_DIR=./
-ENVIRONMENT_PROTOS_DIR=./
+PROTOS_DIR=./python
 
-mkdir -p scalapb
+mkdir -p $PROTOS_DIR/scalapb
 
 python3 -m grpc_tools.protoc \
     -I scala/common/src/main/protobuf \
-    --mypy_out=$EVENTS_PROTOS_DIR \
-    --python_out=$EVENTS_PROTOS_DIR \
-    --grpc_python_out=$EVENTS_PROTOS_DIR \
+    --mypy_out=$PROTOS_DIR \
+    --python_out=$PROTOS_DIR \
+    --grpc_python_out=$PROTOS_DIR \
     scala/common/src/main/protobuf/events.proto
 
 python3 -m grpc_tools.protoc \
     -I scala/common/src/main/protobuf \
-    --mypy_out=$SCALAPB_PROTOS_DIR \
-    --python_out=$SCALAPB_PROTOS_DIR \
-    --grpc_python_out=$SCALAPB_PROTOS_DIR \
+    --mypy_out=$PROTOS_DIR \
+    --python_out=$PROTOS_DIR \
+    --grpc_python_out=$PROTOS_DIR \
     scala/common/src/main/protobuf/scalapb/scalapb.proto
 
 python3 -m grpc_tools.protoc \
     -I scala/common/src/main/protobuf \
-    --mypy_out=$FAKEBASE_PROTOS_DIR \
-    --python_out=$FAKEBASE_PROTOS_DIR \
-    --grpc_python_out=$FAKEBASE_PROTOS_DIR \
+    --mypy_out=$PROTOS_DIR \
+    --python_out=$PROTOS_DIR \
+    --grpc_python_out=$PROTOS_DIR \
     scala/common/src/main/protobuf/fakebase.proto
 
 python3 -m grpc_tools.protoc \
     -I scala/common/src/main/protobuf \
-    --mypy_out=$ENVIRONMENT_PROTOS_DIR \
-    --python_out=$ENVIRONMENT_PROTOS_DIR \
-    --grpc_python_out=$ENVIRONMENT_PROTOS_DIR \
+    --mypy_out=$PROTOS_DIR \
+    --python_out=$PROTOS_DIR \
+    --grpc_python_out=$PROTOS_DIR \
     scala/common/src/main/protobuf/environment.proto

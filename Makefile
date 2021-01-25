@@ -32,25 +32,25 @@ clean-local-storage:
 	chmod u+x bin/clean_local_storage && bin/clean_local_storage
 
 install:
-	pip3 install --upgrade pip && pip3 install -e .[grpc]
+	cd python && pip3 install --upgrade pip && pip3 install -e .[grpc]
 
 install-dev:
-	pip3 install -e .[dev,grpc] && cp bin/pre-commit .git/hooks/ && chmod u+x .git/hooks/pre-commit
+	cp bin/pre-commit .git/hooks/ && chmod u+x .git/hooks/pre-commit && cd python && pip3 install -e .[dev,grpc]
 
 install-gpu:
-	pip3 install -e .[gpu,grpc]
+	cd python && pip3 install -e .[gpu,grpc]
 
 test-python:
-	python3 setup.py test --addopts "${PYTEST_IGNORE} --mypy --pylint --pylint-rcfile=setup.cfg"
+	cd python && python3 setup.py test --addopts "${PYTEST_IGNORE} --mypy --pylint --pylint-rcfile=setup.cfg"
 
 test-mypy:
-	python3 setup.py test --addopts "${PYTEST_IGNORE} -m mypy --mypy"
+	cd python && python3 setup.py test --addopts "${PYTEST_IGNORE} -m mypy --mypy"
 
 test-pylint:
-	python3 setup.py test --addopts "${PYTEST_IGNORE} -m pylint --pylint --pylint-rcfile=setup.cfg"
+	cd python && python3 setup.py test --addopts "${PYTEST_IGNORE} -m pylint --pylint --pylint-rcfile=setup.cfg"
 
 test-unit:
-	python3 setup.py test --addopts "-s ${PYTEST_IGNORE}"
+	cd python && python3 setup.py test --addopts "-s ${PYTEST_IGNORE}"
 
 test-scala:
 	cd scala && make test
