@@ -234,7 +234,9 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
       s"starting simulation ${simulationMetadata.simulationId} for parameters ${simulationMetadata}"
     )
 
-    simulationMetadata.databaseReader.start(simulationStartRequest.skipDatabaseQuery)
+    simulationMetadata.databaseReader.start(
+      simulationStartRequest.skipDatabaseQuery
+    )
 
     Account.initializeWallets
     Account.addFunds(simulationStartRequest.initialQuoteFunds)
@@ -244,7 +246,11 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
 
     if (simulationStartRequest.numWarmUpSteps > 0) {
       val stepRequest =
-        StepRequest(simulationId = Some(simulationMetadata.simulationId))
+        StepRequest(
+          actionRequest = simulationStartRequest.actionRequest,
+          observationRequest = simulationStartRequest.observationRequest,
+          simulationId = Some(simulationMetadata.simulationId)
+        )
       (1 to simulationStartRequest.numWarmUpSteps) foreach (_ =>
         step(stepRequest)
       )
@@ -287,7 +293,10 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
     logger.fine(s"Stepped to ${simulationMetadata.currentTimeInterval}")
 
     Account.step
-    Environment.preStep(stepRequest.actionRequest)
+    Environment.preStep(
+      stepRequest.actionRequest
+        .map(_.update(_.simulationId := stepRequest.simulationId.get))
+    )
     InfoAggregator.preStep
 
     val dataGetStartTime = System.nanoTime

@@ -5,7 +5,6 @@ from pathlib import Path
 from shutil import rmtree
 from typing import List
 
-import ray
 from ray import tune
 from ray.tune.checkpoint_manager import Checkpoint
 from ray.tune.trial import Trial
@@ -13,11 +12,13 @@ from sacred.run import Run
 
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.utils.gcs_utils import get_gcs_base_path, upload_file_to_gcs
-from coinbase_ml.common.utils.ray_utils import get_trainer, register_custom_model
-from coinbase_ml.train import constants as c
+from coinbase_ml.common.utils.ray_utils import (
+    get_trainer,
+    register_custom_model,
+    ray_init,
+)
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
 from coinbase_ml.train.utils.sacred_logger import SacredLogger
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,15 +41,9 @@ def main(
 ) -> float:
     result_metric_key = f"{result_metric}_mean"
 
-    ray.init(
-        address=c.RAY_REDIS_ADDRESS,
-        object_store_memory=c.RAY_OBJECT_STORE_MEMORY,
-        # local_mode=c.LOCAL_MODE,
-    )
-
+    ray_init()
     sacred_logger = SacredLogger()
     sacred_logger.start()
-
     register_custom_model(model_name)
     trainer = get_trainer(trainer_name)
     result_metric_key = _get_result_metric_key(result_metric)

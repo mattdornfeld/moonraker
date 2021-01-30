@@ -1,6 +1,8 @@
 #!/bin/bash
+release_name_suffix=$1
+pod_selector_suffix=$2
 branch_name=$(git rev-parse --abbrev-ref HEAD)
-release_name=$(echo ${branch_name}-coinbaseml-train | tr '_' '-')
-pod_selector_value=$(echo $release_name | cut -c 1-14)-job-train
+release_name=$(echo ${branch_name}-${release_name_suffix} | tr '_' '-')
+pod_selector_value=$(echo $release_name | cut -c 1-14)-${pod_selector_suffix}
 pod_name=$(kubectl get pods --selector=pod-selector=${pod_selector_value} -o name --no-headers=true)
 kubectl logs -f ${pod_name}

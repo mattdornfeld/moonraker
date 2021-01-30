@@ -4,7 +4,7 @@ import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{Action, 
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.UnrecognizedActionizer
 import co.firstorderlabs.coinbaseml.common.utils.Utils.Interval.IntervalType
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{DoubleUtils, Interval}
-import co.firstorderlabs.coinbaseml.fakebase.{MatchingEngine, SimulationMetadata, SimulationState, State, StateCompanion}
+import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.{Actionizer => ActionizerProto}
 
 trait ActionizerState extends State[ActionizerState]
@@ -20,6 +20,7 @@ sealed trait Actionizer {
 object Actionizer {
   def fromProto(actionizer: ActionizerProto): Actionizer = {
     actionizer match {
+      case ActionizerProto.NoOpActionizer     => NoOpActionizer
       case ActionizerProto.SignalPositionSize => SignalPositionSize
       case ActionizerProto.PositionSize       => PositionSize
       case ActionizerProto.EntrySignal        => EntrySignal
@@ -35,7 +36,7 @@ class Stateless extends ActionizerState {
   override def equals(obj: Any): Boolean =
     obj match {
       case _: Stateless => true
-      case _ => false
+      case _            => false
     }
   override def createSnapshot(implicit
       simulationState: SimulationState
@@ -43,7 +44,9 @@ class Stateless extends ActionizerState {
 }
 
 object Stateless extends ActionizerStateCompanion {
-  override def create(implicit simulationMetadata: SimulationMetadata): Stateless =
+  override def create(implicit
+      simulationMetadata: SimulationMetadata
+  ): Stateless =
     new Stateless
 
   override def fromSnapshot(snapshot: ActionizerState): ActionizerState =
@@ -52,6 +55,13 @@ object Stateless extends ActionizerStateCompanion {
 
 trait StatelessActionizer {
   val actionizerState = Stateless
+}
+
+object NoOpActionizer extends Actionizer with StatelessActionizer {
+  override def construct(
+      actorOutput: Seq[Double]
+  )(implicit simulationState: SimulationState): Action =
+    new NoTransaction
 }
 
 object EntrySignal
@@ -123,7 +133,10 @@ object SignalPositionSize
     implicit val matchingEngineState = simulationState.matchingEngineState
     implicit val simulationMetadata = simulationState.simulationMetadata
     implicit val walletState = simulationState.accountState.walletsState
-    require(actorOutput.size == 2, s"$actorOutput {actorOutput} has size ${actorOutput.size}. Must be 2.")
+    require(
+      actorOutput.size == 2,
+      s"$actorOutput {actorOutput} has size ${actorOutput.size}. Must be 2."
+    )
     val entrySignal = actorOutput.head.clamp(0, 1)
     val positionSizeFraction = actorOutput(1).clamp(0, 1)
 
@@ -193,8 +206,8 @@ object EmaCrossOver extends Actionizer with PositionRebalancer {
 
     simulationState.environmentState.actionizerState match {
       case actionizerState: EmaCrossOverState => {
-        val midPrice =
-          MatchingEngine.calcMidPrice(simulationState.matchingEngineState)
+        val midPrice = if (simulationMetadata.currentStep > 0)
+          MatchingEngine.calcMidPrice(simulationState.matchingEngineState) else 0.0
 
         List(actionizerState.emaFast, actionizerState.emaSlow)
           .map(_.update(midPrice))

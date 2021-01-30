@@ -34,6 +34,7 @@ INSTALL_REQUIRES = [
     "flask>=1.1.2, <2.0.0",
     "funcy>=1.11.0,<2.0.0",
     "google-cloud-storage>=1.15.0,<2.0.0",
+    "hyperopt>=0.2.5,<0.3.0",
     "incense>=0.0.10",
     "nptyping>=1.3.0<2.0.0",
     "pyarrow==1.0.1",
@@ -55,6 +56,7 @@ SCRIPTS = [
     "../bin/storagewriter_entrypoint",
     "../bin/serve_job_entrypoint",
     "../bin/train_job_entrypoint",
+    "../bin/trend_following_optimization_entrypoint",
 ]
 
 SETUP_REQUIRES = ["pytest-runner>=5.1,<6.0"]

@@ -208,7 +208,7 @@ message SimulationStartRequest {
     DatabaseBackend databaseBackend = 11;
     bool backupToCloudStorage = 12;
     bool stopInProgressSimulations = 13; // Used by unit tests to make sure only one simulation is in progress at a time
-    Actionizer actionizer = 14;
+    ActionRequest actionRequest = 14;
     map<string, double> actionizerConfigs = 15;
     bool skipDatabaseQuery = 16;
     bool skipCheckpointAfterWarmup = 17;

@@ -7,10 +7,23 @@ import co.firstorderlabs.coinbaseml.common.EnvironmentState
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actionizer
 import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils
 import co.firstorderlabs.coinbaseml.fakebase.Types.Exceptions.SimulationNotStarted
-import co.firstorderlabs.coinbaseml.fakebase.sql.{DatabaseReader, DatabaseReaderState}
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.environment.{InfoDict, ObservationRequest}
-import co.firstorderlabs.common.protos.fakebase.{SimulationStartRequest, SimulationType}
+import co.firstorderlabs.coinbaseml.fakebase.sql.{
+  DatabaseReader,
+  DatabaseReaderState
+}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
+import co.firstorderlabs.common.protos.environment.{
+  Actionizer => ActionizerProto,
+  InfoDict,
+  ObservationRequest
+}
+import co.firstorderlabs.common.protos.fakebase.{
+  SimulationStartRequest,
+  SimulationType
+}
 import co.firstorderlabs.common.types.Types.{SimulationId, TimeInterval}
 
 import scala.collection.mutable
@@ -113,7 +126,11 @@ object SimulationMetadata {
       simulationStartRequest.snapshotBufferSize,
       simulationStartRequest.backupToCloudStorage,
       simulationStartRequest.actionizerConfigs,
-      Actionizer.fromProto(simulationStartRequest.actionizer),
+      Actionizer.fromProto(
+        simulationStartRequest.actionRequest
+          .map(_.actionizer)
+          .getOrElse(ActionizerProto.NoOpActionizer)
+      )
     )
   }
 
@@ -140,12 +157,12 @@ object SimulationMetadata {
 }
 
 final case class SimulationState(
-                                  simulationMetadata: SimulationMetadata,
-                                  accountState: AccountState,
-                                  databaseReaderState: DatabaseReaderState,
-                                  exchangeState: ExchangeState,
-                                  environmentState: EnvironmentState,
-                                  matchingEngineState: MatchingEngineState
+    simulationMetadata: SimulationMetadata,
+    accountState: AccountState,
+    databaseReaderState: DatabaseReaderState,
+    exchangeState: ExchangeState,
+    environmentState: EnvironmentState,
+    matchingEngineState: MatchingEngineState
 ) {
   def createSnapshot(implicit
       simulationState: SimulationState
