@@ -5,11 +5,11 @@ from datetime import timedelta
 
 from dateutil import parser
 
+import coinbase_ml.common.constants
 from coinbase_ml.common.models.actor_value import ModelConfigs
 from coinbase_ml.common.protos.environment_pb2 import InfoDictKey, RewardStrategy
 from coinbase_ml.common.utils.ray_utils import Callbacks
 from coinbase_ml.common.utils.time_utils import TimeInterval
-from coinbase_ml.train import constants as c
 from coinbase_ml.train.environment import Environment, EnvironmentConfigs
 from coinbase_ml.train.experiment_configs.common import SACRED_EXPERIMENT
 
@@ -43,7 +43,7 @@ def build_trainer_config(
         },
         "num_cpus_for_driver": 2,
         "num_cpus_per_worker": 2,
-        "num_gpus": c.NUM_GPUS,
+        "num_gpus": coinbase_ml.common.constants.NUM_GPUS,
         "num_workers": train_environment_configs["num_actors"],
         "rollout_fragment_length": 10,
         "train_batch_size": 2 ** 3,

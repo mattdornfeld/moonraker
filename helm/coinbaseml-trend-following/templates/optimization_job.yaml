@@ -1,0 +1,99 @@
+---
+{{$release_name := .Release.Name | trunc 14}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{$release_name}}-{{randAlphaNum 10 | lower}}
+  labels:
+    app: trend-following-optimization
+spec:
+  template:
+    metadata:
+      labels:
+        pod-selector: {{$release_name}}-trend-following
+
+    spec:
+      {{- if .Values.job.node_group}}
+      nodeSelector:
+        node-group: {{.Values.job.node_group}}
+      {{- end}}
+
+      {{- if .Values.job.node_group}}
+      tolerations:
+      - key: node-group
+        operator: "Equal"
+        effect: "NoSchedule"
+        value: {{.Values.job.node_group}}
+      {{- end}}
+
+      imagePullSecrets:
+      - name: {{$release_name}}-registry-credentials
+
+      restartPolicy: OnFailure
+
+      containers:
+      - name: trend-following-optimization
+
+        command: ["trend_following_optimization_entrypoint"]
+
+        env:
+          - name: CI_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-gitlab-ci-token
+                key: CI_TOKEN
+
+          - name: ENVIRONMENT
+            value: {{.Values.ENVIRONMENT}}
+
+          - name: MONGO_DB_URL
+            valueFrom:
+              secretKeyRef:
+                name: {{$release_name}}-mongodb-credentials
+                key: mongodb-url
+
+          - name: NUM_GPUS
+            value: {{ index .Values.job.resources.requests "nvidia.com/gpu" | quote}}
+
+          - name: SACRED_CONFIG
+            value: {{.Values.job.sacred_config}}
+
+          {{- if .Values.ray.deploy_ray_cluster}}
+          - name: RAY_REDIS_ADDRESS
+            value: {{.Release.Name}}-ray-head:6379
+          {{- end}}
+
+        {{- if .Values.ray.deploy_ray_cluster}}
+        ports:
+        - containerPort: 6379
+          name: redis
+        - containerPort: 8080
+          name: ray-webui
+        - containerPort: 12345
+          name: pl5asma
+        {{- end}}
+
+        {{if gt (index .Values.job.resources.requests "nvidia.com/gpu") 0.0}}
+        image: "registry.gitlab.com/moonraker/coinbase_train/gpu:{{.Chart.Version}}"
+        {{else}}
+        image: "registry.gitlab.com/moonraker/coinbase_train/cpu:{{.Chart.Version}}"
+        {{end}}
+
+        resources: {{.Values.job.resources | toJson }}
+
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+
+          - mountPath: {{.Values.ray.gcp_service_account_secret.mount_path}}
+            name: service-account-json
+            readOnly: true
+
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+
+      - name: service-account-json
+        secret:
+          secretName: {{$release_name}}-service-account-json

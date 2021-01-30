@@ -1,7 +1,8 @@
 #!/bin/bash
 svc_suffix=$1
 svc_port=$2
+release_name_suffix=$3
 branch_name=$(git rev-parse --abbrev-ref HEAD)
-release_name=$(echo ${branch_name}-coinbaseml-train | tr '_' '-')
+release_name=$(echo ${branch_name}-${release_name_suffix} | tr '_' '-')
 svc_name=${release_name}-${svc_suffix}
 kubectl port-forward svc/${svc_name} ${svc_port}:${svc_port}

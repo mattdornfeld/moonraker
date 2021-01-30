@@ -15,6 +15,7 @@ enum Actionizer {
     PositionSize = 1;
     EntrySignal = 2;
     EmaCrossOver = 3;
+    NoOpActionizer = 4;
 }
 
 enum Featurizer {

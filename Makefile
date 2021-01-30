@@ -56,13 +56,19 @@ test-scala:
 	cd scala && make test
 
 logs-train-driver:
-	chmod u+x bin/view_logs && bin/view_logs
+	chmod u+x bin/view_logs && bin/view_logs coinbaseml-train job-train
+
+logs-trend-following-driver:
+	chmod u+x bin/view_logs && bin/view_logs coinbaseml-trend-following trend-following
 
 ui-notbook:
 	chmod u+x bin/port_forward && bin/port_forward notbook-train 8888
 
-ui-ray:
-	chmod u+x bin/port_forward && bin/port_forward ray-head 8265
+ui-ray-train:
+	chmod u+x bin/port_forward && bin/port_forward ray-head 8265 coinbaseml-train
+
+ui-ray-trend-following:
+	chmod u+x bin/port_forward && bin/port_forward ray-head 8265 coinbaseml-trend-following
 
 ui-sacred:
 	kubectl port-forward -n moonraker svc/sacred-sacredboard 5000:5000

@@ -17,10 +17,7 @@ import coinbase_ml.fakebase.account as account
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.protos.environment_pb2 import ActionRequest
-from coinbase_ml.common.protos.environment_pb2 import (
-    ObservationRequest,
-    RewardRequest,
-)
+from coinbase_ml.common.protos.environment_pb2 import ObservationRequest, RewardRequest
 from coinbase_ml.common.protos.events_pb2 import SimulationId as SimulationIdProto
 from coinbase_ml.common.types import SimulationId
 from coinbase_ml.fakebase import constants as c
@@ -141,7 +138,7 @@ class Exchange:
     @staticmethod
     def _generate_action_request(
         actionizer: "environment_pb2.ActionizerValue",
-        simulation_id: SimulationId,
+        simulation_id: Optional[SimulationId],
         actor_output: NDArray[float],
     ) -> ActionRequest:
         return ActionRequest(
@@ -287,11 +284,12 @@ class Exchange:
     ) -> SimulationMetadata:
         """Start a simulation
         """
+        action_request = self._generate_action_request(actionizer, None, np.array([]))
         observation_request = self._generate_observation_request(
             featurizer, reward_strategy
         )
         simulation_start_request = SimulationStartRequest(
-            actionizer=actionizer,
+            actionRequest=action_request,
             actionizerConfigs=actionizer_configs if actionizer_configs else {},
             backupToCloudStorage=backup_to_cloud_storage,
             databaseBackend=c.DATABASE_BACKEND,
@@ -313,7 +311,7 @@ class Exchange:
         simulation_id = SimulationId(simulation_info.simulationId.simulationId)
         simulation_metadata = SimulationMetadata(
             account=account.Account(
-                self.channel, simulation_info.exchangeInfo.accountInfo, simulation_id,
+                self.channel, simulation_info.exchangeInfo.accountInfo, simulation_id
             ),
             actionizer=actionizer,
             end_dt=end_dt,

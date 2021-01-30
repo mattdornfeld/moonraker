@@ -9,7 +9,7 @@ from coinbase_ml.common.protos.environment_pb2 import RewardStrategy, Featurizer
 from coinbase_ml.common.utils.ray_utils import get_actionizer
 from coinbase_ml.fakebase.exchange import Exchange
 from coinbase_ml.fakebase.protos.fakebase_pb2 import SimulationType
-from coinbase_ml.trend_following.constants import FAKEBASE_SERVER_PORT
+from coinbase_ml.trend_following.constants import FAKEBASE_SERVER_PORT, INFO_DICT
 from coinbase_ml.trend_following.experiment_configs.constants import SACRED_EXPERIMENT
 
 
@@ -52,11 +52,14 @@ def evaluate(
     exchange.run(simulation_id)
     exchange.stop(simulation_id)
 
-    result = exchange.info_dict(simulation_id)[result_metric]
-    return result
+    info_dict = exchange.info_dict(simulation_id)
+    SACRED_EXPERIMENT.info[INFO_DICT] = info_dict
+    return info_dict[result_metric]
 
 
-def run(command_line_args: List[str], search_config: Dict[str, float]) -> float:
+def run(
+    command_line_args: List[str], search_config: Dict[str, float]
+) -> Dict[str, float]:
     if not bool(set(["-u", "--unobserved"]).intersection(set(command_line_args))):
         command_line_args.append("-u")
 
@@ -64,5 +67,5 @@ def run(command_line_args: List[str], search_config: Dict[str, float]) -> float:
         command_line_args.index("with") + 2,
         f"actionizer_configs={json.dumps(search_config)}",
     )
-
-    return SACRED_EXPERIMENT.run_commandline(["evaluate"] + command_line_args).result
+    _run = SACRED_EXPERIMENT.run_commandline(["evaluate"] + command_line_args)
+    return _run.info[INFO_DICT]

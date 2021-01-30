@@ -42,7 +42,7 @@ helm_charts:
   extends: .package_helm_chart
 
   variables:
-    CHART_NAME: bqwriter,coinbase-ml-train,coinbase-ml-serve,coinbaseml-storagewriter,coinbase-kafka-producer
+    CHART_NAME: bqwriter,coinbase-ml-train,coinbase-ml-serve,coinbaseml-storagewriter,coinbaseml-trend-following,coinbase-kafka-producer
 
 .bqwriter_files: &bqwriter_files
   - dockerfiles/Dockerfile.bqwriter
@@ -247,6 +247,53 @@ delete_coinbase_serve:
 
   variables:
     RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbase-btc-usd-serve
+
+.coinbaseml_trend_following_deploy_args: &coinbaseml_trend_following_deploy_args |
+  HELM_ARGS="--set ENVIRONMENT=coinbaseml/trend-following/${CI_COMMIT_REF_NAME}
+  --set gcp-service-account-secret.service_account_json=${SERVICE_ACCOUNT_JSON}
+  --set gitlab-registry-secret.registry.username=${CI_USERNAME}
+  --set gitlab-registry-secret.registry.password=${CI_TOKEN}
+  --set gitlab-token-secret.CI_TOKEN=${CI_TOKEN}
+  --set mongo-db-secret.mongodb_url=mongodb+srv://sacred_ci_user:${SACRED_CI_USER_PASSWORD}@sacred-pri.2ykvv.gcp.mongodb.net/test?retryWrites=true&w=majority
+  --set ray.head_deployment.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}
+  --set ray.worker_deployments.cpu-workers.docker_image=${CI_REGISTRY_IMAGE}/cpu:${VERSION_TAG}"
+
+coinbaseml_trend_following:
+  before_script:
+    - *version_tag_script
+    - *coinbaseml_trend_following_deploy_args
+
+  environment:
+    name: coinbaseml/trend-following/${CI_COMMIT_REF_NAME}
+    on_stop: delete_coinbaseml_trend_following
+
+  extends: .deploy_helm_chart
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
+
+  variables:
+    CHART_NAME: coinbaseml-trend-following
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbaseml-trend-following
+
+delete_coinbaseml_trend_following:
+  environment:
+    name: coinbaseml/trend-following/${CI_COMMIT_REF_NAME}
+    action: stop
+
+  extends: .delete_helm_release
+
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes: *coinbaseml_files
+
+  variables:
+    RELEASE_NAME: $CI_COMMIT_REF_NAME-coinbaseml-trend-following
 
 .helm_coinbase_kafka_producer_deploy_args: &helm_coinbase_kafka_producer_deploy_args |
   HELM_ARGS="--set gitlab-registry-secret.registry.password=${CI_TOKEN}

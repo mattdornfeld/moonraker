@@ -9,7 +9,7 @@ from coinbase_ml.trend_following.experiment_configs.constants import SACRED_EXPE
 
 
 @SACRED_EXPERIMENT.main
-def poplate_storage(start_dt: str, end_dt: str, time_delta: int,) -> None:
+def populate_storage(start_dt: str, end_dt: str, time_delta: int) -> None:
     exchange = Exchange(port=FAKEBASE_SERVER_PORT, terminate_automatically=False)
     exchange.populate_storage(
         start_time=parse(start_dt),

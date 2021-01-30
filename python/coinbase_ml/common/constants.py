@@ -39,3 +39,8 @@ SACRED_DB_NAME = "sacred"
 # arrow configs
 ARROW_SOCKETS_BASE_DIR = Path("/tmp/moonraker/coinbaseml/arrow_sockets")
 LOCAL_MODE = os.environ.get("LOCAL_MODE") in ["True", "true", "TRUE"]
+
+# ray configs
+NUM_GPUS = int(os.environ.get("NUM_GPUS", 0))
+RAY_OBJECT_STORE_MEMORY = os.environ.get("RAY_OBJECT_STORE_MEMORY")
+RAY_REDIS_ADDRESS = os.environ.get("RAY_REDIS_ADDRESS")

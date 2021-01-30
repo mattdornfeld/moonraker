@@ -67,4 +67,4 @@ TEST_SQL_SRC_DIR = f"{os.getcwd()}/coinbase_ml_tests/data/moonraker.sql"
 TMP_SQL_DIR = "/tmp/coinbase_ml/docker-entrypoint-initdb.d"
 
 
-EXCHANGE = Exchange(test_mode=True,)
+EXCHANGE = Exchange(test_mode=True)

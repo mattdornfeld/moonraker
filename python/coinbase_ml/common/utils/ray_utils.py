@@ -9,6 +9,7 @@ from time import time
 from typing import TYPE_CHECKING, Any, Callable, DefaultDict, Dict, List, Optional, Type
 
 import numpy as np
+import ray
 import requests
 from nptyping import NDArray
 from ray.rllib.agents import Trainer
@@ -19,6 +20,7 @@ from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.rllib.policy import Policy
 from ray.rllib.utils.typing import PolicyID
+from ray.tune.suggest import Searcher
 
 import coinbase_ml.common.constants as c
 from coinbase_ml.common.actionizers import Actionizer
@@ -33,7 +35,6 @@ if TYPE_CHECKING:
     import coinbase_ml.common.protos.environment_pb2 as environment_pb2
     import coinbase_ml.train.environment as environment
 
-
 EVALUATION_EPISODES: List[MultiAgentEpisode] = []
 
 
@@ -47,6 +48,14 @@ def _to_serializable(val: Any) -> str:
 def _ts_float32(val: Any) -> np.float64:
     """Used if *val* is an instance of numpy.float32."""
     return np.float64(val)
+
+
+def ray_init() -> None:
+    ray.init(
+        address=c.RAY_REDIS_ADDRESS,
+        object_store_memory=c.RAY_OBJECT_STORE_MEMORY,
+        # local_mode=c.LOCAL_MODE,
+    )
 
 
 # pylint: disable=unused-argument
@@ -221,6 +230,12 @@ def get_actionizer(actionizer_name: str) -> Actionizer:
 
 def get_trainer(trainer_name: str) -> Trainer:
     return _import_object(trainer_name)
+
+
+def get_search_algorithm(
+    search_algorithm_name: str, search_algorithm_config: dict
+) -> Searcher:
+    return _import_object(search_algorithm_name)(**search_algorithm_config)
 
 
 def register_custom_model(model_name: str) -> None:
