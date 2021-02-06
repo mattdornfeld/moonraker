@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.common.utils
 
+import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.buyMarketOrderRequest
 import co.firstorderlabs.coinbaseml.fakebase.{
@@ -22,8 +23,16 @@ import scala.math.pow
 object TestUtils {
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(1e-10)
 
+  implicit class DoubleUtils(x: Double) {
+    def ~=(y: Double): Boolean = {
+      if ((x - y).abs < 1e-10) true else false
+    }
+  }
+
   implicit class FutureUtils[A](future: Future[A]) {
     def await(duration: Duration): Unit = Await.ready(future, duration)
+
+    def get: A = getResult(future)
   }
 
   implicit class OrderSideUtils(orderside: OrderSide) {
@@ -74,7 +83,9 @@ object TestUtils {
       simulationId = Some(simulationMetadata.simulationId)
     )
 
-    Account.placeBuyMarketOrder(buyMarketOrderRequest(simulationMetadata.simulationId))
+    Account.placeBuyMarketOrder(
+      buyMarketOrderRequest(simulationMetadata.simulationId)
+    )
 
     Exchange step StepRequest(
       insertOrders = OrdersData.insertSellOrders(
@@ -84,7 +95,9 @@ object TestUtils {
       simulationId = Some(simulationMetadata.simulationId)
     )
 
-    Account.placeBuyMarketOrder(buyMarketOrderRequest(simulationMetadata.simulationId))
+    Account.placeBuyMarketOrder(
+      buyMarketOrderRequest(simulationMetadata.simulationId)
+    )
   }
 
   def buildStepRequest(simulationId: SimulationId): StepRequest =

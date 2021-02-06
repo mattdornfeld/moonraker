@@ -214,11 +214,6 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
   override def start(
       simulationStartRequest: SimulationStartRequest
   ): Future[SimulationInfo] = {
-    require(
-      simulationStartRequest.snapshotBufferSize > 0,
-      "snapshotBufferSize must be greater than 0"
-    )
-
     if (simulationStartRequest.stopInProgressSimulations)
       SimulationState.keys.foreach(stop(_))
 

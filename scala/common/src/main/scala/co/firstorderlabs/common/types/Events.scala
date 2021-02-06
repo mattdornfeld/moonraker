@@ -4,11 +4,36 @@ import java.time.{Duration, Instant}
 import java.util.{Map => JavaMap}
 
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{
+  ProductVolume,
+  QuoteVolume
+}
 import co.firstorderlabs.common.currency.Constants
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, DoneReason, Liquidity, Match, MatchEvents, Order, OrderSide, OrderStatus, RejectReason, SellLimitOrder, SellMarketOrder, Cancellation => CancellationProto, Event => EventProto}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  BuyMarketOrder,
+  DoneReason,
+  Liquidity,
+  Match,
+  MatchEvents,
+  Order,
+  OrderSide,
+  OrderStatus,
+  RejectReason,
+  SellLimitOrder,
+  SellMarketOrder,
+  Cancellation => CancellationProto,
+  Event => EventProto
+}
 import co.firstorderlabs.common.protos.fakebase.OrderType
-import co.firstorderlabs.common.types.Types.{OrderId, OrderRequestId, ProductId, SimulationId, TimeInterval, TradeId}
+import co.firstorderlabs.common.types.Types.{
+  OrderId,
+  OrderRequestId,
+  ProductId,
+  SimulationId,
+  TimeInterval,
+  TradeId
+}
 
 import scala.jdk.CollectionConverters._
 
@@ -78,11 +103,11 @@ object Events {
     def toEventProto: EventProto = {
       this match {
         case event: CancellationProto => EventProto().withCancellation(event)
-        case event: BuyLimitOrder => EventProto().withBuyLimitOrder(event)
-        case event: BuyMarketOrder => EventProto().withBuyMarketOrder(event)
-        case event: Match => EventProto().withMatch(event)
-        case event: SellLimitOrder => EventProto().withSellLimitOrder(event)
-        case event: SellMarketOrder => EventProto().withSellMarketOrder(event)
+        case event: BuyLimitOrder     => EventProto().withBuyLimitOrder(event)
+        case event: BuyMarketOrder    => EventProto().withBuyMarketOrder(event)
+        case event: Match             => EventProto().withMatch(event)
+        case event: SellLimitOrder    => EventProto().withSellLimitOrder(event)
+        case event: SellMarketOrder   => EventProto().withSellMarketOrder(event)
       }
     }
   }
@@ -199,8 +224,13 @@ object Events {
 
   }
 
-  final case class OrderBookKey(price: ProductPrice, time: Duration, degeneracy: Int) {
-    private val _hashCode = scala.runtime.Statics.anyHash((price, time, degeneracy))
+  final case class OrderBookKey(
+      price: ProductPrice,
+      time: Duration,
+      degeneracy: Int
+  ) {
+    private val _hashCode =
+      scala.runtime.Statics.anyHash((price, time, degeneracy))
 
     override def hashCode(): Int = _hashCode
   }
@@ -244,6 +274,13 @@ object Events {
         .plus(currentTimeInterval.size)
         .compareTo(timeOfExpiration) >= 0
     }
+
+    def toCancellation: CancellationProto =
+      CancellationProto(
+        orderId = orderId,
+        productId = productId,
+        side = side
+      )
 
     override def toBigQueryRow: JavaMap[String, Any] =
       Map(

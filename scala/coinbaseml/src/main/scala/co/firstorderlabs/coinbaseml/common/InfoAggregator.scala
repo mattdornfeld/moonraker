@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.common
 
+import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.{InfoDict, InfoDictKey}
@@ -155,8 +156,10 @@ object InfoAggregator {
       Account.getMatches(simulationId)
     ).matchEvents
     implicit val infoAggregatorState = simulationState.environmentState.infoAggregatorState
+    implicit val matchingEngineState = simulationState.matchingEngineState
     val infoDict = infoAggregatorState.infoDict
 
+    infoDict.put(InfoDictKey.midPrice, ReturnRewardStrategy.calcMidPrice)
     // Make sure to increment numSamples before calling incrementRunningMean
     infoDict.increment(InfoDictKey.numSamples, 1.0)
     List(

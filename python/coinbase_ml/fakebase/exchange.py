@@ -208,7 +208,7 @@ class Exchange:
         return dict(
             self.simulation_metadata(
                 simulation_id
-            ).simulation_info.observation.infoDict.infoDict
+            ).simulation_info.observation.info.infoDict.infoDict
         )
 
     def interval_end_dt(self, simulation_id: SimulationId) -> datetime:
@@ -376,7 +376,7 @@ class Exchange:
         actionizer = simulation_metadata.actionizer
         action_request = (
             self._generate_action_request(actionizer, simulation_id, actor_output)
-            if actor_output
+            if actor_output is not None
             else None
         )
         step_request = StepRequest(
