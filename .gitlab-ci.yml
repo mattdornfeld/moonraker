@@ -25,7 +25,7 @@ tests:
 
   script:
     - docker login registry.gitlab.com -p $GITLAB_PASSWORD -u $GITLAB_USERNAME
-    - docker-compose up --abort-on-container-exit --build
+    - docker-compose up --abort-on-container-exit --build coinbase_ml_tests
 
   stage: build
 

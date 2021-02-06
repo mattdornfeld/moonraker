@@ -89,9 +89,11 @@ final case class SimulationMetadata(
   def incrementCurrentTimeInterval: Unit =
     currentTimeInterval = currentTimeInterval + timeDelta
 
-  def incrementStep: Unit = {
+  def incrementStep: Unit =
     currentStep += 1
-  }
+
+  def isWarmedUp: Boolean =
+    currentStep >= numWarmUpSteps
 
   def numSteps: Long =
     Duration.between(startTime, endTime).dividedBy(timeDelta)

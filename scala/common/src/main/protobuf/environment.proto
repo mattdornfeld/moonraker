@@ -41,6 +41,7 @@ enum InfoDictKey {
     numSamples = 14;
     numEpisodes = 15;
     roi = 16;
+    midPrice = 17;
 }
 
 enum RewardStrategy {
@@ -51,7 +52,7 @@ enum RewardStrategy {
 service EnvironmentService {
     rpc executeAction (ActionRequest) returns (Order) {
     }
-    rpc getInfoDict (SimulationId) returns (InfoDictProto) {
+    rpc getInfo (SimulationId) returns (Info) {
     }
     rpc getObservation (ObservationRequest) returns (Observation) {
     }
@@ -65,9 +66,15 @@ message ActionRequest {
     SimulationId simulationId = 3;
 }
 
+message Info {
+    InfoDictProto infoDict = 1;
+    map<string, double> actionizerState = 2;
+}
+
 message InfoDictProto {
     option (scalapb.message).type = "co.firstorderlabs.common.protos.environment.InfoDict";
     map<string, double> infoDict = 1;
+    map<string, double> actionizerState = 2;
 }
 
 message ObservationRequest {
@@ -89,7 +96,7 @@ message Features {
 message Observation {
     Features features = 1;
     Reward reward = 2;
-    InfoDictProto infoDict = 3;
+    Info info = 3;
 }
 
 message RewardRequest {

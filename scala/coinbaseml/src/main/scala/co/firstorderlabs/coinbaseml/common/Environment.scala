@@ -12,7 +12,7 @@ import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.coinbaseml.fakebase.{SimulationMetadata, SimulationState, State, StateCompanion}
 import co.firstorderlabs.common.protos.environment.EnvironmentServiceGrpc.EnvironmentService
-import co.firstorderlabs.common.protos.environment.{ActionRequest, InfoDict, InfoDictKey, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
+import co.firstorderlabs.common.protos.environment.{ActionRequest, Info, InfoDictKey, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.protos.events.{Order, OrderMessage}
 import co.firstorderlabs.common.types.Types.{Features, SimulationId}
 
@@ -22,7 +22,7 @@ final case class EnvironmentState(
     actionizerState: ActionizerState,
     infoAggregatorState: InfoAggregatorState,
     orderBookFeaturizerState: OrderBookVectorizerState,
-    timeSeriesFeaturizerState: TimeSeriesVectorizerState
+    timeSeriesFeaturizerState: TimeSeriesVectorizerState,
 ) extends State[EnvironmentState] {
   override val companion = EnvironmentState
 
@@ -33,7 +33,7 @@ final case class EnvironmentState(
       actionizerState.createSnapshot,
       infoAggregatorState.createSnapshot,
       orderBookFeaturizerState.createSnapshot,
-      timeSeriesFeaturizerState.createSnapshot
+      timeSeriesFeaturizerState.createSnapshot,
     )
 
 }
@@ -46,7 +46,7 @@ object EnvironmentState extends StateCompanion[EnvironmentState] {
       simulationMetadata.actionizer.actionizerState.create,
       InfoAggregatorState.create,
       OrderBookVectorizerState.create,
-      TimeSeriesVectorizerState.create
+      TimeSeriesVectorizerState.create,
     )
 
   override def fromSnapshot(snapshot: EnvironmentState): EnvironmentState = {
@@ -54,7 +54,7 @@ object EnvironmentState extends StateCompanion[EnvironmentState] {
       snapshot.actionizerState.companion.fromSnapshot(snapshot.actionizerState),
       InfoAggregatorState.fromSnapshot(snapshot.infoAggregatorState),
       OrderBookVectorizerState.fromSnapshot(snapshot.orderBookFeaturizerState),
-      TimeSeriesVectorizerState.fromSnapshot(snapshot.timeSeriesFeaturizerState)
+      TimeSeriesVectorizerState.fromSnapshot(snapshot.timeSeriesFeaturizerState),
     )
   }
 }
@@ -67,7 +67,9 @@ object Environment extends EnvironmentService {
       SimulationState.getOrFail(actionRequest.simulationId.get)
     implicit val infoAggregatorState =
       simulationState.environmentState.infoAggregatorState
-    val action = Actionizer.fromProto(actionRequest.actionizer).construct(actionRequest.actorOutput)
+    val action = Actionizer
+      .fromProto(actionRequest.actionizer)
+      .construct(actionRequest.actorOutput)
 
     action match {
       case action: LimitOrderTransaction if action.side.isbuy =>
@@ -113,11 +115,11 @@ object Environment extends EnvironmentService {
 
     //Features are too large to send via grpc. Instead write to socket files using Arrow.
     construct(observationRequest).writeToSocket
+    val info = getResult(getInfo(simulationMetadata.simulationId))
     val observation =
       Observation(
         reward = reward,
-        infoDict =
-          Some(simulationState.environmentState.infoAggregatorState.infoDict)
+        info = Some(info)
       )
     val endTime = System.currentTimeMillis
     logger.fine(s"Featurizer.getObservation took ${endTime - startTime} ms")
@@ -146,10 +148,15 @@ object Environment extends EnvironmentService {
     Future.successful(reward)
   }
 
-  override def getInfoDict(simulationId: SimulationId): Future[InfoDict] = {
+  override def getInfo(simulationId: SimulationId): Future[Info] = {
     val simulationState = SimulationState.getOrFail(simulationId)
     Future.successful(
-      simulationState.environmentState.infoAggregatorState.infoDict
+      Info(
+        actionizerState =
+          simulationState.environmentState.actionizerState.getState,
+        infoDict =
+          Some(simulationState.environmentState.infoAggregatorState.infoDict)
+      )
     )
   }
 

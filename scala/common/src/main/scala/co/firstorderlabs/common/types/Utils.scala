@@ -4,7 +4,7 @@ import co.firstorderlabs.common.protos.events.OrderSide
 
 object Utils {
   implicit class OrderSideUtils(side: OrderSide.Recognized) {
-    def getOppositeSide: OrderSide =
+    def getOppositeSide: OrderSide.Recognized =
       if (side.isbuy) OrderSide.sell else OrderSide.buy
   }
 }

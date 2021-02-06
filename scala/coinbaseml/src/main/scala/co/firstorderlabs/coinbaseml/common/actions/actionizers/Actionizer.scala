@@ -1,13 +1,20 @@
 package co.firstorderlabs.coinbaseml.common.actions.actionizers
 
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{Action, NoTransaction}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{
+  Action,
+  NoTransaction
+}
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.UnrecognizedActionizer
 import co.firstorderlabs.coinbaseml.common.utils.Utils.Interval.IntervalType
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{DoubleUtils, Interval}
 import co.firstorderlabs.coinbaseml.fakebase._
-import co.firstorderlabs.common.protos.environment.{Actionizer => ActionizerProto}
+import co.firstorderlabs.common.protos.environment.{
+  Actionizer => ActionizerProto
+}
 
-trait ActionizerState extends State[ActionizerState]
+trait ActionizerState extends State[ActionizerState] {
+  def getState: Map[String, Double]
+}
 trait ActionizerStateCompanion extends StateCompanion[ActionizerState]
 
 sealed trait Actionizer {
@@ -38,9 +45,12 @@ class Stateless extends ActionizerState {
       case _: Stateless => true
       case _            => false
     }
+
   override def createSnapshot(implicit
       simulationState: SimulationState
   ): Stateless = new Stateless
+
+  override def getState: Map[String, Double] = Map()
 }
 
 object Stateless extends ActionizerStateCompanion {
@@ -48,6 +58,8 @@ object Stateless extends ActionizerStateCompanion {
       simulationMetadata: SimulationMetadata
   ): Stateless =
     new Stateless
+
+  def getState: Map[String, Double] = Map()
 
   override def fromSnapshot(snapshot: ActionizerState): ActionizerState =
     new Stateless
@@ -167,12 +179,26 @@ case class EmaCrossOverState(
         )
     }
   }
+
+  override def getState: Map[String, Double] =
+    Map(
+      "emaFast" -> emaFast.value,
+      "emaSlow" -> emaSlow.value
+    )
 }
 
 object EmaCrossOverState extends ActionizerStateCompanion {
   override def create(implicit
       simulationMetadata: SimulationMetadata
   ): EmaCrossOverState = {
+    require(
+      simulationMetadata.actionizerConfigs.contains("fastWindowSize"),
+      "fastWindowSize must be specified in actionizerConfigs"
+    )
+    require(
+      simulationMetadata.actionizerConfigs.contains("slowWindowSize"),
+      "slowWindowSize must be specified in actionizerConfigs"
+    )
     val fastWindowSize =
       simulationMetadata
         .actionizerConfigs("fastWindowSize")
@@ -200,22 +226,31 @@ object EmaCrossOver extends Actionizer with PositionRebalancer {
   override def construct(
       actorOutput: Seq[Double]
   )(implicit simulationState: SimulationState): Action = {
+    val updateOnly = actorOutput.size > 0 && actorOutput(0) == -1
     implicit val matchingEngineState = simulationState.matchingEngineState
     implicit val simulationMetadata = simulationState.simulationMetadata
     implicit val walletState = simulationState.accountState.walletsState
 
     simulationState.environmentState.actionizerState match {
       case actionizerState: EmaCrossOverState => {
-        val midPrice = if (simulationMetadata.currentStep > 0)
-          MatchingEngine.calcMidPrice(simulationState.matchingEngineState) else 0.0
+        val midPrice =
+          if (simulationMetadata.currentStep > 0)
+            MatchingEngine.calcMidPrice(simulationState.matchingEngineState)
+          else 0.0
 
         List(actionizerState.emaFast, actionizerState.emaSlow)
           .map(_.update(midPrice))
 
-        if (actionizerState.emaFast.crossAbove(actionizerState.emaSlow)) {
+        if (
+          simulationMetadata.isWarmedUp && !updateOnly && actionizerState.emaFast.crossAbove(
+            actionizerState.emaSlow
+          )
+        ) {
           updateOpenPositions(positionSizeFraction)
         } else if (
-          actionizerState.emaFast.crossBelow(actionizerState.emaSlow)
+          simulationMetadata.isWarmedUp && !updateOnly && actionizerState.emaFast.crossBelow(
+            actionizerState.emaSlow
+          )
         ) {
           closeAllOpenPositions
         } else {
