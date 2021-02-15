@@ -7,7 +7,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 object Utils {
-  case class Interval(
+  final case class Interval(
       minValue: Double,
       maxValue: Double,
       intervalType: IntervalType.Value = IntervalType.halfOpenLeft

@@ -1,16 +1,12 @@
 package co.firstorderlabs.coinbaseml.common.actions.actionizers
 
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{
-  Action,
-  NoTransaction
-}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{Action, NoTransaction}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Indicators.ExponentialMovingAverage
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.UnrecognizedActionizer
 import co.firstorderlabs.coinbaseml.common.utils.Utils.Interval.IntervalType
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{DoubleUtils, Interval}
 import co.firstorderlabs.coinbaseml.fakebase._
-import co.firstorderlabs.common.protos.environment.{
-  Actionizer => ActionizerProto
-}
+import co.firstorderlabs.common.protos.environment.{Actionizer => ActionizerProto}
 
 trait ActionizerState extends State[ActionizerState] {
   def getState: Map[String, Double]
@@ -163,8 +159,8 @@ object SignalPositionSize
 }
 
 case class EmaCrossOverState(
-    emaFast: RunningExponentialMovingAverage,
-    emaSlow: RunningExponentialMovingAverage
+    emaFast: ExponentialMovingAverage,
+    emaSlow: ExponentialMovingAverage
 ) extends ActionizerState {
   override val companion = EmaCrossOverState
 
@@ -174,8 +170,8 @@ case class EmaCrossOverState(
     simulationState.environmentState.actionizerState match {
       case emaCrossOverState: EmaCrossOverState =>
         EmaCrossOverState(
-          emaCrossOverState.emaFast.clone,
-          emaCrossOverState.emaSlow.clone
+          emaCrossOverState.emaFast.copy,
+          emaCrossOverState.emaSlow.copy
         )
     }
   }
@@ -206,15 +202,15 @@ object EmaCrossOverState extends ActionizerStateCompanion {
       simulationMetadata
         .actionizerConfigs("slowWindowSize")
     EmaCrossOverState(
-      RunningExponentialMovingAverage(2 / fastWindowSize, 0.0, 0.0),
-      RunningExponentialMovingAverage(2 / slowWindowSize, 0.0, 0.0)
+      ExponentialMovingAverage(2 / fastWindowSize, 0.0, 0.0),
+      ExponentialMovingAverage(2 / slowWindowSize, 0.0, 0.0)
     )
   }
 
   override def fromSnapshot(snapshot: ActionizerState): ActionizerState =
     snapshot match {
       case snapshot: EmaCrossOverState =>
-        EmaCrossOverState(snapshot.emaFast.clone, snapshot.emaSlow.clone)
+        EmaCrossOverState(snapshot.emaFast.copy, snapshot.emaSlow.copy)
     }
 
 }
@@ -239,18 +235,16 @@ object EmaCrossOver extends Actionizer with PositionRebalancer {
           else 0.0
 
         List(actionizerState.emaFast, actionizerState.emaSlow)
-          .map(_.update(midPrice))
+          .map{ema => ema.update(midPrice)}
 
         if (
-          simulationMetadata.isWarmedUp && !updateOnly && actionizerState.emaFast.crossAbove(
-            actionizerState.emaSlow
-          )
+          simulationMetadata.isWarmedUp && !updateOnly && actionizerState.emaFast
+            .crossAbove(actionizerState.emaSlow)
         ) {
           updateOpenPositions(positionSizeFraction)
         } else if (
-          simulationMetadata.isWarmedUp && !updateOnly && actionizerState.emaFast.crossBelow(
-            actionizerState.emaSlow
-          )
+          simulationMetadata.isWarmedUp && !updateOnly && actionizerState.emaFast
+            .crossBelow(actionizerState.emaSlow)
         ) {
           closeAllOpenPositions
         } else {
