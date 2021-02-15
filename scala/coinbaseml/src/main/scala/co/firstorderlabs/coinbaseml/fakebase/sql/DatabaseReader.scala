@@ -183,7 +183,7 @@ abstract class DatabaseReader(
       databaseReaderState.removeRetryPolicy,
       (throwable: Throwable, retryDetails: RetryDetails) =>
         IO {
-          if (retryDetails.cumulativeDelay == 10.seconds) {
+          if (retryDetails.cumulativeDelay == 5.seconds) {
             logger.info(
               s"The QueryResult for ${timeInterval} was not found in queryResultMap. " +
                 s"Waiting for it to be retrieved from LocalStorage."
