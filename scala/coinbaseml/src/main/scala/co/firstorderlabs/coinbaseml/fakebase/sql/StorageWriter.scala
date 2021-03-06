@@ -15,8 +15,8 @@ object StorageWriter {
     * Configs for app. Modify these as necessary.
     */
   object Configs {
-    val timeIntervals: Seq[TimeInterval] = Seq(TimeInterval.fromStrings("2020-11-19T00:00:00.00Z", "2020-11-20T00:00:00.00Z"))
-    val timeDeltas: Seq[Duration] = Seq(Duration.ofMinutes(5))
+    val timeIntervals: Seq[TimeInterval] = Seq(TimeInterval.fromStrings("2020-11-18T00:00:00.00Z", "2020-11-26T00:00:00.00Z"))
+    val timeDeltas: Seq[Duration] = Seq(Duration.ofSeconds(30))
     val databaseBackend = DatabaseBackend.BigQuery
     val backupToCloudStorage = true
     val ingestToLocalStorage = false

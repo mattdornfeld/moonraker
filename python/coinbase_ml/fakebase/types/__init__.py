@@ -33,7 +33,7 @@ from coinbase_ml.fakebase.types.currency import (
 
 BinnedOrderBook = Dict[ProductPrice, ProductVolume]
 
-
+# pylint: disable=invalid-name
 class DoneReason(Enum):
     """
     DoneReason contains the different reasons an order can be done
