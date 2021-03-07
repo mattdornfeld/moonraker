@@ -4,7 +4,8 @@ import java.time.{Duration, Instant}
 
 import co.firstorderlabs.coinbaseml.common.EnvironmentState
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, SellMarketOrderTransaction}
-import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{DoubleUtils, FutureUtils}
+import co.firstorderlabs.coinbaseml.common.utils.TestUtils.DoubleUtils
+import co.firstorderlabs.coinbaseml.common.utils.Utils.FutureUtils
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
@@ -47,9 +48,11 @@ class TestEmaCrossOver extends AnyFunSpec {
   }
 
   describe("EmaCrossOver") {
-    it("Ensure that a BuyMarketOrderTransaction/SellMarketOrderTransaction is placed" +
-      "when the mid price increases/decreases, causing the fast ema to cross above,below the" +
-      "slow ema.") {
+    it(
+      "Ensure that a BuyMarketOrderTransaction/SellMarketOrderTransaction is placed" +
+        "when the mid price increases/decreases, causing the fast ema to cross above,below the" +
+        "slow ema."
+    ) {
       List(BuyMarketOrderTransaction, SellMarketOrderTransaction).foreach {
         expectedTransaction =>
           val simulationStartRequest = expectedTransaction match {

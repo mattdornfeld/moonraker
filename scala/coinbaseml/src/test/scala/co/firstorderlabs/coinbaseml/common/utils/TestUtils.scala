@@ -29,12 +29,6 @@ object TestUtils {
     }
   }
 
-  implicit class FutureUtils[A](future: Future[A]) {
-    def await(duration: Duration): Unit = Await.ready(future, duration)
-
-    def get: A = getResult(future)
-  }
-
   implicit class OrderSideUtils(orderside: OrderSide) {
     def getOppositeSide: OrderSide = {
       orderside match {

@@ -198,6 +198,11 @@ object Implicits {
     Meta[String].timap(_ => new BuyMarketOrderRequest())(_ => "")
 
   // BooPickle serializers used for serializing data to LocalStorage
+  implicit val customDurationPickler =
+    transformPickler((nanos: Long) => Duration.ofNanos(nanos))(_.toNanos)
+  implicit val matchEventsPickler = transformPickler(
+    ((_: Unit) => None): Unit => Option[MatchEvents]
+  )(_ => None)
   implicit val productIdPickler = transformPickler((productId: String) => ProductId.fromString(productId))(_.toString)
   implicit val productPricePickler = transformPickler((productPrice: String) =>
     new ProductPrice(Right(productPrice))
@@ -212,11 +217,6 @@ object Implicits {
   implicit val instantPickler = transformPickler((instant: (Long, Long)) =>
     Instant.ofEpochSecond(instant._1, instant._2)
   )(instant => (instant.getEpochSecond, instant.getNano))
-  implicit val matchEventsPickler = transformPickler(
-    ((_: Unit) => None): Unit => Option[MatchEvents]
-  )(_ => None)
-  implicit val customDurationPickler =
-    transformPickler((nanos: Long) => Duration.ofNanos(nanos))(_.toNanos)
 
   implicit val eventPickler = compositePickler[Event]
     .addConcreteType[BuyLimitOrder]

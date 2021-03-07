@@ -13,6 +13,8 @@ sealed trait Indicator {
 
   def crossBelow(that: Indicator): Boolean =
     previousValue >= that.previousValue && value < that.value
+
+  def derivative(delta: Double = 1.0): Double = (value - previousValue) / delta
 }
 
 sealed trait MovingIndicator extends Indicator {
@@ -35,12 +37,20 @@ sealed trait MovingAverage extends MovingIndicator {
 }
 
 sealed trait MovingVariance extends MovingIndicator {
+  val movingAverage: MovingAverage
+
   def beta(price: Double): Double
+
+  def bollingerBandValues(bandSize: Double): (Double, Double) = {
+    val std = math.pow(value, 0.5)
+    (movingAverage.value - bandSize * std, movingAverage.value + bandSize * std)
+  }
 
   def update(sample: Double): Unit = {
     previousValue = value
     value = alpha * value + beta(sample)
   }
+
 }
 
 final case class ExponentialMovingAverage(
@@ -151,14 +161,14 @@ final case class ExponentialMovingVariance(
     var previousValue: Double = 0.0
 ) extends MovingVariance {
   val alpha = 1 - movingAverageAlpha
-  val exponentialMovingAverage = ExponentialMovingAverage(
+  val movingAverage = ExponentialMovingAverage(
     movingAverageAlpha,
     movingAverageValue,
     movingAveragePreviousValue
   )
 
   def delta(price: Double): Double =
-    price - exponentialMovingAverage.previousValue
+    price - movingAverage.previousValue
 
   override def beta(price: Double): Double =
     movingAverageAlpha * alpha * math.pow(delta(price), 2)
@@ -166,29 +176,64 @@ final case class ExponentialMovingVariance(
   override def copy: ExponentialMovingVariance =
     ExponentialMovingVariance(
       movingAverageAlpha,
-      exponentialMovingAverage.value,
-      exponentialMovingAverage.previousValue,
+      movingAverage.value,
+      movingAverage.previousValue,
       value,
       previousValue
     )
 
   override def update(sample: Double): Unit = {
-    exponentialMovingAverage.update(sample)
+    movingAverage.update(sample)
     super.update(sample)
   }
 }
 
-final case class OnBookVolume(var value: Double, var previousValue: Double)
-    extends Indicator {
+final case class OnBookVolume(
+    var value: Double = 0.0,
+    var previousValue: Double = 0.0,
+    var previousPrice: Double = 0.0
+) extends Indicator {
 
   override def copy: OnBookVolume =
-    OnBookVolume(value, previousValue)
+    OnBookVolume(value, previousValue, previousPrice)
 
-  def update(priceDelta: Double, volume: Double): Unit = {
+  def update(price: Double, volume: Double): Unit = {
+    val priceDelta = price - previousPrice
+    previousPrice = price
     previousValue = value
     if (priceDelta > 0) { value += volume }
     else if (priceDelta < 0) { value -= volume }
     else {}
   }
+}
 
+/** Samples a value everytime a bar increments by barSize. Can be used to sample
+  * by volume bars, price bars, etc...
+  *
+  * @param barSize
+  * @param value
+  * @param previousValue
+  * @param barAccumulation
+  */
+final case class SampleValueByBarIncrement(
+    barSize: Double,
+    var value: Double = 0.0,
+    var previousValue: Double = 0.0,
+    var barAccumulation: Double = 0.0
+) extends Indicator {
+
+  override def copy: SampleValueByBarIncrement =
+    SampleValueByBarIncrement(
+      barSize,
+      value,
+      previousValue,
+      barAccumulation
+    )
+
+  def update(valueUpdate: Double, barIncrement: Double): Unit = {
+    val previousBarNumber = (barAccumulation / barSize).toInt
+    barAccumulation += barIncrement
+    val nextBarNumber = (barAccumulation / barSize).toInt
+    if (nextBarNumber > previousBarNumber) {value = valueUpdate}
+  }
 }

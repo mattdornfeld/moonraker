@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.common.utils
 
+import boopickle.Default.{Pickle, generatePickler}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.Interval.IntervalType
 import fs2.{Pure, Stream}
 
@@ -65,6 +66,12 @@ object Utils {
       if (x < minValue) {minValue}
       else if (x > maxValue) {maxValue}
       else {x}
+  }
+
+  implicit class FutureUtils[A](future: Future[A]) {
+    def await(duration: Duration): Unit = Await.ready(future, duration)
+
+    def get: A = getResult(future)
   }
 
   implicit class When[A, B](a: A) {

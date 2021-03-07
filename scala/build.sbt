@@ -5,25 +5,20 @@ import InteractiveDependencies.interactiveDependencies
 
 organization in ThisBuild := "co.firstorderlabs"
 scalaVersion in ThisBuild := "2.13.1"
-scalacOptions in ThisBuild := Seq(
-  "-opt:l:method",
-  "-opt:l:inline",
-  "-opt-inline-from:co.firstorderlabs.**",
-  "-opt-warnings"
-)
 
 lazy val global = project
   .in(file("."))
   .aggregate(
     common,
     bqwriter,
-    coinbaseml
+    coinbaseml,
+    interactive
   )
   .enablePlugins(AssemblyPlugin)
 
 lazy val common = project
   .settings(
-    name := "common",
+    name := "comoon",
     commonSettings,
     libraryDependencies ++= commonDependencies,
     PB.targets in Compile := Seq(
@@ -35,6 +30,7 @@ lazy val bqwriter = project
   .settings(
     name := "bqwriter",
     commonSettings,
+    optimizerSettings,
     libraryDependencies ++= bqWriterDependencies,
     assemblyOutputPath in assembly := file(
       "/tmp/moonraker/bqwriter/bqwriter.jar"
@@ -46,6 +42,7 @@ lazy val coinbaseml = project
   .settings(
     name := "coinbaseml",
     commonSettings,
+    optimizerSettings,
     libraryDependencies ++= coinbasemlDependencies,
     assemblyOutputPath in assembly := file(
       "/tmp/moonraker/coinbaseml/coinbaseml.jar"
@@ -57,6 +54,7 @@ lazy val interactive = project
   .settings(
     name := "interactive",
     commonSettings,
+    noOptimizerSettings,
     libraryDependencies ++= interactiveDependencies,
     assemblyOutputPath in assembly := file(
       "/tmp/moonraker/interactive/interactive.jar"
@@ -78,6 +76,21 @@ lazy val commonSettings = Seq(
       oldStrategy(x)
   },
   test in assembly := {}
+)
+
+lazy val optimizerSettings = Seq(
+  scalacOptions in ThisBuild := Seq(
+    "-opt:l:method",
+    "-opt:l:inline",
+    "-opt-inline-from:co.firstorderlabs.**",
+    "-opt-warnings"
+  )
+)
+
+lazy val noOptimizerSettings = Seq(
+  scalacOptions in ThisBuild := Seq(
+    "-opt-warnings"
+  )
 )
 
 resolvers in Global ++= Seq(

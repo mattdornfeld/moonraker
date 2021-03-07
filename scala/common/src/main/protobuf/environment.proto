@@ -16,6 +16,7 @@ enum Actionizer {
     EntrySignal = 2;
     EmaCrossOver = 3;
     NoOpActionizer = 4;
+    BollingerOnBookVolume = 5;
 }
 
 enum Featurizer {

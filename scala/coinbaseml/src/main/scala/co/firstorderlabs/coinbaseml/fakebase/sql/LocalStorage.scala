@@ -11,7 +11,17 @@ import co.firstorderlabs.common.types.Types.TimeInterval
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper
 import com.google.cloud.storage.{BlobInfo, StorageOptions}
-import org.rocksdb.{ColumnFamilyDescriptor, ColumnFamilyHandle, ColumnFamilyOptions, DBOptions, EnvOptions, IngestExternalFileOptions, Options, RocksDB, SstFileWriter}
+import org.rocksdb.{
+  ColumnFamilyDescriptor,
+  ColumnFamilyHandle,
+  ColumnFamilyOptions,
+  DBOptions,
+  EnvOptions,
+  IngestExternalFileOptions,
+  Options,
+  RocksDB,
+  SstFileWriter
+}
 
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
@@ -99,21 +109,20 @@ object LocalStorage {
   val columnFamilyOptions =
     new ColumnFamilyOptions().optimizeUniversalStyleCompaction()
   val columnFamilyDescriptors = new util.ArrayList[ColumnFamilyDescriptor]()
-  columnFamilyDescriptors.add(
-    new ColumnFamilyDescriptor(
-      RocksDB.DEFAULT_COLUMN_FAMILY,
-      columnFamilyOptions
+
+  List(
+    RocksDB.DEFAULT_COLUMN_FAMILY,
+    "queryResults".getBytes(),
+    "queryHistory".getBytes()
+  ).foreach { columnFamilyName =>
+    columnFamilyDescriptors.add(
+      new ColumnFamilyDescriptor(
+        columnFamilyName,
+        columnFamilyOptions
+      )
     )
-  )
-  columnFamilyDescriptors.add(
-    new ColumnFamilyDescriptor(
-      "queryResults".getBytes(),
-      columnFamilyOptions
-    )
-  )
-  columnFamilyDescriptors.add(
-    new ColumnFamilyDescriptor("queryHistory".getBytes(), columnFamilyOptions)
-  )
+  }
+
   val columnFamilyHandles = new util.ArrayList[ColumnFamilyHandle]()
 
   val dBOptions = new DBOptions()
@@ -128,30 +137,15 @@ object LocalStorage {
     SQLConfigs.localStoragePath
   }
 
-  private var database =
+  private val database =
     RocksDB.open(
       dBOptions,
       rocksDbDir,
       columnFamilyDescriptors,
       columnFamilyHandles
     )
-  private var queryResults = columnFamilyHandles.get(1)
-  private var queryHistory = columnFamilyHandles.get(2)
-
-  /**
-    * Switch RocksDb to write mode
-    */
-  def activateWriteMode = {
-    database.closeE
-    database = RocksDB.open(
-      dBOptions,
-      rocksDbDir,
-      columnFamilyDescriptors,
-      columnFamilyHandles
-    )
-    queryResults = columnFamilyHandles.get(1)
-    queryHistory = columnFamilyHandles.get(2)
-  }
+  private val queryResults = columnFamilyHandles.get(1)
+  private val queryHistory = columnFamilyHandles.get(2)
 
   /**
     * Compact keys of RocksDb. Should be done after ingestion.
@@ -173,23 +167,6 @@ object LocalStorage {
     QueryHistory.keys.foreach(queryHistoryKey =>
       database.delete(queryHistory, queryHistoryKey.serialize)
     )
-  }
-
-  /**
-    * Switch RocksDb to read mode
-    * @param shouldCompact
-    */
-  def deactivateWriteMode(shouldCompact: Boolean = true) = {
-    if (shouldCompact) compact
-    database.closeE
-    database = RocksDB.openReadOnly(
-      dBOptions,
-      rocksDbDir,
-      columnFamilyDescriptors,
-      columnFamilyHandles
-    )
-    queryResults = columnFamilyHandles.get(1)
-    queryHistory = columnFamilyHandles.get(2)
   }
 
   object QueryResults {
@@ -215,7 +192,9 @@ object LocalStorage {
       sstFileWriters.foreach(sstFileWriter =>
         LocalStorage.QueryHistory.put(sstFileWriter.queryHistoryKey)
       )
-      logger.info(s"Successfully ingested ${sstFileWriters.size} sst files to LocalStorage")
+      logger.info(
+        s"Successfully ingested ${sstFileWriters.size} sst files to LocalStorage"
+      )
     }
 
     /**
