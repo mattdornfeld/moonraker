@@ -7,23 +7,10 @@ import co.firstorderlabs.coinbaseml.common.EnvironmentState
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actionizer
 import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils
 import co.firstorderlabs.coinbaseml.fakebase.Types.Exceptions.SimulationNotStarted
-import co.firstorderlabs.coinbaseml.fakebase.sql.{
-  DatabaseReader,
-  DatabaseReaderState
-}
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
-import co.firstorderlabs.common.protos.environment.{
-  Actionizer => ActionizerProto,
-  InfoDict,
-  ObservationRequest
-}
-import co.firstorderlabs.common.protos.fakebase.{
-  SimulationStartRequest,
-  SimulationType
-}
+import co.firstorderlabs.coinbaseml.fakebase.sql.{DatabaseReader, DatabaseReaderState}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.environment.{InfoDict, ObservationRequest, Actionizer => ActionizerProto}
+import co.firstorderlabs.common.protos.fakebase.{SimulationStartRequest, SimulationType}
 import co.firstorderlabs.common.types.Types.{SimulationId, TimeInterval}
 
 import scala.collection.mutable
