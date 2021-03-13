@@ -30,7 +30,10 @@ final case class BollingerOnBookVolumeState(
         .bollingerBandValues(bollingerBandSize)
         ._1,
       ActionizerStateKeys.smoothedOnBookVolumeChange -> sampledOnBookVolumeDerivative.value,
-      ActionizerStateKeys.signal -> signal
+      ActionizerStateKeys.signal -> signal,
+      ActionizerStateKeys.upperBollingerBand -> movingVariance
+        .bollingerBandValues(bollingerBandSize)
+        ._2
     )
 
   override val companion = BollingerOnBookVolumeState
@@ -54,6 +57,7 @@ object BollingerOnBookVolumeState extends ActionizerStateCompanion {
     val bollingerBandWindowSize = "bollingerBandWindowSize"
     val onBookVolumeWindowSize = "onBookVolumeWindowSize"
     val onBookVolumeChangeBuyThreshold = "onBookVolumeChangeBuyThreshold"
+    val onBookVolumeChangeSellThreshold = "onBookVolumeChangeSellThreshold"
     val volumeBarSize = "volumeBarSize"
   }
 
@@ -61,6 +65,7 @@ object BollingerOnBookVolumeState extends ActionizerStateCompanion {
     val lowerBollingerBand = "lowerBollingerBand"
     val smoothedOnBookVolumeChange = "smoothedOnBookVolumeChange"
     val signal = "signal"
+    val upperBollingerBand = "upperBollingerBand"
   }
 
   override def create(implicit
@@ -150,6 +155,10 @@ object BollingerOnBookVolume extends Actionizer with PositionRebalancer {
           BollingerOnBookVolumeState.getConfigValue(
             ActionizerConfigsKeys.onBookVolumeChangeBuyThreshold
           )
+        val onBookVolumeChangeSellThreshold =
+          BollingerOnBookVolumeState.getConfigValue(
+            ActionizerConfigsKeys.onBookVolumeChangeSellThreshold
+          )
         val smoothedOnBookVolumeChange = calcSmoothedOnBookVolumeDerivative(
           actionizerState,
           matchingEngineState,
@@ -159,7 +168,7 @@ object BollingerOnBookVolume extends Actionizer with PositionRebalancer {
         val bandSize = BollingerOnBookVolumeState.getConfigValue(
           ActionizerConfigsKeys.bollingerBandSize
         )
-        val (lowerBand, _) =
+        val (lowerBand, upperBand) =
           movingVariance.bollingerBandValues(bandSize)
 
         if (
@@ -167,8 +176,12 @@ object BollingerOnBookVolume extends Actionizer with PositionRebalancer {
         ) {
           actionizerState.signal = 1.0
           updateOpenPositions(positionSizeFraction)
+        } else if (
+          midPrice > upperBand && smoothedOnBookVolumeChange > onBookVolumeChangeSellThreshold
+        ) {
+          actionizerState.signal = -1.0
+          closeAllOpenPositions
         } else {
-          actionizerState.signal = 0.0
           new NoTransaction
         }
 
