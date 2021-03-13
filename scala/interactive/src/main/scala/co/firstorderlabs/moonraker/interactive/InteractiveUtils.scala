@@ -1,7 +1,13 @@
 package co.firstorderlabs.moonraker.interactive
 
 import almond.interpreter.api.OutputHandler
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.Indicators.{ExponentialMovingAverage, ExponentialMovingVariance, KaufmanAdaptiveMovingAverage, KaufmanAdaptiveMovingVariance}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Indicators.{
+  ExponentialMovingAverage,
+  ExponentialMovingVariance,
+  KaufmanAdaptiveMovingAverage,
+  KaufmanAdaptiveMovingVariance,
+  SampleValueByBarIncrement
+}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{Interval, When}
 import plotly.element.{AxisAnchor, AxisReference}
 import plotly.layout.{Axis, Layout}
@@ -242,6 +248,19 @@ object InteractiveUtils {
         .sortBy(_._1.minValue)
         .map(_._2)
         .flatten
+    }
+
+    def sampleByBarIncrement(
+        barSeries: Seq[Double],
+        barSize: Double
+    ): Seq[Double] = {
+      require(seq.size == barSeries.size)
+      val sampleValueByBarIncrement = SampleValueByBarIncrement(barSize)
+      seq.zip(barSeries).map { i =>
+        sampleValueByBarIncrement.update(i._1, i._2)
+        sampleValueByBarIncrement.value
+      }
+
     }
 
     /** Sample seq everytime the cumSum of y passed a threshold of increment. Useful for smoothing noisy time series.
