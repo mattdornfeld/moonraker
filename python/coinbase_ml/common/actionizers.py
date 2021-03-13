@@ -86,3 +86,19 @@ class EmaCrossover(Actionizer):
             "fastWindowSize": m * search_config["fastWindowSize"] + b,
             "slowWindowSize": search_config["slowWindowSize"],
         }
+
+
+class BollingerOnBookVolume(Actionizer):
+    proto_value = ActionizerProto.BollingerOnBookVolume
+    output_dimension = 1
+    action_space = Discrete(1)
+
+    @classmethod
+    def process_tune_search_config(
+        cls, search_config: Dict[str, float], tune_config: Dict[str, Sampler]
+    ) -> Dict[str, float]:
+        search_config["onBookVolumeChangeBuyThreshold"] = -search_config[
+            "onBookVolumeChangeBuyThreshold"
+        ]
+
+        return search_config
