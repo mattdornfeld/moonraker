@@ -108,7 +108,7 @@ object BollingerOnBookVolumeState extends ActionizerStateCompanion {
 
 object BollingerOnBookVolume extends Actionizer with PositionRebalancer {
   override val actionizerState = BollingerOnBookVolumeState
-  val positionSizeFraction = 0.1
+  val positionSizeFraction = 1.0
 
   private def calcSmoothedOnBookVolumeDerivative(
       actionizerState: BollingerOnBookVolumeState,

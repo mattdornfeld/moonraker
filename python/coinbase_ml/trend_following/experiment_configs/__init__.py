@@ -1,6 +1,2 @@
-from coinbase_ml.trend_following.experiment_configs.ema_crossover.dev import (
-    ema_crossover_dev,
-)
-from coinbase_ml.trend_following.experiment_configs.ema_crossover.staging import (
-    ema_crossover_staging,
-)
+from coinbase_ml.trend_following.experiment_configs.bollinger_on_book_volume import *
+from coinbase_ml.trend_following.experiment_configs.ema_crossover import *
