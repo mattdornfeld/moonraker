@@ -42,7 +42,7 @@ INSTALL_REQUIRES = [
     "pytimeparse>=1.1.0,<2.0.0",
     "requests>=2.20.0,<3.0.0",
     "sacred",
-    "ray[rllib,tune]==1.0.0",
+    "ray[rllib,tune]==1.2.0",
     "tensorflow==2.0.0",
     "kafka-python>=1.4.7,<2.0.0",
 ]

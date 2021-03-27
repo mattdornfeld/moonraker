@@ -4,6 +4,7 @@ import java.time.Instant
 
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{buildStepRequest, waitUntil}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{FutureUtils, getResult}
+import co.firstorderlabs.coinbaseml.common.{Configs => CommonConfigs}
 import co.firstorderlabs.coinbaseml.fakebase.sql.TestData._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SQLConfigs}
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange, SimulationMetadata, SimulationState}
@@ -17,14 +18,14 @@ import org.scalatest.funspec.AnyFunSpec
 import scala.concurrent.duration.DurationInt
 
 class BigQueryReaderTest extends AnyFunSpec {
-  Configs.testMode = true
+  CommonConfigs.testMode = true
 
   describe("BigQueryReader") {
     ignore(
       "This integration test is not automatically run. If your local has access to BigQuery you can un-ignore it and run" +
         "it manually to test BigQueryReader queries results correctly."
     ) {
-      Configs.testMode = false
+      CommonConfigs.testMode = false
       implicit val databaseReaderState = DatabaseReaderState.create
       BigQueryReader.start()
       val expectedNumKeys =
@@ -38,7 +39,7 @@ class BigQueryReaderTest extends AnyFunSpec {
         println(s"\tnumEvents: ${queryResult.events.size}\n")
       }
       keys.foreach(k => printSize(BigQueryReader.removeQueryResult(k)))
-      Configs.testMode = true
+      CommonConfigs.testMode = true
     }
 
     it(

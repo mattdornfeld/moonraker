@@ -1,8 +1,9 @@
 package co.firstorderlabs.coinbaseml.common
 
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.rewards.ReturnRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{buildStepRequest, doubleEquality}
-import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
+import co.firstorderlabs.coinbaseml.common.utils.Utils.{FutureUtils, getResult}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase._
@@ -13,7 +14,7 @@ import co.firstorderlabs.common.types.Events.OrderRequest
 import org.scalatest.funspec.AnyFunSpec
 
 class InfoAggregatorTest extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
 
   private def placeOrder(orderRequest: OrderRequest): Unit =
     orderRequest match {
@@ -158,12 +159,12 @@ class InfoAggregatorTest extends AnyFunSpec {
     }
 
     it("InfoAggregator should be reset when Exchange is reset") {
-      val simulationId = getResult(Exchange.start(simulationStartRequestWarmup)).simulationId.get
-      val expectedInfoDict = SimulationState.getInfoDictOrFail(simulationId)
+      val simulationId = Exchange.start(simulationStartRequestWarmup).get.simulationId.get
+      val expectedInfoDict = SimulationState.getInfoDictOrFail(simulationId).clone()
       Exchange.step(buildStepRequest(simulationId))
       Exchange.reset(simulationId.toObservationRequest)
       val infoDict = SimulationState.getInfoDictOrFail(simulationId)
-      println(expectedInfoDict == infoDict)
+      assert(expectedInfoDict == infoDict)
     }
   }
 }

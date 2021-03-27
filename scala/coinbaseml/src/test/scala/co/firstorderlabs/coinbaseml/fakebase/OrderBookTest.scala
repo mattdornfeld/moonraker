@@ -1,7 +1,8 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-import java.time.Instant
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 
+import java.time.Instant
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.SeqUtils
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData._
@@ -15,7 +16,7 @@ import org.scalatest.funspec.AnyFunSpec
 class PriceGlobTest extends AnyFunSpec {
   describe("PriceGlob") {
     val expectedPrice = new ProductPrice(Right("1000.00"))
-    Configs.testMode = true
+    testMode = true
     Exchange.start(RequestsData.simulationStartRequest)
     val productVolume = new ProductVolume(Right("1.00"))
     val testOrders = List(Instant.MIN, Instant.now, Instant.MAX).map { time =>
@@ -106,7 +107,7 @@ class PriceGlobTest extends AnyFunSpec {
 
 class OrderBookTest extends AnyFunSpec {
 
-  Configs.testMode = true
+  testMode = true
   val simulationId = getResult(Exchange.start(RequestsData.simulationStartRequest)).simulationId.get
   implicit val simulationMetadata = SimulationState.getSimulationMetadataOrFail(simulationId)
 

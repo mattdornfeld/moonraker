@@ -1,7 +1,8 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-import java.time.Duration
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 
+import java.time.Duration
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.buildStepRequest
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
@@ -16,7 +17,7 @@ import co.firstorderlabs.common.types.Types.SimulationId
 import org.scalatest.funspec.AnyFunSpec
 
 class AccountTest extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
   describe("Account") {
     it("Wallets should be updated accordingly when an order is placed") {
       List(

@@ -9,6 +9,18 @@ import co.firstorderlabs.coinbaseml.common.actions.actionizers.Indicators.{
   SampleValueByBarIncrement
 }
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{Interval, When}
+import co.firstorderlabs.common.protos.indicators.{
+  ExponentialMovingAverageConfigs,
+  ExponentialMovingAverageState,
+  ExponentialMovingVarianceConfigs,
+  ExponentialMovingVarianceState,
+  KaufmanAdaptiveMovingAverageConfigs,
+  KaufmanAdaptiveMovingAverageState,
+  KaufmanAdaptiveMovingVarianceConfigs,
+  KaufmanAdaptiveMovingVarianceState,
+  SampleValueByBarIncrementConfigs,
+  SampleValueByBarIncrementState
+}
 import plotly.element.{AxisAnchor, AxisReference}
 import plotly.layout.{Axis, Layout}
 import plotly.{Almond, Range, Scatter, Trace}
@@ -27,10 +39,6 @@ object InteractiveUtils {
       Axes(AxisReference.X3, AxisReference.Y3),
       Axes(AxisReference.X4, AxisReference.Y4)
     )
-
-  implicit class OptionUtils[A](a: A) {
-    def some: Option[A] = Some(a)
-  }
 
   implicit class TraceUtils[A <: Trace](seq: Seq[A]) {
     def notebookPlot(
@@ -187,18 +195,37 @@ object InteractiveUtils {
       pairWithNextElement(seq).map(i => (i._2 - i._1) / delta)
 
     def exponentialMovingAverage(windowSize: Int): Seq[Double] = {
-      val alpha = 2.0 / (windowSize + 1)
-      ExponentialMovingAverage(alpha, 0.0, 0.0).transform(seq)
+      implicit val configs = ExponentialMovingAverageConfigs(windowSize)
+      implicit val state = new ExponentialMovingAverageState
+      ExponentialMovingAverage.transform(seq)._1
     }
 
-    def exponentialMovingVariance(alpha: Double): Seq[Double] =
-      ExponentialMovingVariance(alpha).transform(seq)
+    def exponentialMovingVariance(windowSize: Int): Seq[Double] = {
+      implicit val configs = ExponentialMovingVarianceConfigs(
+        ExponentialMovingAverageConfigs(windowSize)
+      )
+      implicit val state = ExponentialMovingVarianceState(movingAverageState =
+        new ExponentialMovingAverageState
+      )
+      ExponentialMovingVariance.transform(seq)._1
+    }
 
-    def kaufmanAdaptiveMovingAverage(n: Int): Seq[Double] =
-      KaufmanAdaptiveMovingAverage(n).transform(seq)
+    def kaufmanAdaptiveMovingAverage(windowSize: Int): Seq[Double] = {
+      implicit val configs = KaufmanAdaptiveMovingAverageConfigs(windowSize)
+      implicit val state = new KaufmanAdaptiveMovingAverageState
+      KaufmanAdaptiveMovingAverage.transform(seq)._1
+    }
 
-    def kaufmanAdaptiveMovingVariance(n: Int): Seq[Double] =
-      KaufmanAdaptiveMovingVariance(n).transform(seq)
+    def kaufmanAdaptiveMovingVariance(windowSize: Int): Seq[Double] = {
+      implicit val configs = KaufmanAdaptiveMovingVarianceConfigs(
+        KaufmanAdaptiveMovingAverageConfigs(windowSize)
+      )
+      implicit val state =
+        KaufmanAdaptiveMovingVarianceState(movingAverageState =
+          new KaufmanAdaptiveMovingAverageState
+        )
+      KaufmanAdaptiveMovingVariance.transform(seq)._1
+    }
 
     def pairWithNextElement[A <: AnyVal](seq: Seq[A]): Seq[(A, A)] =
       seq.dropRight(1).zip(seq.drop(1))
@@ -252,13 +279,15 @@ object InteractiveUtils {
 
     def sampleByBarIncrement(
         barSeries: Seq[Double],
-        barSize: Double
+        barSize: Long
     ): Seq[Double] = {
       require(seq.size == barSeries.size)
-      val sampleValueByBarIncrement = SampleValueByBarIncrement(barSize)
-      seq.zip(barSeries).map { i =>
-        sampleValueByBarIncrement.update(i._1, i._2)
-        sampleValueByBarIncrement.value
+      val configs = SampleValueByBarIncrementConfigs(barSize)
+      seq.zip(barSeries).map {
+        var state = new SampleValueByBarIncrementState
+        i =>
+          state = SampleValueByBarIncrement.update(i._1, i._2)(configs, state)
+          state.value
       }
 
     }

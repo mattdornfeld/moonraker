@@ -1,12 +1,13 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{When, getResult}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase.{Account, Configs, Exchange, SimulationState}
 import org.scalatest.funspec.AnyFunSpec
 
 class TestAccountFeaturizer extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
 
   describe("AccountFeaturizer") {
     it(

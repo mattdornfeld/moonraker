@@ -16,6 +16,7 @@ from nptyping import NDArray
 import coinbase_ml.fakebase.account as account
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.observations import Observation
+from coinbase_ml.common.protos.actionizers_pb2 import ActionizerConfigs
 from coinbase_ml.common.protos.environment_pb2 import ActionRequest
 from coinbase_ml.common.protos.environment_pb2 import ObservationRequest, RewardRequest
 from coinbase_ml.common.protos.events_pb2 import SimulationId as SimulationIdProto
@@ -54,12 +55,13 @@ from coinbase_ml.fakebase.utils.grpc_utils import (
 
 if TYPE_CHECKING:
     import coinbase_ml.common.protos.environment_pb2 as environment_pb2
+    import coinbase_ml.common.protos.actionizers_pb2 as actionizers_pb2
 
 
 @dataclass
 class SimulationMetadata:
     account: account.Account
-    actionizer: "environment_pb2.ActionizerValue"
+    actionizer: "actionizers_pb2.ActionizerValue"
     end_dt: datetime
     observation_request: ObservationRequest
     product_id: ProductId
@@ -137,7 +139,7 @@ class Exchange:
 
     @staticmethod
     def _generate_action_request(
-        actionizer: "environment_pb2.ActionizerValue",
+        actionizer: "actionizers_pb2.ActionizerValue",
         simulation_id: Optional[SimulationId],
         actor_output: NDArray[float],
     ) -> ActionRequest:
@@ -264,7 +266,7 @@ class Exchange:
 
     def start(
         self,
-        actionizer: "environment_pb2.ActionizerValue",
+        actionizer: "actionizers_pb2.ActionizerValue",
         end_dt: datetime,
         featurizer: "environment_pb2.FeaturizerValue",
         initial_product_funds: ProductVolume,
@@ -275,8 +277,8 @@ class Exchange:
         snapshot_buffer_size: int,
         start_dt: datetime,
         time_delta: timedelta,
-        actionizer_configs: Optional[Dict[str, float]] = None,
         backup_to_cloud_storage: bool = False,
+        actionizer_configs: ActionizerConfigs = ActionizerConfigs(),
         enable_progress_bar: bool = False,
         simulation_type: "fakebase_pb2.SimulationTypeValue" = SimulationType.evaluation,
         skip_database_query: bool = False,
@@ -290,7 +292,7 @@ class Exchange:
         )
         simulation_start_request = SimulationStartRequest(
             actionRequest=action_request,
-            actionizerConfigs=actionizer_configs if actionizer_configs else {},
+            actionizerConfigs=actionizer_configs,
             backupToCloudStorage=backup_to_cloud_storage,
             databaseBackend=c.DATABASE_BACKEND,
             enableProgressBar=enable_progress_bar,

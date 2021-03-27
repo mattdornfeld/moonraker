@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.buildStepRequest
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
@@ -11,7 +12,7 @@ import co.firstorderlabs.common.types.Types.SimulationId
 import org.scalatest.funspec.AnyFunSpec
 
 class CheckpointerTest extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
 
   describe("Checkpointer") {
     it(

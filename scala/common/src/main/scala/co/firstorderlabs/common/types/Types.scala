@@ -2,7 +2,6 @@ package co.firstorderlabs.common.types
 
 import java.nio.ByteBuffer
 import java.time.{Duration, Instant}
-
 import co.firstorderlabs.common.protos.environment.{
   ObservationRequest,
   Feature => FeatureProto,
@@ -13,6 +12,7 @@ import co.firstorderlabs.common.protos.events.{
 }
 import co.firstorderlabs.common.protos.fakebase.{Currency, StepRequest}
 import scalapb.TypeMapper
+import scalapb.lenses.Updatable
 
 object Types {
   final case class Features(features: Map[String, Seq[Double]]) extends AnyVal

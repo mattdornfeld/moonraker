@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "actionizers.proto";
 import "events.proto";
 
 import "scalapb/scalapb.proto";
@@ -9,15 +10,6 @@ option (scalapb.options) = {
   preserve_unknown_fields: false
   package_name: "co.firstorderlabs.common.protos"
 };
-
-enum Actionizer {
-    SignalPositionSize = 0;
-    PositionSize = 1;
-    EntrySignal = 2;
-    EmaCrossOver = 3;
-    NoOpActionizer = 4;
-    BollingerOnBookVolume = 5;
-}
 
 enum Featurizer {
     TimeSeriesOrderBook = 0;
@@ -65,11 +57,12 @@ message ActionRequest {
     repeated double actorOutput = 1;
     Actionizer actionizer = 2;
     SimulationId simulationId = 3;
+    bool updateOnly = 4;
 }
 
 message Info {
     InfoDictProto infoDict = 1;
-    map<string, double> actionizerState = 2;
+    ActionizerState actionizerState = 2;
 }
 
 message InfoDictProto {

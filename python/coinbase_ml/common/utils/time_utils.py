@@ -6,7 +6,9 @@ different days
 from __future__ import annotations
 from datetime import datetime, timedelta
 from random import random
-from typing import Any, List
+from typing import Any, List, Tuple
+
+from dateutil.parser import parse
 
 
 class TimeInterval:
@@ -101,6 +103,10 @@ class TimeInterval:
         """
         return self.__add__(-time_delta)
 
+    @classmethod
+    def from_str_tuple(cls, str_tuple: Tuple[str, str]) -> TimeInterval:
+        return cls(start_dt=parse(str_tuple[0]), end_dt=parse(str_tuple[1]))
+
     @property
     def time_delta(self) -> timedelta:
         """
@@ -110,6 +116,9 @@ class TimeInterval:
             timedelta: [description]
         """
         return self.end_dt - self.start_dt
+
+    def to_str_tuple(self) -> Tuple[str, str]:
+        return str(self.start_dt), str(self.end_dt)
 
 
 def generate_random_time_delta(
@@ -137,6 +146,7 @@ def generate_lookback_intervals(
     num_lookback_intervals: int,
     lookback_timedelta: timedelta = timedelta(days=1),
     num_copies: int = 1,
+    reverse: bool = True,
 ) -> List[TimeInterval]:
     """
     generate_lookback_intervals creates a List of num_lookback_intervals TimeInterval
@@ -149,14 +159,20 @@ def generate_lookback_intervals(
         lookback_timedelta (timedelta, optional): Length of time which to separate lookback
             intervals. Defaults to timedelta(days=1).
         num_copies (int, optional): Number of copies of each TimeInterval to include. Defaults to 1.
+        reverse (bool, optional): Return in descending order if true
 
     Returns:
         List[TimeInterval]: [description]
     """
-    return num_copies * [
+    time_intervals = num_copies * [
         latest_time_interval - n * lookback_timedelta
         for n in range(num_lookback_intervals + 1)
     ]
+
+    if not reverse:
+        time_intervals.sort(key=lambda time_interval: time_interval.start_dt)
+
+    return time_intervals
 
 
 def generate_randomly_shifted_lookback_intervals(

@@ -1,6 +1,10 @@
 phony: build build-image-cpu install install-dev install-gpu test test-mypy test-pylint
 
-PYTEST_IGNORE = --ignore=fakebase_pb2.py \
+PYTEST_IGNORE = --ignore=actionizers_pb2.py \
+    --ignore=actionizers_pb2_grpc.py \
+    --ignore=indicators_pb2.py \
+	--ignore=indicators_pb2_grpc.py \
+    --ignore=fakebase_pb2.py \
 	--ignore=fakebase_pb2_grpc.py \
 	--ignore=events_pb2.py \
 	--ignore=events_pb2_grpc.py \
@@ -8,6 +12,7 @@ PYTEST_IGNORE = --ignore=fakebase_pb2.py \
 	--ignore=environment_pb2.py \
 	--ignore=environment_pb2_grpc.py \
 	--ignore=scalapb \
+	--ignore=validate \
 	--ignore=scala
 
 build:

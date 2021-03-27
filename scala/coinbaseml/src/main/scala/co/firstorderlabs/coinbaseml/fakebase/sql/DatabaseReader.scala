@@ -1,27 +1,15 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 import java.time.Duration
 import java.util.logging.Logger
-
 import cats.effect.IO.ioConcurrentEffect
 import cats.effect.{Blocker, IO, Resource}
+import co.firstorderlabs.coinbaseml.common.Configs.{logLevel, testMode}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.ParallelSeq
 import co.firstorderlabs.coinbaseml.fakebase.sql.Implicits._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
-import co.firstorderlabs.coinbaseml.fakebase.{
-  Configs,
-  SimulationMetadata,
-  SimulationState,
-  State,
-  StateCompanion
-}
+import co.firstorderlabs.coinbaseml.fakebase.{Configs, SimulationMetadata, SimulationState, State, StateCompanion}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.productId
-import co.firstorderlabs.common.protos.events.{
-  BuyLimitOrder,
-  BuyMarketOrder,
-  Cancellation,
-  SellLimitOrder,
-  SellMarketOrder
-}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, SellLimitOrder, SellMarketOrder}
 import co.firstorderlabs.common.types.Events.Event
 import co.firstorderlabs.common.types.Types._
 import doobie.Query0
@@ -128,12 +116,13 @@ abstract class DatabaseReader(
 ) {
   protected implicit val contextShift = IO.contextShift(ExecutionContext.global)
   protected val logger = Logger.getLogger(toString)
+  logger.setLevel(logLevel)
   protected val transactor =
     buildTransactor(driverClassName, url, user, password)
   private val blockerResource = Blocker[IO]
 
   def buildQueryResult(timeInterval: TimeInterval): Option[QueryResult] = {
-    if (Configs.testMode) {
+    if (testMode) {
       Some(QueryResult(List(), timeInterval))
     } else {
       val events: List[Event] =
@@ -305,7 +294,7 @@ abstract class DatabaseReader(
       val queryResultsSstFileWriter =
         QueryResultSstFileWriter(queryHistoryKey, true)
 
-      val queryResults = if (Configs.testMode) {
+      val queryResults = if (testMode) {
         QueryResult(List(), timeInterval).chunkByTimeDelta(timeDelta)
       } else {
         val events: List[Event] = transactor

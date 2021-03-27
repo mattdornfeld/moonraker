@@ -32,7 +32,9 @@ object InfoAggregatorState extends StateCompanion[InfoAggregatorState] {
       snapshot: InfoAggregatorState
   ): InfoAggregatorState = {
     val infoDict = new InfoDict
-    snapshot.infoDict.foreach(item => infoDict.put(item._1, item._2))
+    snapshot.infoDict.foreach{item =>
+      infoDict.put(item._1, item._2)
+    }
     InfoAggregatorState(infoDict)
   }
 }

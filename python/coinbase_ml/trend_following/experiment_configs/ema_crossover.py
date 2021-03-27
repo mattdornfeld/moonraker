@@ -1,9 +1,17 @@
 # pylint: disable=unused-variable
 
+from datetime import timedelta
+
+from dateutil.parser import parse
+
 from coinbase_ml.common.protos.environment_pb2 import (
     InfoDictKey,
     RewardStrategy,
     Featurizer,
+)
+from coinbase_ml.common.utils.time_utils import (
+    TimeInterval,
+    generate_lookback_intervals,
 )
 from coinbase_ml.trend_following.experiment_configs.constants import SACRED_EXPERIMENT
 
@@ -12,8 +20,30 @@ from coinbase_ml.trend_following.experiment_configs.constants import SACRED_EXPE
 def ema_crossover_dev():
     actionizer_name = "coinbase_ml.common.actionizers.EmaCrossover"
     featurizer = Featurizer.Name(Featurizer.NoOp)
-    start_dt = "2020-11-19 00:00:00.00"
-    end_dt = "2020-11-19 01:00:00.00"
+    optimize_time_intervals = [
+        time_interval.to_str_tuple()
+        for time_interval in generate_lookback_intervals(
+            latest_time_interval=TimeInterval(
+                start_dt=parse("2020-11-19 00:30:00.00"),
+                end_dt=parse("2020-11-19 00:45:00.00"),
+            ),
+            num_lookback_intervals=2,
+            lookback_timedelta=timedelta(minutes=15),
+            reverse=False,
+        )
+    ]
+    evaluate_time_intervals = [
+        time_interval.to_str_tuple()
+        for time_interval in generate_lookback_intervals(
+            latest_time_interval=TimeInterval(
+                start_dt=parse("2020-11-19 00:45:00.00"),
+                end_dt=parse("2020-11-19 01:00:00.00"),
+            ),
+            num_lookback_intervals=2,
+            lookback_timedelta=timedelta(minutes=15),
+            reverse=False,
+        )
+    ]
     time_delta = 30
     initial_product_funds = "0.000000"
     initial_quote_funds = "10000.00"
@@ -36,6 +66,30 @@ def ema_crossover_dev():
 def ema_crossover_staging():
     actionizer_name = "coinbase_ml.common.actionizers.EmaCrossover"
     featurizer = Featurizer.Name(Featurizer.NoOp)
+    optimize_time_intervals = [
+        time_interval.to_str_tuple()
+        for time_interval in generate_lookback_intervals(
+            latest_time_interval=TimeInterval(
+                start_dt=parse("2020-11-18 00:00:00.00"),
+                end_dt=parse("2020-11-19 00:00:00.00"),
+            ),
+            num_lookback_intervals=7,
+            lookback_timedelta=timedelta(days=1),
+            reverse=False,
+        )
+    ]
+    evaluate_time_intervals = [
+        time_interval.to_str_tuple()
+        for time_interval in generate_lookback_intervals(
+            latest_time_interval=TimeInterval(
+                start_dt=parse("2020-11-19 00:00:00.00"),
+                end_dt=parse("2020-11-20 00:00:00.00"),
+            ),
+            num_lookback_intervals=7,
+            lookback_timedelta=timedelta(days=1),
+            reverse=False,
+        )
+    ]
     start_dt = "2020-11-18 20:00:00.00"
     end_dt = "2020-11-20 00:00:00.00"
     time_delta = 30

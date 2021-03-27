@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  preserve_unknown_fields: false
+  package_name: "co.firstorderlabs.common.protos"
+  field_transformations: [
+      {
+          when: {options: {[validate.rules] {message: {required: true}}}}
+          set: {
+            [scalapb.field] {
+              required: true
+            }
+          }
+      }
+  ]
+};
+
+message ExponentialMovingAverageConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.MovingAverageConfigs";
+  int32 windowSize = 1;
+}
+
+message ExponentialMovingAverageState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.MovingAverageState";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Indicators.ExponentialMovingAverageStateCompanion";
+  double value = 1;
+  double previousValue = 2;
+}
+
+message ExponentialMovingVarianceConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.MovingVarianceConfigs";
+  ExponentialMovingAverageConfigs movingAverageConfigs = 1 [(validate.rules).message.required = true];
+}
+
+message ExponentialMovingVarianceState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.MovingVarianceState";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Indicators.ExponentialMovingVarianceStateCompanion";
+  double value = 1;
+  double previousValue = 2;
+  ExponentialMovingAverageState movingAverageState = 3 [(validate.rules).message.required = true];
+}
+
+message KaufmanAdaptiveMovingAverageConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.MovingAverageConfigs";
+  int32 windowSize = 1;
+}
+
+message KaufmanAdaptiveMovingAverageState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.MovingAverageState";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Indicators.KaufmanAdaptiveMovingAverageStateCompanion";
+  double value = 1;
+  double previousValue = 2;
+  repeated double priceBuffer = 3 [(scalapb.field).collection_type = "collection.mutable.ListBuffer"];
+}
+
+message KaufmanAdaptiveMovingVarianceConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.MovingVarianceConfigs";
+  KaufmanAdaptiveMovingAverageConfigs movingAverageConfigs = 1 [(validate.rules).message.required = true];
+}
+
+message KaufmanAdaptiveMovingVarianceState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.MovingVarianceState";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Indicators.KaufmanAdaptiveMovingVarianceStateCompanion";
+  double value = 1;
+  double previousValue = 2;
+  KaufmanAdaptiveMovingAverageState movingAverageState = 3 [(validate.rules).message.required = true];
+}
+
+message OnBookVolumeConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.IndicatorConfigs";
+}
+
+message OnBookVolumeState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.IndicatorState";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Indicators.OnBookVolumeStateCompanion";
+  double value = 1;
+  double previousValue = 2;
+  double previousPrice = 3;
+}
+
+message SampleValueByBarIncrementConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.IndicatorConfigs";
+  int64 barSize = 1;
+}
+
+message SampleValueByBarIncrementState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Indicators.IndicatorState";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Indicators.SampleValueByBarIncrementStateCompanion";
+  double value = 1;
+  double previousValue = 2;
+  double barAccumulation = 3;
+}

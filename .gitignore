@@ -26,3 +26,7 @@ scala/target
 scrap*
 secrets.env
 venv/
+python/*_pb2.py
+python/*_pb2_grpc.py
+python/*_pb2.pyi
+python/validate/*

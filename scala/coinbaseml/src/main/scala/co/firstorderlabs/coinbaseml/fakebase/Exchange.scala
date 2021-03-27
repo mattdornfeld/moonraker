@@ -1,28 +1,22 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-import java.util.logging.Logger
+import co.firstorderlabs.coinbaseml.common.Configs.logLevel
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actionizer
 
-import co.firstorderlabs.coinbaseml.common.utils.Utils.{
-  getResult,
-  getResultOptional
-}
+import java.util.logging.Logger
+import co.firstorderlabs.coinbaseml.common.utils.Utils.{getResult, getResultOptional}
 import co.firstorderlabs.coinbaseml.common.{Environment, InfoAggregator}
 import co.firstorderlabs.coinbaseml.fakebase.sql._
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.events.MatchEvents
-import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{
-  BigQuery,
-  Postgres
-}
+import co.firstorderlabs.common.protos.fakebase.DatabaseBackend.{BigQuery, Postgres}
 import co.firstorderlabs.common.protos.fakebase._
 import co.firstorderlabs.common.protos.{events, fakebase}
-import co.firstorderlabs.common.types.Events.{
-  Event,
-  LimitOrderEvent,
-  OrderEvent
-}
+import co.firstorderlabs.common.types.Actionizers.ActionizerConfigs
+import co.firstorderlabs.common.types.Events.{Event, LimitOrderEvent, OrderEvent}
 import co.firstorderlabs.common.types.Types.{SimulationId, TimeInterval}
+import co.firstorderlabs.common.types.Utils.OptionUtils
 import com.google.protobuf.empty.Empty
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -52,6 +46,7 @@ object ExchangeState extends StateCompanion[ExchangeState] {
 
 object Exchange extends ExchangeServiceGrpc.ExchangeService {
   private val logger = Logger.getLogger(Exchange.toString)
+  logger.setLevel(logLevel)
   private val matchingEngine = MatchingEngine
 
   def cancelOrder(order: OrderEvent)(implicit
@@ -372,6 +367,36 @@ object Exchange extends ExchangeServiceGrpc.ExchangeService {
     } else {
       logger.info(s"${simulationId} not found")
     }
+    Future.successful(Constants.emptyProto)
+  }
+
+  override def update(updateRequest: UpdateRequest): Future[Empty] = {
+    val simulationId = updateRequest.simulationId.getOrElse(
+      throw new IllegalArgumentException("simulationId is not defined")
+    )
+
+    val simulationState = SimulationState.getOrFail(simulationId)
+    val environmentState = simulationState.environmentState
+    implicit val updatedSimulationMetadata = simulationState.simulationMetadata
+      .copy(
+        actionizerConfigs =
+          ActionizerConfigs fromSealedOneOf updateRequest.actionizerConfigs,
+        actionizerInitialState = environmentState.actionizerState.some
+      )
+
+    val updatedSimulationState =
+      simulationState.copy(
+        simulationMetadata = updatedSimulationMetadata,
+        environmentState = environmentState.copy(actionizerState =
+          updatedSimulationMetadata.actionizer.actionizerState.create
+        )
+      )
+
+    SimulationState.update(
+      updatedSimulationMetadata.simulationId,
+      updatedSimulationState
+    )
+
     Future.successful(Constants.emptyProto)
   }
 

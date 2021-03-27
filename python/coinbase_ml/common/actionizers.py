@@ -1,27 +1,25 @@
-from typing import TYPE_CHECKING, Dict
+from typing import Dict
 
 from ray.tune.sample import Sampler
 from typing_extensions import Protocol
 
 from gym.spaces import Box, Discrete
 
-from coinbase_ml.common.protos.environment_pb2 import Actionizer as ActionizerProto
-
-if TYPE_CHECKING:
-    import coinbase_ml.common.protos.environment_pb2 as environment_pb2
+from coinbase_ml.common.protos import actionizers_pb2 as apb
+from coinbase_ml.common.protos.actionizers_pb2 import Actionizer as ActionizerProto
+from coinbase_ml.common.protos import indicators_pb2 as ipb
 
 
 class Actionizer(Protocol):
-    proto_value: "environment_pb2.ActionizerValue"
+    proto_value: "apb.ActionizerValue"
     output_dimension: int
     action_space: Box
 
     @classmethod
-    def process_tune_search_config(
+    def build_actionizer_configs(
         cls, search_config: Dict[str, float], tune_config: Dict[str, Sampler]
-    ) -> Dict[str, float]:
-        """Processes sampled hyper parameters stored in a tune search_config
-        with custom logic.
+    ) -> apb.ActionizerConfigs:
+        """Generates an ActionizerConfigs object from a search_config and tune_config
         """
 
 
@@ -31,10 +29,10 @@ class SignalPositionSize(Actionizer):
     action_space = Box(low=0.0, high=1.0, shape=(output_dimension,))
 
     @classmethod
-    def process_tune_search_config(
+    def build_actionizer_configs(
         cls, search_config: Dict[str, float], tune_config: Dict[str, Sampler]
-    ) -> Dict[str, float]:
-        pass
+    ) -> apb.ActionizerConfigs:
+        return apb.ActionizerConfigs(signalPositionSize=apb.SignalPositionSizeConfigs())
 
 
 class PositionSize(Actionizer):
@@ -43,10 +41,10 @@ class PositionSize(Actionizer):
     action_space = Box(low=0.0, high=1.0, shape=(output_dimension,))
 
     @classmethod
-    def process_tune_search_config(
+    def build_actionizer_configs(
         cls, search_config: Dict[str, float], tune_config: Dict[str, Sampler]
-    ) -> Dict[str, float]:
-        pass
+    ) -> apb.ActionizerConfigs:
+        return apb.ActionizerConfigs(positionSize=apb.PositionSizeConfigs())
 
 
 class EntrySignal(Actionizer):
@@ -55,10 +53,10 @@ class EntrySignal(Actionizer):
     action_space = Discrete(2)
 
     @classmethod
-    def process_tune_search_config(
+    def build_actionizer_configs(
         cls, search_config: Dict[str, float], tune_config: Dict[str, Sampler]
-    ) -> Dict[str, float]:
-        pass
+    ) -> apb.ActionizerConfigs:
+        return apb.ActionizerConfigs(entrySignal=apb.EntrySignalConfigs())
 
 
 class EmaCrossover(Actionizer):
@@ -67,14 +65,15 @@ class EmaCrossover(Actionizer):
     action_space = Discrete(1)
 
     @classmethod
-    def process_tune_search_config(
+    def build_actionizer_configs(
         cls, search_config: Dict[str, float], tune_config: Dict[str, Sampler]
-    ) -> Dict[str, float]:
+    ) -> apb.ActionizerConfigs:
         """Transforms fastWindowSize into a range bounded by slowWindowSize
         """
         assert (
             tune_config["fastWindowSize"].lower <= tune_config["slowWindowSize"].lower
         )
+
         lower = tune_config["fastWindowSize"].lower
         old_upper = tune_config["fastWindowSize"].upper
         new_upper = search_config["slowWindowSize"]
@@ -82,10 +81,16 @@ class EmaCrossover(Actionizer):
         m = (new_upper - lower) / (old_upper - lower)
         b = new_upper - m * old_upper
 
-        return {
-            "fastWindowSize": m * search_config["fastWindowSize"] + b,
-            "slowWindowSize": search_config["slowWindowSize"],
-        }
+        actionizer_configs = apb.EmaCrossOverConfigs(
+            emaFast=ipb.ExponentialMovingAverageConfigs(
+                windowSize=int(m * search_config["fastWindowSize"] + b)
+            ),
+            emaSlow=ipb.ExponentialMovingAverageConfigs(
+                windowSize=int(search_config["slowWindowSize"])
+            ),
+        )
+
+        return apb.ActionizerConfigs(emaCrossOver=actionizer_configs)
 
 
 class BollingerOnBookVolume(Actionizer):
@@ -94,11 +99,32 @@ class BollingerOnBookVolume(Actionizer):
     action_space = Discrete(1)
 
     @classmethod
-    def process_tune_search_config(
+    def build_actionizer_configs(
         cls, search_config: Dict[str, float], tune_config: Dict[str, Sampler]
-    ) -> Dict[str, float]:
+    ) -> apb.ActionizerConfigs:
         search_config["onBookVolumeChangeBuyThreshold"] = -search_config[
             "onBookVolumeChangeBuyThreshold"
         ]
 
-        return search_config
+        actionizer_configs = apb.BollingerOnBookVolumeConfigs(
+            smoothedOnBookVolume=ipb.KaufmanAdaptiveMovingAverageConfigs(
+                windowSize=int(search_config["onBookVolumeWindowSize"])
+            ),
+            priceMovingVariance=ipb.KaufmanAdaptiveMovingVarianceConfigs(
+                movingAverageConfigs=ipb.KaufmanAdaptiveMovingAverageConfigs(
+                    windowSize=int(search_config["bollingerBandWindowSize"])
+                )
+            ),
+            sampledOnBookVolumeDerivative=ipb.SampleValueByBarIncrementConfigs(
+                barSize=int(search_config["volumeBarSize"])
+            ),
+            bollingerBandSize=search_config["bollingerBandSize"],
+            onBookVolumeChangeBuyThreshold=search_config[
+                "onBookVolumeChangeBuyThreshold"
+            ],
+            onBookVolumeChangeSellThreshold=search_config[
+                "onBookVolumeChangeSellThreshold"
+            ],
+        )
+
+        return apb.ActionizerConfigs(bollingerOnBookVolume=actionizer_configs)

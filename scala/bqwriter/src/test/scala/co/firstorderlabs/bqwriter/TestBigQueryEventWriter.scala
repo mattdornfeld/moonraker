@@ -1,9 +1,10 @@
 package co.firstorderlabs.bqwriter
 
+import co.firstorderlabs.bqwriter.Configs.testMode
 import org.scalatest.funspec.AnyFunSpec
 
 class TestBigQueryEventWriter extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
   SequenceTracker.setMaxBufferSize(3)
 
   describe("EventObserver") {

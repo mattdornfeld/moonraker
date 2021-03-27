@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "actionizers.proto";
 import "events.proto";
 import "environment.proto";
 
@@ -145,6 +146,8 @@ service ExchangeService {
     }
     rpc stop (SimulationId) returns (google.protobuf.Empty) {
     }
+    rpc update(UpdateRequest) returns (google.protobuf.Empty) {
+    }
 }
 
 message ExchangeInfo {
@@ -209,7 +212,7 @@ message SimulationStartRequest {
     bool backupToCloudStorage = 12;
     bool stopInProgressSimulations = 13; // Used by unit tests to make sure only one simulation is in progress at a time
     ActionRequest actionRequest = 14;
-    map<string, double> actionizerConfigs = 15;
+    ActionizerConfigs actionizerConfigs = 15;
     bool skipDatabaseQuery = 16;
     bool skipCheckpointAfterWarmup = 17;
 }
@@ -220,4 +223,9 @@ message StepRequest {
     ObservationRequest observationRequest = 3;
     ActionRequest actionRequest = 4;
     SimulationId simulationId = 5;
+}
+
+message UpdateRequest {
+    SimulationId simulationId = 1;
+    ActionizerConfigs actionizerConfigs = 2;
 }

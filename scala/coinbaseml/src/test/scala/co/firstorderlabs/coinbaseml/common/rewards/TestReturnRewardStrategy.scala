@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.common.rewards
 
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.buildStepRequest
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
@@ -13,7 +14,7 @@ import co.firstorderlabs.common.types.Types.SimulationId
 import org.scalatest.funspec.AnyFunSpec
 
 class TestReturnRewardStrategy extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
   describe("ReturnRewardStrategy") {
     it(
       "The total portfolio value should equal the total quote funds in the account if no orders are " +

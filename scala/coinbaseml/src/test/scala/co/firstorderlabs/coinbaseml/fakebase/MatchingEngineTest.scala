@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.OrderSideUtils
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{When, getResult}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData
@@ -11,7 +12,7 @@ import co.firstorderlabs.common.types.Events.{Event, LimitOrderEvent}
 import org.scalatest.funspec.AnyFunSpec
 
 class MatchingEngineTest extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
   Exchange.start(RequestsData.simulationStartRequest)
 
   val buyOrderEvents =

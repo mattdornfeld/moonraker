@@ -1,9 +1,16 @@
 # pylint: disable=unused-variable
+from datetime import timedelta
+
+from dateutil.parser import parse
 
 from coinbase_ml.common.protos.environment_pb2 import (
     InfoDictKey,
     RewardStrategy,
     Featurizer,
+)
+from coinbase_ml.common.utils.time_utils import (
+    generate_lookback_intervals,
+    TimeInterval,
 )
 from coinbase_ml.trend_following.experiment_configs.constants import SACRED_EXPERIMENT
 
@@ -12,8 +19,30 @@ from coinbase_ml.trend_following.experiment_configs.constants import SACRED_EXPE
 def bollinger_on_book_volume_dev():
     actionizer_name = "coinbase_ml.common.actionizers.BollingerOnBookVolume"
     featurizer = Featurizer.Name(Featurizer.NoOp)
-    start_dt = "2020-11-19 00:00:00.00"
-    end_dt = "2020-11-19 01:00:00.00"
+    optimize_time_intervals = [
+        time_interval.to_str_tuple()
+        for time_interval in generate_lookback_intervals(
+            latest_time_interval=TimeInterval(
+                start_dt=parse("2020-11-19 00:30:00.00"),
+                end_dt=parse("2020-11-19 00:45:00.00"),
+            ),
+            num_lookback_intervals=2,
+            lookback_timedelta=timedelta(minutes=15),
+            reverse=False,
+        )
+    ]
+    evaluate_time_intervals = [
+        time_interval.to_str_tuple()
+        for time_interval in generate_lookback_intervals(
+            latest_time_interval=TimeInterval(
+                start_dt=parse("2020-11-19 00:45:00.00"),
+                end_dt=parse("2020-11-19 01:00:00.00"),
+            ),
+            num_lookback_intervals=2,
+            lookback_timedelta=timedelta(minutes=15),
+            reverse=False,
+        )
+    ]
     time_delta = 30
     initial_product_funds = "0.000000"
     initial_quote_funds = "10000.00"
@@ -21,7 +50,7 @@ def bollinger_on_book_volume_dev():
     result_metric = InfoDictKey.Name(InfoDictKey.portfolioValue)
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
 
-    num_samples = 10
+    num_samples = 5
     optimization_mode = "max"
     search_algorithm = "ray.tune.suggest.hyperopt.HyperOptSearch"
     search_algorithm_config = {"metric": result_metric, "mode": optimization_mode}
@@ -40,8 +69,29 @@ def bollinger_on_book_volume_dev():
 def bollinger_on_book_volume_staging():
     actionizer_name = "coinbase_ml.common.actionizers.BollingerOnBookVolume"
     featurizer = Featurizer.Name(Featurizer.NoOp)
-    start_dt = "2020-11-18 00:00:00.00"
-    end_dt = "2020-11-26 01:00:00.00"
+    optimize_time_intervals = [
+        time_interval.to_str_tuple()
+        for time_interval in generate_lookback_intervals(
+            latest_time_interval=TimeInterval.from_str_tuple(
+                ("2020-11-18 00:00:00.00", "2020-11-19 00:00:00.00")
+            ),
+            num_lookback_intervals=7,
+            lookback_timedelta=timedelta(days=1),
+            reverse=False,
+        )
+    ]
+    evaluate_time_intervals = [
+        time_interval.to_str_tuple()
+        for time_interval in generate_lookback_intervals(
+            latest_time_interval=TimeInterval(
+                start_dt=parse("2020-11-19 00:00:00.00"),
+                end_dt=parse("2020-11-20 00:00:00.00"),
+            ),
+            num_lookback_intervals=7,
+            lookback_timedelta=timedelta(days=1),
+            reverse=False,
+        )
+    ]
     time_delta = 30
     initial_product_funds = "0.000000"
     initial_quote_funds = "10000.00"

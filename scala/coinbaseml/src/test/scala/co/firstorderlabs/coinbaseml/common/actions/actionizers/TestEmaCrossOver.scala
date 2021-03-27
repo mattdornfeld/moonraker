@@ -1,28 +1,33 @@
 package co.firstorderlabs.coinbaseml.common.actions.actionizers
 
-import java.time.{Duration, Instant}
-
-import co.firstorderlabs.coinbaseml.common.EnvironmentState
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, SellMarketOrderTransaction}
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.DoubleUtils
 import co.firstorderlabs.coinbaseml.common.utils.Utils.FutureUtils
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.environment.{ActionRequest, Featurizer, ObservationRequest, Actionizer => ActionizerProto}
+import co.firstorderlabs.common.protos.actionizers.{EmaCrossOverConfigs, EmaCrossOverState, Actionizer => ActionizerProto}
+import co.firstorderlabs.common.protos.environment.{ActionRequest, Featurizer, ObservationRequest}
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, OrderSide}
 import co.firstorderlabs.common.protos.fakebase.{BuyMarketOrderRequest, SellMarketOrderRequest, SimulationStartRequest, StepRequest}
+import co.firstorderlabs.common.protos.indicators.ExponentialMovingAverageConfigs
+import co.firstorderlabs.common.types.Types.SimulationId
+import co.firstorderlabs.common.types.Utils.OptionUtils
 import org.scalatest.funspec.AnyFunSpec
 
+import java.time.{Duration, Instant}
+
 class TestEmaCrossOver extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
   val productVolume = new ProductVolume(Right("1.00"))
   val actionRequest = new ActionRequest(
     actionizer = ActionizerProto.EmaCrossOver
   )
   val updateOnlyActionRequest = new ActionRequest(
     actionizer = ActionizerProto.EmaCrossOver,
-    actorOutput = Seq(-1)
+    actorOutput = Seq(-1),
+    updateOnly = true
   )
   val simulationStartRequestWarmup = new SimulationStartRequest(
     Instant.parse("2019-11-20T00:00:00.00Z"),
@@ -32,19 +37,21 @@ class TestEmaCrossOver extends AnyFunSpec {
     new ProductVolume(Right("0.000000")),
     new QuoteVolume(Right("0.00")),
     actionRequest = Some(actionRequest),
-    actionizerConfigs = Map("fastWindowSize" -> 2.0, "slowWindowSize" -> 4.0),
+    actionizerConfigs = EmaCrossOverConfigs(
+      emaFast=ExponentialMovingAverageConfigs(2),
+      emaSlow=ExponentialMovingAverageConfigs(4),
+    ),
     observationRequest =
       Some(new ObservationRequest(featurizer = Featurizer.NoOp)),
     stopInProgressSimulations = true
   )
 
-  def getActionizerState(implicit
-      environmentState: EnvironmentState
-  ): (Double, Double) = {
-    (
-      environmentState.actionizerState.getState("emaFast"),
-      environmentState.actionizerState.getState("emaSlow")
-    )
+  def getActionizerState(simulationId: SimulationId): (Double, Double) = {
+    val actionizerState = SimulationState.getOrFail(simulationId).environmentState.actionizerState
+    actionizerState match {
+      case state: EmaCrossOverState =>
+        (state.emaFast.value, state.emaSlow.value)
+    }
   }
 
   describe("EmaCrossOver") {
@@ -67,11 +74,9 @@ class TestEmaCrossOver extends AnyFunSpec {
           }
           val simulationId =
             Exchange.start(simulationStartRequest).get.simulationId.get
-          implicit val simulationState =
+          val simulationState =
             SimulationState.getOrFail(simulationId)
           val simulationMetadata = simulationState.simulationMetadata
-          implicit val environmentState = simulationState.environmentState
-          implicit val matchingEngineState = simulationState.matchingEngineState
 
           val stepRequest = StepRequest(
             actionRequest = Some(updateOnlyActionRequest),
@@ -113,7 +118,7 @@ class TestEmaCrossOver extends AnyFunSpec {
             Exchange step stepRequest
           }
 
-          val (emaFast1, emaSlow1) = getActionizerState
+          val (emaFast1, emaSlow1) = getActionizerState(simulationMetadata.simulationId)
           assert(emaFast1 ~= emaSlow1)
 
           // If a BuyMarketOrderTransaction is expected then add a new buy order to the
@@ -147,7 +152,6 @@ class TestEmaCrossOver extends AnyFunSpec {
           )
 
           Exchange step stepRequest.update(_.actionRequest := actionRequest)
-          Exchange step stepRequest.update(_.actionRequest := actionRequest)
 
           val orderRequests =
             simulationState.accountState.orderRequests.values.toList
@@ -157,7 +161,7 @@ class TestEmaCrossOver extends AnyFunSpec {
           // updateOnlyActionRequest is passed to step
           assert(orderRequests.size == 1)
 
-          val (emaFast2, emaSlow2) = getActionizerState
+          val (emaFast2, emaSlow2) = getActionizerState(simulationId)
           expectedTransaction match {
             case BuyMarketOrderTransaction => {
               assert(emaFast2 > emaSlow2)
