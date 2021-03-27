@@ -6,10 +6,10 @@ import os
 
 from dateutil import parser
 
+from coinbase_ml.common.protos.actionizers_pb2 import Actionizer
 from coinbase_ml.common.protos.environment_pb2 import (
-    Actionizer,
-    RewardStrategy,
     Featurizer,
+    RewardStrategy,
 )
 from coinbase_ml.fakebase.types import (
     Currency,

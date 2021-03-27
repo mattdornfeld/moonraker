@@ -1,25 +1,18 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 
-import java.time.Instant
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 
+import java.time.Instant
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange}
-import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData.{
-  higherOrder,
-  lowerOrder
-}
+import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData.{higherOrder, lowerOrder}
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SqlConfigs}
-import co.firstorderlabs.coinbaseml.fakebase.sql.TestData.{
-  endTime,
-  simulationStartRequest,
-  startTime,
-  timeDelta
-}
+import co.firstorderlabs.coinbaseml.fakebase.sql.TestData.{endTime, simulationStartRequest, startTime, timeDelta}
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.productId
 import co.firstorderlabs.common.types.Types.TimeInterval
 import org.scalatest.funspec.AnyFunSpec
 
 class LocalStorageTest extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
   Exchange.start(simulationStartRequest)
   val notPresentKey = TimeInterval(Instant.MIN, Instant.MAX)
   val presentKey = TimeInterval(startTime, endTime)

@@ -1,32 +1,22 @@
 #!/bin/bash
-PROTOS_DIR=./python
+PROTO_INPUT_DIR=scala/common/src/main/protobuf
+PROTOS_OUTPUT_DIR=./python
 
-mkdir -p $PROTOS_DIR/scalapb
+mkdir -p $PROTOS_OUTPUT_DIR/scalapb $PROTOS_OUTPUT_DIR/validate
 
-python3 -m grpc_tools.protoc \
-    -I scala/common/src/main/protobuf \
-    --mypy_out=$PROTOS_DIR \
-    --python_out=$PROTOS_DIR \
-    --grpc_python_out=$PROTOS_DIR \
-    scala/common/src/main/protobuf/events.proto
+PROTO_FILES=(actionizers.proto \
+  environment.proto \
+  events.proto \
+  fakebase.proto \
+  indicators.proto \
+  scalapb/scalapb.proto \
+  validate/validate.proto)
 
-python3 -m grpc_tools.protoc \
-    -I scala/common/src/main/protobuf \
-    --mypy_out=$PROTOS_DIR \
-    --python_out=$PROTOS_DIR \
-    --grpc_python_out=$PROTOS_DIR \
-    scala/common/src/main/protobuf/scalapb/scalapb.proto
-
-python3 -m grpc_tools.protoc \
-    -I scala/common/src/main/protobuf \
-    --mypy_out=$PROTOS_DIR \
-    --python_out=$PROTOS_DIR \
-    --grpc_python_out=$PROTOS_DIR \
-    scala/common/src/main/protobuf/fakebase.proto
-
-python3 -m grpc_tools.protoc \
-    -I scala/common/src/main/protobuf \
-    --mypy_out=$PROTOS_DIR \
-    --python_out=$PROTOS_DIR \
-    --grpc_python_out=$PROTOS_DIR \
-    scala/common/src/main/protobuf/environment.proto
+for proto_file in "${PROTO_FILES[@]}"; do
+  python3 -m grpc_tools.protoc \
+      -I scala/common/src/main/protobuf \
+      --mypy_out=$PROTOS_OUTPUT_DIR \
+      --python_out=$PROTOS_OUTPUT_DIR \
+      --grpc_python_out=$PROTOS_OUTPUT_DIR \
+      "${PROTO_INPUT_DIR}/${proto_file}"
+done

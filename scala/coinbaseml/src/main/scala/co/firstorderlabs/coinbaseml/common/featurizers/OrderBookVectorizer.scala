@@ -1,7 +1,8 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
-import java.util.logging.Logger
+import co.firstorderlabs.coinbaseml.common.Configs.logLevel
 
+import java.util.logging.Logger
 import co.firstorderlabs.coinbaseml.common.featurizers.OrderBookVectorizer.OrderBookFeature
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
@@ -48,6 +49,7 @@ object OrderBookVectorizerState
 object OrderBookVectorizer extends VectorizerBase {
   type OrderBookFeature = List[List[Double]]
   private val logger = Logger.getLogger(OrderBookVectorizer.toString)
+  logger.setLevel(logLevel)
 
   def getArrayOfZeros(height: Int, width: Int): OrderBookFeature = {
     (for (_ <- 0 until height) yield List.fill(width)(0.0)).toList

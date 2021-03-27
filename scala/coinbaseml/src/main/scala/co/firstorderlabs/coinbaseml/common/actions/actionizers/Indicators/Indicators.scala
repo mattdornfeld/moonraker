@@ -1,209 +1,294 @@
 package co.firstorderlabs.coinbaseml.common.actions.actionizers.Indicators
 
-import scala.collection.mutable.ListBuffer
+import co.firstorderlabs.common.protos.indicators._
+import co.firstorderlabs.common.types.Indicators.{IndicatorConfigs, IndicatorState, MovingAverageConfigs, MovingAverageState, MovingIndicatorConfigs, MovingIndicatorState, MovingVarianceConfigs, MovingVarianceState}
 
-sealed trait Indicator {
-  var value: Double
-  var previousValue: Double
+sealed trait Indicator[A <: IndicatorConfigs, B <: IndicatorState] {
+  def crossAbove(
+      indicatorState: IndicatorState,
+      that: IndicatorState
+  ): Boolean =
+    indicatorState.previousValue <= that.previousValue && indicatorState.value > that.value
 
-  def copy: Indicator
+  def crossBelow(
+      indicatorState: IndicatorState,
+      that: IndicatorState
+  ): Boolean =
+    indicatorState.previousValue >= that.previousValue && indicatorState.value < that.value
 
-  def crossAbove(that: Indicator): Boolean =
-    previousValue <= that.previousValue && value > that.value
-
-  def crossBelow(that: Indicator): Boolean =
-    previousValue >= that.previousValue && value < that.value
-
-  def derivative(delta: Double = 1.0): Double = (value - previousValue) / delta
+  def derivative(delta: Double = 1.0)(implicit
+      indicatorState: IndicatorState
+  ): Double = (indicatorState.value - indicatorState.previousValue) / delta
 }
 
-sealed trait MovingIndicator extends Indicator {
-  def alpha: Double
+sealed trait MovingIndicator[
+    A <: MovingIndicatorConfigs,
+    B <: MovingIndicatorState
+] extends Indicator[A, B] {
+  def alpha(implicit
+      indicatorConfigs: A,
+      indicatorState: B
+  ): Double
 
-  def transform(samples: Seq[Double]): Seq[Double] =
-    samples.map { sample =>
-      update(sample)
-      value
+  def transform(
+      samples: Seq[Double]
+  )(implicit
+      indicatorConfigs: A,
+      indicatorState: B
+  ): (Seq[Double], B) = {
+    var _indicatorState = indicatorState
+    val values = samples.map { sample =>
+      _indicatorState = update(sample)
+      _indicatorState.value
+    }
+    (values, _indicatorState)
+  }
+
+  def update(sample: Double)(implicit
+      indicatorConfigs: A,
+      indicatorState: B
+  ): B
+}
+
+sealed trait MovingAverage[A <: MovingAverageConfigs, B <: MovingAverageState]
+    extends MovingIndicator[A, B]
+
+sealed trait MovingVariance[
+    A <: MovingVarianceConfigs,
+    B <: MovingVarianceState
+] extends MovingIndicator[A, B] {
+  def beta(price: Double)(implicit
+      indicatorConfigs: A,
+      indicatorState: B
+  ): Double
+
+  def delta(
+      price: Double
+  )(implicit movingVarianceState: B): Double
+
+  def bollingerBandValues(
+      bandSize: Double
+  )(implicit indicatorState: B): (Double, Double) = {
+    val std = math.pow(indicatorState.value, 0.5)
+    (
+      indicatorState.movingAverageState.value - bandSize * std,
+      indicatorState.movingAverageState.value + bandSize * std
+    )
+  }
+}
+
+object ExponentialMovingAverage
+    extends MovingAverage[
+      ExponentialMovingAverageConfigs,
+      ExponentialMovingAverageState
+    ] {
+  override def alpha(implicit
+      indicatorConfigs: ExponentialMovingAverageConfigs,
+      indicatorState: ExponentialMovingAverageState
+  ): Double =
+    indicatorConfigs match {
+      case indicatorConfigs: ExponentialMovingAverageConfigs =>
+        2.0 / indicatorConfigs.windowSize
     }
 
-  def update(sample: Double): Unit
+  override def update(
+      sample: Double
+  )(implicit
+      indicatorConfigs: ExponentialMovingAverageConfigs,
+      indicatorState: ExponentialMovingAverageState
+  ): ExponentialMovingAverageState =
+    indicatorState match {
+      case indicatorState: ExponentialMovingAverageState => {
+        val v = indicatorState.value
+        indicatorState.update(
+          _.previousValue := v,
+          _.value := v + alpha(indicatorConfigs, indicatorState) * (sample - v)
+        )
+      }
+    }
 }
 
-sealed trait MovingAverage extends MovingIndicator {
-  def update(sample: Double): Unit = {
-    previousValue = value
-    value += alpha * (sample - value)
-  }
-}
+object KaufmanAdaptiveMovingAverage
+    extends MovingAverage[
+      KaufmanAdaptiveMovingAverageConfigs,
+      KaufmanAdaptiveMovingAverageState
+    ] {
+  private val fastest = 2.0 / (2 + 1)
+  private val slowest = 2.0 / (30 + 1)
 
-sealed trait MovingVariance extends MovingIndicator {
-  val movingAverage: MovingAverage
+  def efficiencyRatio(implicit
+      indicatorState: KaufmanAdaptiveMovingAverageState
+  ): Double = if (noise > 0.0) signal / noise else 1.0
 
-  def beta(price: Double): Double
-
-  def bollingerBandValues(bandSize: Double): (Double, Double) = {
-    val std = math.pow(value, 0.5)
-    (movingAverage.value - bandSize * std, movingAverage.value + bandSize * std)
-  }
-
-  def update(sample: Double): Unit = {
-    previousValue = value
-    value = alpha * value + beta(sample)
-  }
-
-}
-
-final case class ExponentialMovingAverage(
-    alpha: Double,
-    var value: Double,
-    var previousValue: Double
-) extends MovingAverage {
-  override def copy: ExponentialMovingAverage =
-    ExponentialMovingAverage(alpha, value, previousValue)
-}
-
-final case class KaufmanAdaptiveMovingAverage(
-    windowSize: Int,
-    var value: Double = 0.0,
-    var previousValue: Double = 0.0,
-    fastPeriod: Int = 2,
-    slowPeriod: Int = 30,
-    priceBuffer: ListBuffer[Double] = new ListBuffer
-) extends MovingAverage {
-  private val fastest = 2.0 / (fastPeriod + 1)
-  private val slowest = 2.0 / (slowPeriod + 1)
-
-  def efficiencyRatio: Double = if (noise > 0.0) signal / noise else 1.0
-
-  def noise: Double =
-    priceBuffer
+  def noise(implicit
+      indicatorState: KaufmanAdaptiveMovingAverageState
+  ): Double =
+    indicatorState.priceBuffer
       .drop(1)
-      .zip(priceBuffer.dropRight(1))
+      .zip(indicatorState.priceBuffer.dropRight(1))
       .map(p => math.abs(p._1 - p._2))
       .reduceOption(_ + _)
       .getOrElse(0.0)
 
-  def signal: Double =
-    math.abs(priceBuffer.last - priceBuffer.head)
+  def signal(implicit
+      indicatorState: KaufmanAdaptiveMovingAverageState
+  ): Double =
+    math.abs(indicatorState.priceBuffer.last - indicatorState.priceBuffer.head)
 
-  override def alpha: Double = {
-    val _efficiencyRatio =
-      if (priceBuffer.size < windowSize) 1.0 else efficiencyRatio
-    math.pow(_efficiencyRatio * (fastest - slowest) + slowest, 2)
-  }
-
-  override def copy: KaufmanAdaptiveMovingAverage =
-    KaufmanAdaptiveMovingAverage(
-      windowSize,
-      value,
-      previousValue,
-      fastPeriod,
-      slowPeriod,
-      priceBuffer
-    )
-
-  override def update(sample: Double): Unit = {
-    while (priceBuffer.size >= windowSize) {
-      priceBuffer.remove(0)
+  override def alpha(implicit
+      indicatorConfigs: KaufmanAdaptiveMovingAverageConfigs,
+      indicatorState: KaufmanAdaptiveMovingAverageState
+  ): Double =
+    (indicatorConfigs, indicatorState) match {
+      case (
+            configs: KaufmanAdaptiveMovingAverageConfigs,
+            state: KaufmanAdaptiveMovingAverageState
+          ) => {
+        val _efficiencyRatio =
+          if (state.priceBuffer.size < configs.windowSize) 1.0
+          else efficiencyRatio(state)
+        math.pow(_efficiencyRatio * (fastest - slowest) + slowest, 2)
+      }
     }
-    priceBuffer.append(sample)
-    super.update(sample)
+
+  override def update(sample: Double)(implicit
+      indicatorConfigs: KaufmanAdaptiveMovingAverageConfigs,
+      indicatorState: KaufmanAdaptiveMovingAverageState
+  ): KaufmanAdaptiveMovingAverageState = {
+    (indicatorConfigs, indicatorState) match {
+      case (
+            configs: KaufmanAdaptiveMovingAverageConfigs,
+            state: KaufmanAdaptiveMovingAverageState
+          ) => {
+        while (state.priceBuffer.size >= configs.windowSize) {
+          state.priceBuffer.remove(0)
+        }
+        state.priceBuffer.append(sample)
+        state.update(
+          _.previousValue := state.value,
+          _.value := state.value + alpha * (sample - state.value)
+        )
+      }
+    }
   }
 }
 
-final case class KaufmanAdaptiveMovingVariance(
-    windowSize: Int,
-    movingAverageValue: Double = 0.0,
-    movingAveragePreviousValue: Double = 0.0,
-    fastPeriod: Int = 2,
-    slowPeriod: Int = 30,
-    var value: Double = 0.0,
-    var previousValue: Double = 0.0
-) extends MovingVariance {
-  val movingAverage = KaufmanAdaptiveMovingAverage(
-    windowSize = windowSize,
-    value = movingAverageValue,
-    previousValue = movingAveragePreviousValue,
-    fastPeriod = fastPeriod,
-    slowPeriod = slowPeriod
-  )
-
-  def delta(price: Double): Double =
-    price - movingAverage.previousValue
-
-  override def alpha: Double = 1 - movingAverage.alpha
-
-  override def beta(price: Double): Double =
-    movingAverage.alpha * alpha * math.pow(delta(price), 2)
-
-  override def copy: KaufmanAdaptiveMovingVariance =
-    KaufmanAdaptiveMovingVariance(
-      windowSize = windowSize,
-      movingAverageValue = movingAverage.value,
-      movingAveragePreviousValue = movingAverage.previousValue,
-      value = value,
-      previousValue = previousValue,
-      fastPeriod = fastPeriod,
-      slowPeriod = slowPeriod
+object KaufmanAdaptiveMovingVariance
+    extends MovingVariance[
+      KaufmanAdaptiveMovingVarianceConfigs,
+      KaufmanAdaptiveMovingVarianceState
+    ] {
+  override def alpha(implicit
+      indicatorConfigs: KaufmanAdaptiveMovingVarianceConfigs,
+      indicatorState: KaufmanAdaptiveMovingVarianceState
+  ): Double =
+    1 - KaufmanAdaptiveMovingAverage.alpha(
+      indicatorConfigs.movingAverageConfigs,
+      indicatorState.movingAverageState
     )
 
-  override def update(sample: Double): Unit = {
-    movingAverage.update(sample)
-    super.update(sample)
+  override def beta(price: Double)(implicit
+      indicatorConfigs: KaufmanAdaptiveMovingVarianceConfigs,
+      indicatorState: KaufmanAdaptiveMovingVarianceState
+  ): Double =
+    KaufmanAdaptiveMovingAverage.alpha(
+      indicatorConfigs.movingAverageConfigs,
+      indicatorState.movingAverageState
+    ) * alpha * math.pow(delta(price), 2)
+
+  override def delta(
+      price: Double
+  )(implicit movingVarianceState: KaufmanAdaptiveMovingVarianceState): Double =
+    price - movingVarianceState.movingAverageState.previousValue
+
+  override def update(sample: Double)(implicit
+      indicatorConfigs: KaufmanAdaptiveMovingVarianceConfigs,
+      indicatorState: KaufmanAdaptiveMovingVarianceState
+  ): KaufmanAdaptiveMovingVarianceState = {
+    (indicatorConfigs, indicatorState) match {
+      case (
+            configs: KaufmanAdaptiveMovingVarianceConfigs,
+            state: KaufmanAdaptiveMovingVarianceState
+          ) =>
+        val updatedMovingAverageState =
+          KaufmanAdaptiveMovingAverage.update(sample)(
+            configs.movingAverageConfigs,
+            state.movingAverageState
+          )
+
+        state.update(
+          _.previousValue := state.value,
+          _.value := alpha * state.value + beta(sample)(configs, state),
+          _.movingAverageState := updatedMovingAverageState
+        )
+    }
   }
 }
 
-final case class ExponentialMovingVariance(
-    movingAverageAlpha: Double,
-    movingAverageValue: Double = 0.0,
-    movingAveragePreviousValue: Double = 0.0,
-    var value: Double = 0.0,
-    var previousValue: Double = 0.0
-) extends MovingVariance {
-  val alpha = 1 - movingAverageAlpha
-  val movingAverage = ExponentialMovingAverage(
-    movingAverageAlpha,
-    movingAverageValue,
-    movingAveragePreviousValue
-  )
-
-  def delta(price: Double): Double =
-    price - movingAverage.previousValue
-
-  override def beta(price: Double): Double =
-    movingAverageAlpha * alpha * math.pow(delta(price), 2)
-
-  override def copy: ExponentialMovingVariance =
-    ExponentialMovingVariance(
-      movingAverageAlpha,
-      movingAverage.value,
-      movingAverage.previousValue,
-      value,
-      previousValue
+object ExponentialMovingVariance
+    extends MovingVariance[
+      ExponentialMovingVarianceConfigs,
+      ExponentialMovingVarianceState
+    ] {
+  override def alpha(implicit
+      indicatorConfigs: ExponentialMovingVarianceConfigs,
+      indicatorState: ExponentialMovingVarianceState
+  ): Double =
+    1 - ExponentialMovingAverage.alpha(
+      indicatorConfigs.movingAverageConfigs,
+      indicatorState.movingAverageState
     )
 
-  override def update(sample: Double): Unit = {
-    movingAverage.update(sample)
-    super.update(sample)
+  override def beta(price: Double)(implicit
+      indicatorConfigs: ExponentialMovingVarianceConfigs,
+      indicatorState: ExponentialMovingVarianceState
+  ): Double =
+    ExponentialMovingAverage.alpha(
+      indicatorConfigs.movingAverageConfigs,
+      indicatorState.movingAverageState
+    ) * alpha * math.pow(delta(price), 2)
+
+  override def delta(
+      price: Double
+  )(implicit movingVarianceState: ExponentialMovingVarianceState): Double =
+    price - movingVarianceState.movingAverageState.previousValue
+
+  override def update(sample: Double)(implicit
+      indicatorConfigs: ExponentialMovingVarianceConfigs,
+      indicatorState: ExponentialMovingVarianceState
+  ): ExponentialMovingVarianceState = {
+    (indicatorConfigs, indicatorState) match {
+      case (
+            configs: ExponentialMovingVarianceConfigs,
+            state: ExponentialMovingVarianceState
+          ) =>
+        val updatedMovingAverageState = ExponentialMovingAverage.update(sample)(
+          configs.movingAverageConfigs,
+          state.movingAverageState
+        )
+        state.update(
+          _.previousValue := state.value,
+          _.value := alpha * state.value + beta(sample)(configs, state),
+          _.movingAverageState := updatedMovingAverageState
+        )
+    }
   }
 }
 
-final case class OnBookVolume(
-    var value: Double = 0.0,
-    var previousValue: Double = 0.0,
-    var previousPrice: Double = 0.0
-) extends Indicator {
+object OnBookVolume extends Indicator[OnBookVolumeConfigs, OnBookVolumeState] {
+  def update(price: Double, volume: Double)(implicit
+      indicatorState: OnBookVolumeState
+  ): OnBookVolumeState = {
+    val priceDelta = price - indicatorState.previousPrice
+    val newValue = if (priceDelta > 0) { indicatorState.value + volume }
+    else if (priceDelta < 0) { indicatorState.value - volume }
+    else { indicatorState.value }
 
-  override def copy: OnBookVolume =
-    OnBookVolume(value, previousValue, previousPrice)
-
-  def update(price: Double, volume: Double): Unit = {
-    val priceDelta = price - previousPrice
-    previousPrice = price
-    previousValue = value
-    if (priceDelta > 0) { value += volume }
-    else if (priceDelta < 0) { value -= volume }
-    else {}
+    indicatorState.update(
+      _.value := newValue,
+      _.previousValue := indicatorState.value,
+      _.previousPrice := price
+    )
   }
 }
 
@@ -215,25 +300,21 @@ final case class OnBookVolume(
   * @param previousValue
   * @param barAccumulation
   */
-final case class SampleValueByBarIncrement(
-    barSize: Double,
-    var value: Double = 0.0,
-    var previousValue: Double = 0.0,
-    var barAccumulation: Double = 0.0
-) extends Indicator {
+object SampleValueByBarIncrement extends Indicator[SampleValueByBarIncrementConfigs, SampleValueByBarIncrementState] {
 
-  override def copy: SampleValueByBarIncrement =
-    SampleValueByBarIncrement(
-      barSize,
-      value,
-      previousValue,
-      barAccumulation
+  def update(valueUpdate: Double, barIncrement: Double)(implicit
+      indicatorConfigs: SampleValueByBarIncrementConfigs,
+      indicatorState: SampleValueByBarIncrementState
+  ): SampleValueByBarIncrementState = {
+    val previousBarNumber =
+      (indicatorState.barAccumulation / indicatorConfigs.barSize).toInt
+    val barAccumulation = indicatorState.barAccumulation + barIncrement
+    val nextBarNumber = (barAccumulation / indicatorConfigs.barSize).toInt
+    val updatedValue = if (nextBarNumber > previousBarNumber) { valueUpdate }
+    else indicatorState.value
+    indicatorState.update(
+      _.value := updatedValue,
+      _.previousValue := indicatorState.value
     )
-
-  def update(valueUpdate: Double, barIncrement: Double): Unit = {
-    val previousBarNumber = (barAccumulation / barSize).toInt
-    barAccumulation += barIncrement
-    val nextBarNumber = (barAccumulation / barSize).toInt
-    if (nextBarNumber > previousBarNumber) {value = valueUpdate}
   }
 }

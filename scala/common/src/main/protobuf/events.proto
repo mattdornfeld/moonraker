@@ -104,7 +104,7 @@ message Event {
         BuyLimitOrder buyLimitOrder = 1;
         BuyMarketOrder buyMarketOrder = 2;
         Cancellation cancellation = 3;
-        Match match = 4;
+        Match matchEvent = 4;
         SellLimitOrder sellLimitOrder = 5;
         SellMarketOrder sellMarketOrder = 6;
     }

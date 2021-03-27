@@ -105,7 +105,7 @@ object Events {
         case event: CancellationProto => EventProto().withCancellation(event)
         case event: BuyLimitOrder     => EventProto().withBuyLimitOrder(event)
         case event: BuyMarketOrder    => EventProto().withBuyMarketOrder(event)
-        case event: Match             => EventProto().withMatch(event)
+        case event: Match             => EventProto().withMatchEvent(event)
         case event: SellLimitOrder    => EventProto().withSellLimitOrder(event)
         case event: SellMarketOrder   => EventProto().withSellMarketOrder(event)
       }

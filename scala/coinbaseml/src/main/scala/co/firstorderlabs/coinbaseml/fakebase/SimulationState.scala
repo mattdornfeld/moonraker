@@ -1,18 +1,19 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
-import java.time.{Duration, Instant}
-import java.util.UUID.randomUUID
-
 import co.firstorderlabs.coinbaseml.common.EnvironmentState
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actionizer
 import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils
 import co.firstorderlabs.coinbaseml.fakebase.Types.Exceptions.SimulationNotStarted
 import co.firstorderlabs.coinbaseml.fakebase.sql.{DatabaseReader, DatabaseReaderState}
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
-import co.firstorderlabs.common.protos.environment.{InfoDict, ObservationRequest, Actionizer => ActionizerProto}
+import co.firstorderlabs.common.protos.actionizers.{Actionizer => ActionizerProto}
+import co.firstorderlabs.common.protos.environment.{InfoDict, ObservationRequest}
 import co.firstorderlabs.common.protos.fakebase.{SimulationStartRequest, SimulationType}
+import co.firstorderlabs.common.types.Actionizers.{ActionizerConfigs, ActionizerState}
 import co.firstorderlabs.common.types.Types.{SimulationId, TimeInterval}
 
+import java.time.{Duration, Instant}
+import java.util.UUID.randomUUID
 import scala.collection.mutable
 
 trait State[A <: State[A]] {
@@ -41,8 +42,9 @@ final case class SimulationMetadata(
     databaseReader: DatabaseReader,
     featureBufferSize: Int,
     backupToCloudStorage: Boolean,
-    actionizerConfigs: Map[String, Double],
+    actionizerConfigs: ActionizerConfigs,
     actionizer: Actionizer,
+    actionizerInitialState: Option[ActionizerState] = None,
     checkpointTimeInterval: Option[TimeInterval] = None,
     checkpointStep: Option[Long] = None
 ) {
@@ -69,6 +71,7 @@ final case class SimulationMetadata(
       backupToCloudStorage,
       actionizerConfigs,
       actionizer,
+      actionizerInitialState,
       Some(currentTimeInterval),
       Some(currentStep)
     )
@@ -114,7 +117,7 @@ object SimulationMetadata {
       Exchange.getDatabaseReader(simulationStartRequest.databaseBackend),
       simulationStartRequest.snapshotBufferSize,
       simulationStartRequest.backupToCloudStorage,
-      simulationStartRequest.actionizerConfigs,
+      ActionizerConfigs.fromSealedOneOf(simulationStartRequest.actionizerConfigs),
       Actionizer.fromProto(
         simulationStartRequest.actionRequest
           .map(_.actionizer)
@@ -140,6 +143,7 @@ object SimulationMetadata {
       snapshot.backupToCloudStorage,
       snapshot.actionizerConfigs,
       snapshot.actionizer,
+      snapshot.actionizerInitialState,
       snapshot.checkpointTimeInterval,
       snapshot.checkpointStep
     )
@@ -169,7 +173,7 @@ final case class SimulationState(
 object SimulationState {
   private val simulationStates =
     new mutable.HashMap[SimulationId, SimulationState]
-  private val simulationSnapshots =
+  val simulationSnapshots =
     new mutable.HashMap[SimulationId, SimulationState]
 
   private def throwSimulationNotStartedException(
@@ -214,7 +218,7 @@ object SimulationState {
       case None => None
     }
 
-  def restore(simulationId: SimulationId): Option[SimulationState] =
+  def restore(simulationId: SimulationId): Unit =
     simulationSnapshots.get(simulationId) match {
       case Some(snapshot) => {
         val simulationState = SimulationState(
@@ -225,7 +229,7 @@ object SimulationState {
           EnvironmentState.fromSnapshot(snapshot.environmentState),
           MatchingEngineState.fromSnapshot(snapshot.matchingEngineState)
         )
-        simulationStates.put(simulationId, simulationState)
+        simulationStates.update(simulationId, simulationState)
       }
       case None => None
     }
@@ -234,6 +238,12 @@ object SimulationState {
       simulationId: SimulationId
   )(implicit simulationState: SimulationState): Option[SimulationState] =
     simulationSnapshots.put(simulationId, simulationState.createSnapshot)
+
+  def update(
+      simulationId: SimulationId,
+      simulationState: SimulationState
+  ): Unit =
+    simulationStates.update(simulationId, simulationState)
 
   def getSnapshot(simulationId: SimulationId): Option[SimulationState] =
     simulationSnapshots.get(simulationId)

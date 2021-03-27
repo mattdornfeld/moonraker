@@ -21,8 +21,11 @@ lazy val common = project
     name := "comoon",
     commonSettings,
     libraryDependencies ++= commonDependencies,
-    PB.targets in Compile := Seq(
-      scalapb.gen() -> (sourceManaged in Compile).value
+    Compile / PB.targets := Seq(
+      scalapb.validate
+        .preprocessor() -> (Compile / sourceManaged).value / "scalapb",
+      scalapb.gen() -> (Compile / sourceManaged).value / "scalapb",
+      scalapb.validate.gen() -> (Compile / sourceManaged).value / "scalapb"
     )
   )
 
@@ -66,11 +69,12 @@ lazy val commonSettings = Seq(
   version := "0.1.0-SNAPSHOT",
   parallelExecution in Test := false,
   assemblyMergeStrategy in assembly := {
-    case "git.properties"                        => MergeStrategy.first
-    case "META-INF/io.netty.versions.properties" => MergeStrategy.first
-    case x if x.contains("netty")                => MergeStrategy.first
-    case x if x.contains("scalapb/option")       => MergeStrategy.last
-    case x if x.endsWith("module-info.class")    => MergeStrategy.discard
+    case "git.properties"                               => MergeStrategy.first
+    case "META-INF/io.netty.versions.properties"        => MergeStrategy.first
+    case x if x.contains("netty")                       => MergeStrategy.first
+    case x if x.contains("scalapb/option")              => MergeStrategy.last
+    case x if x.contains("io/envoyproxy/pgv/validate/validate") => MergeStrategy.last
+    case x if x.endsWith("module-info.class")           => MergeStrategy.discard
     case x =>
       val oldStrategy = (assemblyMergeStrategy in assembly).value
       oldStrategy(x)

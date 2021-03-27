@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+import "indicators.proto";
+import "scalapb/scalapb.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  preserve_unknown_fields: false
+  package_name: "co.firstorderlabs.common.protos"
+  field_transformations: [
+      {
+          when: {options: {[validate.rules] {message: {required: true}}}}
+          set: {
+            [scalapb.field] {
+              required: true
+            }
+          }
+      }
+  ]
+};
+
+enum Actionizer {
+  SignalPositionSize = 0;
+  PositionSize = 1;
+  EntrySignal = 2;
+  EmaCrossOver = 3;
+  NoOpActionizer = 4;
+  BollingerOnBookVolume = 5;
+}
+
+message ActionizerConfigs {
+  oneof sealed_value {
+    SignalPositionSizeConfigs signalPositionSize = 1;
+    PositionSizeConfigs positionSize  = 2;
+    EntrySignalConfigs entrySignal = 3;
+    EmaCrossOverConfigs emaCrossOver = 4;
+    NoOpActionizerConfigs noOpActionizer = 5;
+    BollingerOnBookVolumeConfigs bollingerOnBookVolume = 6;
+  }
+}
+
+message ActionizerState {
+  oneof sealed_value {
+    SignalPositionSizeState signalPositionSize = 1;
+    PositionSizeState positionSize  = 2;
+    EntrySignalState entrySignal = 3;
+    EmaCrossOverState emaCrossOver = 4;
+    NoOpActionizerState noOpActionizer = 5;
+    BollingerOnBookVolumeState bollingerOnBookVolume = 6;
+  }
+}
+
+message SignalPositionSizeConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.ActionizerConfigs";
+}
+
+message SignalPositionSizeState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.SignalPositionSizeStateBase";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Actionizers.SignalPositionSizeStateCompanion";
+
+  double signal = 1;
+  double positionSizeFraction = 2;
+  repeated double actorOutput = 3;
+}
+
+message PositionSizeConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.ActionizerConfigs";
+}
+
+message PositionSizeState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.PositionSizeStateBase";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Actionizers.PositionSizeStateCompanion";
+
+  double signal = 1;
+  double positionSizeFraction = 2;
+  repeated double actorOutput = 3;
+}
+
+message EntrySignalConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.ActionizerConfigs";
+}
+
+message EntrySignalState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.EntrySignalStateBase";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Actionizers.EntrySignalStateCompanion";
+
+  double signal = 1;
+  repeated double actorOutput = 2;
+}
+
+message EmaCrossOverConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.ActionizerConfigs";
+
+  ExponentialMovingAverageConfigs emaFast = 1 [(validate.rules).message.required = true];
+  ExponentialMovingAverageConfigs emaSlow = 2 [(validate.rules).message.required = true];
+}
+
+message EmaCrossOverState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.EmaCrossOverStateBase";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Actionizers.EmaCrossOverStateCompanion";
+
+  ExponentialMovingAverageState emaFast = 1 [(validate.rules).message.required = true];
+  ExponentialMovingAverageState emaSlow = 2 [(validate.rules).message.required = true];
+  double signal = 3;
+}
+
+message NoOpActionizerConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.ActionizerConfigs";
+}
+
+message NoOpActionizerState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.NoOpActionizerStateBase";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Actionizers.NoOpActionizerStateCompanion";
+
+  double signal = 1;
+}
+
+message BollingerOnBookVolumeConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.ActionizerConfigs";
+
+  KaufmanAdaptiveMovingAverageConfigs smoothedOnBookVolume = 1 [(validate.rules).message.required = true];
+  KaufmanAdaptiveMovingVarianceConfigs priceMovingVariance = 2 [(validate.rules).message.required = true];
+  SampleValueByBarIncrementConfigs sampledOnBookVolumeDerivative = 3 [(validate.rules).message.required = true];
+  double bollingerBandSize = 4;
+  double onBookVolumeChangeBuyThreshold = 5;
+  double onBookVolumeChangeSellThreshold = 6;
+}
+
+message BollingerOnBookVolumeState {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Actionizers.BollingerOnBookVolumeStateBase";
+  option (scalapb.message).companion_extends = "co.firstorderlabs.common.types.Actionizers.BollingerOnBookVolumeStateCompanion";
+
+  KaufmanAdaptiveMovingAverageState smoothedOnBookVolume = 1 [(validate.rules).message.required = true];
+  KaufmanAdaptiveMovingVarianceState priceMovingVariance = 2 [(validate.rules).message.required = true];
+  OnBookVolumeState onBookVolume = 3 [(validate.rules).message.required = true];
+  SampleValueByBarIncrementState sampledOnBookVolumeDerivative = 4 [(validate.rules).message.required = true];
+  double signal = 5;
+  double upperBollingerBand = 6;
+  double lowerBollingerBand = 7;
+  double smoothedOnBookVolumeChange = 8;
+}

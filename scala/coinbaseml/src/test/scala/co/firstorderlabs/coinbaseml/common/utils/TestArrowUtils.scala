@@ -1,7 +1,8 @@
 package co.firstorderlabs.coinbaseml.common.utils
 
-import java.time.{Duration, Instant}
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 
+import java.time.{Duration, Instant}
 import co.firstorderlabs.coinbaseml.common.Environment
 import co.firstorderlabs.coinbaseml.common.featurizers.TimeSeriesOrderBook
 import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatures
@@ -13,7 +14,7 @@ import co.firstorderlabs.common.protos.fakebase.SimulationStartRequest
 import org.scalatest.funspec.AnyFunSpec
 
 class TestArrowUtils extends AnyFunSpec{
-  Configs.testMode = true
+  testMode = true
 
   describe("ArrowUtils") {
     it("A Feature object should be writable to a group of Arrow socket files. It should also be " +

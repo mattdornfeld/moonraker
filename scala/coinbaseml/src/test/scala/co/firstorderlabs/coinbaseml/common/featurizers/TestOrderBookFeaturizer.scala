@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{buildStepRequest, doubleEquality}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
@@ -12,7 +13,7 @@ import co.firstorderlabs.common.types.Types.SimulationId
 import org.scalatest.funspec.AnyFunSpec
 
 class TestOrderBookFeaturizer extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
   val productVolume = new ProductVolume(Right("1.00"))
   val zerosArray =
     OrderBookVectorizer.getArrayOfZeros(orderBooksRequest(SimulationId("test")).orderBookDepth, 4)

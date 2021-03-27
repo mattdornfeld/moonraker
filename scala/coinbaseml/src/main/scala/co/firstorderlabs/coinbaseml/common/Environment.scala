@@ -1,9 +1,8 @@
 package co.firstorderlabs.coinbaseml.common
 
-import java.util.logging.Logger
-
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, LimitOrderTransaction, SellMarketOrderTransaction}
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.{Actionizer, ActionizerState}
+import co.firstorderlabs.coinbaseml.common.Configs.logLevel
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actionizer
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, LimitOrderTransaction, NoTransaction, SellMarketOrderTransaction}
 import co.firstorderlabs.coinbaseml.common.featurizers._
 import co.firstorderlabs.coinbaseml.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.UnrecognizedRewardStrategy
@@ -14,15 +13,17 @@ import co.firstorderlabs.coinbaseml.fakebase.{SimulationMetadata, SimulationStat
 import co.firstorderlabs.common.protos.environment.EnvironmentServiceGrpc.EnvironmentService
 import co.firstorderlabs.common.protos.environment.{ActionRequest, Info, InfoDictKey, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
 import co.firstorderlabs.common.protos.events.{Order, OrderMessage}
+import co.firstorderlabs.common.types.Actionizers.ActionizerState
 import co.firstorderlabs.common.types.Types.{Features, SimulationId}
 
+import java.util.logging.Logger
 import scala.concurrent.Future
 
 final case class EnvironmentState(
     actionizerState: ActionizerState,
     infoAggregatorState: InfoAggregatorState,
     orderBookFeaturizerState: OrderBookVectorizerState,
-    timeSeriesFeaturizerState: TimeSeriesVectorizerState,
+    timeSeriesFeaturizerState: TimeSeriesVectorizerState
 ) extends State[EnvironmentState] {
   override val companion = EnvironmentState
 
@@ -33,7 +34,7 @@ final case class EnvironmentState(
       actionizerState.createSnapshot,
       infoAggregatorState.createSnapshot,
       orderBookFeaturizerState.createSnapshot,
-      timeSeriesFeaturizerState.createSnapshot,
+      timeSeriesFeaturizerState.createSnapshot
     )
 
 }
@@ -46,7 +47,7 @@ object EnvironmentState extends StateCompanion[EnvironmentState] {
       simulationMetadata.actionizer.actionizerState.create,
       InfoAggregatorState.create,
       OrderBookVectorizerState.create,
-      TimeSeriesVectorizerState.create,
+      TimeSeriesVectorizerState.create
     )
 
   override def fromSnapshot(snapshot: EnvironmentState): EnvironmentState = {
@@ -54,22 +55,27 @@ object EnvironmentState extends StateCompanion[EnvironmentState] {
       snapshot.actionizerState.companion.fromSnapshot(snapshot.actionizerState),
       InfoAggregatorState.fromSnapshot(snapshot.infoAggregatorState),
       OrderBookVectorizerState.fromSnapshot(snapshot.orderBookFeaturizerState),
-      TimeSeriesVectorizerState.fromSnapshot(snapshot.timeSeriesFeaturizerState),
+      TimeSeriesVectorizerState.fromSnapshot(snapshot.timeSeriesFeaturizerState)
     )
   }
 }
 
 object Environment extends EnvironmentService {
   private val logger = Logger.getLogger(Environment.toString)
+  logger.setLevel(logLevel)
 
   override def executeAction(actionRequest: ActionRequest): Future[Order] = {
-    implicit val simulationState =
+    val simulationState =
       SimulationState.getOrFail(actionRequest.simulationId.get)
     implicit val infoAggregatorState =
       simulationState.environmentState.infoAggregatorState
-    val action = Actionizer
-      .fromProto(actionRequest.actionizer)
-      .construct(actionRequest.actorOutput)
+    val actionizer = Actionizer.fromProto(actionRequest.actionizer)
+    val action = if(actionRequest.updateOnly) {
+      actionizer.update(actionRequest.actorOutput)(simulationState)
+      new NoTransaction
+    } else {
+      actionizer.updateAndConstruct(actionRequest.actorOutput)(simulationState)
+    }
 
     action match {
       case action: LimitOrderTransaction if action.side.isbuy =>
@@ -153,7 +159,7 @@ object Environment extends EnvironmentService {
     Future.successful(
       Info(
         actionizerState =
-          simulationState.environmentState.actionizerState.getState,
+          simulationState.environmentState.actionizerState.toSealedOneOf,
         infoDict =
           Some(simulationState.environmentState.infoAggregatorState.infoDict)
       )

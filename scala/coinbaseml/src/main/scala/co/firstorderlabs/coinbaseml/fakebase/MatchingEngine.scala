@@ -1,28 +1,15 @@
 package co.firstorderlabs.coinbaseml.fakebase
 
+import co.firstorderlabs.coinbaseml.common.Configs.logLevel
+
 import java.math.{BigDecimal, RoundingMode}
 import java.util.UUID
 import java.util.logging.Logger
-
 import co.firstorderlabs.coinbaseml.fakebase.Types.Exceptions.SelfTrade
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
 import co.firstorderlabs.common.currency.Configs.ProductPrice
-import co.firstorderlabs.common.currency.Configs.ProductPrice.{
-  ProductVolume,
-  QuoteVolume
-}
-import co.firstorderlabs.common.protos.events.{
-  BuyLimitOrder,
-  BuyMarketOrder,
-  Cancellation,
-  DoneReason,
-  Liquidity,
-  Match,
-  OrderSide,
-  OrderStatus,
-  SellLimitOrder,
-  SellMarketOrder
-}
+import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, BuyMarketOrder, Cancellation, DoneReason, Liquidity, Match, OrderSide, OrderStatus, SellLimitOrder, SellMarketOrder}
 import co.firstorderlabs.common.types.Events._
 import co.firstorderlabs.common.types.Types._
 
@@ -87,6 +74,7 @@ object MatchingEngineState extends StateCompanion[MatchingEngineState] {
 
 object MatchingEngine {
   private val logger = Logger.getLogger(this.toString)
+  logger.setLevel(logLevel)
 
   def cancelOrder(order: OrderEvent)(implicit
       accountState: AccountState,

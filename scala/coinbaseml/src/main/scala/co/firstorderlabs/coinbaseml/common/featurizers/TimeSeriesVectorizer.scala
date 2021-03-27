@@ -1,24 +1,15 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
-import java.util.logging.Logger
+import co.firstorderlabs.coinbaseml.common.Configs.logLevel
 
+import java.util.logging.Logger
 import co.firstorderlabs.coinbaseml.common.featurizers.Aggregators._
 import co.firstorderlabs.coinbaseml.common.featurizers.TimeSeriesVectorizer.TimeSeriesFeature
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.ObservationRequest
-import co.firstorderlabs.common.protos.events.{
-  BuyLimitOrder,
-  Cancellation,
-  Match,
-  SellLimitOrder
-}
-import co.firstorderlabs.common.types.Events.{
-  Event,
-  OrderEvent,
-  SpecifiesPrice,
-  SpecifiesSize
-}
+import co.firstorderlabs.common.protos.events.{BuyLimitOrder, Cancellation, Match, SellLimitOrder}
+import co.firstorderlabs.common.types.Events.{Event, OrderEvent, SpecifiesPrice, SpecifiesSize}
 
 final case class TimeSeriesVectorizerState(
     featureBuffer: FiniteQueue[TimeSeriesFeature]
@@ -60,6 +51,7 @@ object TimeSeriesVectorizerState
 object TimeSeriesVectorizer extends VectorizerBase {
   type TimeSeriesFeature = List[Double]
   private val logger = Logger.getLogger(TimeSeriesVectorizer.toString)
+  logger.setLevel(logLevel)
   import co.firstorderlabs.coinbaseml.common.featurizers.Filters._
   import co.firstorderlabs.coinbaseml.common.featurizers.Mappers._
 

@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{SeqUtils, buildStepRequest, mean, std}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.OrdersData
@@ -14,7 +15,7 @@ import org.scalactic.TolerantNumerics
 import org.scalatest.funspec.AnyFunSpec
 
 class TestTimeSeriesFeaturizer extends AnyFunSpec {
-  Configs.testMode = true
+  testMode = true
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(1e-10)
   val prices =
     List(new ProductPrice(Right("900.00")), new ProductPrice(Right("901.00")))

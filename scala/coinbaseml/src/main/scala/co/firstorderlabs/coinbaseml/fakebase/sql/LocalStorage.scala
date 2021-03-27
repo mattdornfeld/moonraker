@@ -1,27 +1,18 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 
+import co.firstorderlabs.coinbaseml.common.Configs.{logLevel, testMode}
+
 import java.io._
 import java.nio.file.Files
 import java.util
 import java.util.logging.Logger
-
 import co.firstorderlabs.coinbaseml.fakebase.Configs
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SQLConfigs}
 import co.firstorderlabs.common.types.Types.TimeInterval
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper
 import com.google.cloud.storage.{BlobInfo, StorageOptions}
-import org.rocksdb.{
-  ColumnFamilyDescriptor,
-  ColumnFamilyHandle,
-  ColumnFamilyOptions,
-  DBOptions,
-  EnvOptions,
-  IngestExternalFileOptions,
-  Options,
-  RocksDB,
-  SstFileWriter
-}
+import org.rocksdb.{ColumnFamilyDescriptor, ColumnFamilyHandle, ColumnFamilyOptions, DBOptions, EnvOptions, IngestExternalFileOptions, Options, RocksDB, SstFileWriter}
 
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
@@ -31,7 +22,7 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
   */
 object CloudStorage {
   private val gcsStorage =
-    if (Configs.testMode) LocalStorageHelper.getOptions.getService
+    if (testMode) LocalStorageHelper.getOptions.getService
     else
       StorageOptions.newBuilder
         .setCredentials(
@@ -49,7 +40,7 @@ object CloudStorage {
     */
   @throws[IllegalStateException]
   def clear: Unit = {
-    if (!Configs.testMode)
+    if (!testMode)
       throw new IllegalStateException(
         "This method can only be called by unit tests. Do you really want to delete prod data? " +
           "This is how you delete prod data."
@@ -103,6 +94,7 @@ object LocalStorage {
   RocksDB.loadLibrary()
 
   private val logger = Logger.getLogger(toString)
+  logger.setLevel(logLevel)
   private val ingestExternalFileOptions =
     (new IngestExternalFileOptions).setMoveFiles(true)
 
@@ -129,7 +121,7 @@ object LocalStorage {
     .setCreateIfMissing(true)
     .setCreateMissingColumnFamilies(true)
 
-  val rocksDbDir = if (Configs.testMode || Configs.localMode) {
+  val rocksDbDir = if (testMode || Configs.localMode) {
     val dir = Files.createTempDirectory("coinbaseml_local_storage_").toFile
     dir.deleteOnExit
     dir.getAbsolutePath

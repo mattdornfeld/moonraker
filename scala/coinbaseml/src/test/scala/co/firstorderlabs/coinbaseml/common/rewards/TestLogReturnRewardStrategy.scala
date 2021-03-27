@@ -1,5 +1,6 @@
 package co.firstorderlabs.coinbaseml.common.rewards
 
+import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{buildStepRequest, doubleEquality}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{getResult, logEpsilon}
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
@@ -8,7 +9,7 @@ import co.firstorderlabs.common.protos.fakebase.CancellationRequest
 import org.scalatest.funspec.AnyFunSpec
 
 class TestLogReturnRewardStrategy extends AnyFunSpec{
-  Configs.testMode = true
+  testMode = true
 
   describe("LogReturnRewardStrategy") {
     it("The reward calculated should be the log of the ratio of portfolio values " +

@@ -24,15 +24,13 @@ from ray.tune.suggest import Searcher
 
 import coinbase_ml.common.constants as c
 from coinbase_ml.common.actionizers import Actionizer
-from coinbase_ml.common.protos.environment_pb2 import (
-    Actionizer as ActionizerProto,
-    InfoDictKey,
-)
+from coinbase_ml.common.protos.actionizers_pb2 import Actionizer as ActionizerProto
+from coinbase_ml.common.protos.environment_pb2 import InfoDictKey
 from coinbase_ml.common.types import SimulationId
 from coinbase_ml.fakebase.protos import fakebase_pb2
 
 if TYPE_CHECKING:
-    import coinbase_ml.common.protos.environment_pb2 as environment_pb2
+    import coinbase_ml.common.protos.actionizers_pb2 as actionizers_pb2
     import coinbase_ml.train.environment as environment
 
 EVALUATION_EPISODES: List[MultiAgentEpisode] = []
@@ -96,7 +94,7 @@ class Callbacks(DefaultCallbacks):
         return {**episode_values_mean, **episode_values_max, **episode_values_min}
 
     def _format_action_histogram(
-        self, actionizer: "environment_pb2.ActionizerValue"
+        self, actionizer: "actionizers_pb2.ActionizerValue"
     ) -> str:
         action_dim = self._actions[0].shape[0]
         action_histogram = "\n"
