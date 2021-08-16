@@ -20,6 +20,8 @@ from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.rllib.policy import Policy
 from ray.rllib.utils.typing import PolicyID
+from ray import tune  # pylint: disable=unused-import
+from ray.tune.sample import Sampler
 from ray.tune.suggest import Searcher
 
 import coinbase_ml.common.constants as c
@@ -239,3 +241,7 @@ def get_search_algorithm(
 def register_custom_model(model_name: str) -> None:
     model: Type[TFModelV2] = _import_object(model_name)
     ModelCatalog.register_custom_model(model_name, model)
+
+
+def eval_tune_config(tune_config: Dict[str, str]) -> Dict[str, Sampler]:
+    return {k: eval(v) for k, v in tune_config.items()}  # pylint: disable=eval-used

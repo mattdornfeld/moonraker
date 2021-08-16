@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from dateutil.parser import parse
 
+from coinbase_ml.common.constants.tune import SearchAlgorithms, OptimizationMode
 from coinbase_ml.common.protos.environment_pb2 import (
     InfoDictKey,
     RewardStrategy,
@@ -51,8 +52,8 @@ def bollinger_on_book_volume_dev():
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
 
     num_samples = 5
-    optimization_mode = "max"
-    search_algorithm = "ray.tune.suggest.hyperopt.HyperOptSearch"
+    optimization_mode = OptimizationMode.MAX
+    search_algorithm = SearchAlgorithms.HYPER_OPT_SEARCH
     search_algorithm_config = {"metric": result_metric, "mode": optimization_mode}
     tune_config = {
         "bollingerBandSize": "tune.uniform(0.0, 2.0)",
@@ -100,8 +101,8 @@ def bollinger_on_book_volume_staging():
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
 
     num_samples = 100
-    optimization_mode = "max"
-    search_algorithm = "ray.tune.suggest.hyperopt.HyperOptSearch"
+    optimization_mode = OptimizationMode.MAX
+    search_algorithm = SearchAlgorithms.HYPER_OPT_SEARCH
     search_algorithm_config = {"metric": result_metric, "mode": optimization_mode}
     tune_config = {
         "bollingerBandSize": "tune.uniform(0.0, 2.0)",
