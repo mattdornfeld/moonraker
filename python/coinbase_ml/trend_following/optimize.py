@@ -9,7 +9,11 @@ from ray.tune import CLIReporter, ExperimentAnalysis
 from ray.tune.sample import Sampler
 from sacred.run import Run
 
-from coinbase_ml.common.utils.ray_utils import get_search_algorithm, ray_init
+from coinbase_ml.common.utils.ray_utils import (
+    get_search_algorithm,
+    ray_init,
+    eval_tune_config,
+)
 from coinbase_ml.common.utils.time_utils import TimeInterval
 from coinbase_ml.fakebase.exchange import Exchange
 from coinbase_ml.trend_following.constants import (
@@ -85,10 +89,7 @@ def optimize(
 ) -> float:
     try:
         ray_init()
-        # run_function_on_each_ray_node(populate_storage.run, sys.argv[1:])
-        _tune_config: Dict[str, Sampler] = {
-            k: eval(v) for k, v in tune_config.items()  # pylint: disable=eval-used
-        }
+        _tune_config: Dict[str, Sampler] = eval_tune_config(tune_config)
 
         command_line_args = sys.argv[1:]
         experiment_analysis: Optional[ExperimentAnalysis] = None

@@ -44,7 +44,11 @@ INSTALL_REQUIRES = [
     "sacred",
     "ray[rllib,tune]==1.2.0",
     "tensorflow==2.0.0",
+    "vectorbt~=0.20.0",
     "kafka-python>=1.4.7,<2.0.0",
+    "types-python-dateutil",
+    "types-requests",
+    "types-protobuf",
 ]
 
 SCRIPTS = [
@@ -67,6 +71,7 @@ TESTS_REQUIRE = [
     "pytest-cases>=1.11.1,<1.13.0",
     "pytest-mypy>=0.4.0,<0.5.0",
     "pytest-pylint>=0.14.1,<0.15",
+    "pylint < 3.0.0",
     "wrapt==1.11.2",
 ]
 

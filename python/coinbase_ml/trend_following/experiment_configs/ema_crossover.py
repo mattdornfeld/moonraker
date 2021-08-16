@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from dateutil.parser import parse
 
+from coinbase_ml.common.constants.tune import OptimizationMode, SearchAlgorithms
 from coinbase_ml.common.protos.environment_pb2 import (
     InfoDictKey,
     RewardStrategy,
@@ -52,8 +53,8 @@ def ema_crossover_dev():
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
 
     num_samples = 10
-    optimization_mode = "max"
-    search_algorithm = "ray.tune.suggest.hyperopt.HyperOptSearch"
+    optimization_mode = OptimizationMode.MAX
+    search_algorithm = SearchAlgorithms.HYPER_OPT_SEARCH
     search_algorithm_config = {"metric": result_metric, "mode": optimization_mode}
     tune_config = {
         "fastWindowSize": "tune.uniform(60, 480)",
@@ -100,8 +101,8 @@ def ema_crossover_staging():
     reward_strategy = RewardStrategy.Name(RewardStrategy.LogReturnRewardStrategy)
 
     num_samples = 100
-    optimization_mode = "max"
-    search_algorithm = "ray.tune.suggest.hyperopt.HyperOptSearch"
+    optimization_mode = OptimizationMode.MAX
+    search_algorithm = SearchAlgorithms.HYPER_OPT_SEARCH
     search_algorithm_config = {"metric": result_metric, "mode": optimization_mode}
     tune_config = {
         "fastWindowSize": "tune.uniform(60, 480)",
