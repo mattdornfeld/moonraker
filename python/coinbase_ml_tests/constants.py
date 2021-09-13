@@ -6,11 +6,11 @@ import os
 
 from dateutil import parser
 
+from coinbase_ml.common import constants as cc
+from coinbase_ml.common.featurizers import build_featurizer_configs
 from coinbase_ml.common.protos.actionizers_pb2 import Actionizer
-from coinbase_ml.common.protos.environment_pb2 import (
-    Featurizer,
-    RewardStrategy,
-)
+from coinbase_ml.common.protos.environment_pb2 import RewardStrategy
+from coinbase_ml.common.protos.featurizers_pb2 import Featurizer
 from coinbase_ml.fakebase.types import (
     Currency,
     OrderId,
@@ -59,6 +59,9 @@ TEST_WALLET_PRODUCT_FUNDS = TEST_PRODUCT_TYPE("10.0")
 TEST_WALLET_QUOTE_FUNDS = TEST_QUOTE_TYPE("100000.00")
 ACTIONIZER = Actionizer.SignalPositionSize
 FEATURIZER = Featurizer.TimeSeriesOrderBook
+FEATURIZER_CONFIGS = build_featurizer_configs(
+    FEATURIZER, {"featureBufferSize": 3, "orderBookDepth": cc.ORDER_BOOK_DEPTH,},
+)
 REWARD_STRATEGY = RewardStrategy.ReturnRewardStrategy
 
 POSTGRES_CONTAINER_NAME = "coinbase_ml_tests_postgres"

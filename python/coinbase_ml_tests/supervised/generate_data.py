@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
+from coinbase_ml.supervised.types import Prices
+
 
 def generate_prices(
     mu: float,
@@ -14,7 +16,7 @@ def generate_prices(
     time_interval: float,
     dt: float,
     seed: int = 0,
-) -> pd.Series:
+) -> Prices:
     """Generates a prices time series from a Geometric Brownian Motion process
     """
     np.random.seed(seed)
@@ -29,7 +31,7 @@ def generate_prices(
         (mu - 0.5 * sigma ** 2) * timesteps + sigma * brownian_motion
     )
 
-    return pd.Series(geometric_brownian_motion)
+    return Prices(pd.Series(geometric_brownian_motion))
 
 
 def generate_prices_for_timestamps(
@@ -40,7 +42,7 @@ def generate_prices_for_timestamps(
     end_time: datetime,
     time_delta: timedelta,
     seed: int = 0,
-) -> pd.Series:
+) -> Prices:
     """Like `generate_prices` but used pd.Timestamps as indices
     """
     timestamps = pd.date_range(start=start_time, end=end_time, freq=time_delta)
@@ -48,7 +50,7 @@ def generate_prices_for_timestamps(
     prices = generate_prices(mu, sigma, start_price, time_interval, 1, seed)
     prices.index = timestamps[:-1]
 
-    return prices
+    return Prices(prices)
 
 
 def generate_prices_for_timestamps_starting_now(
@@ -58,7 +60,7 @@ def generate_prices_for_timestamps_starting_now(
     num_timesteps: int,
     time_delta: timedelta = timedelta(seconds=60),
     seed: int = 0,
-) -> pd.Series:
+) -> Prices:
     """Like `generate_prices_for_timestamps` but first index will be current timestamp
     """
     start_time = datetime.now()

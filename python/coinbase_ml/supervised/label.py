@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 
 from coinbase_ml.common.utils.validate_args import validate_args
-from coinbase_ml.supervised.constants import Labels, Columns
+from coinbase_ml.supervised.constants import Labels, Columns, MAX_TIMESTAMP
+from coinbase_ml.supervised.types import Prices, Returns, Volatility, CumalativeReturns
 
 
 def get_barrier_time_from_iloc(
@@ -28,23 +29,33 @@ def with_barrier_time(
 
 @validate_args(**{"t1,t2": lambda t1, t2: t2 > t1})
 def calc_cumalative_returns(
-    returns: pd.Series, t1: pd.Timestamp, t2: pd.Timestamp
-) -> pd.Series:
+    returns: Returns, t1: pd.Timestamp, t2: pd.Timestamp
+) -> CumalativeReturns:
     """Returns the cumulative returns between timestamps t1 and 2
     """
-    return returns[t1:t2].cumsum()
+    return CumalativeReturns(returns[t1:t2].cumsum())  # type: ignore
 
 
-def calc_volatility(prices: pd.Series, span: int = 100) -> pd.Series:
+def calc_volatility(prices: Prices, span: int = 100) -> Volatility:
     """Returns the exponential moving std for 'prices' for a window size of 'span'
     """
     prices.fillna(method="ffill", inplace=True)
+    returns = calc_returns(prices)
+    return Volatility(returns.ewm(span=span).std())
+
+
+def calc_returns(prices: Prices) -> Returns:
+    """Calc returns for prices Series
+    """
     returns = prices.pct_change()
-    return returns.ewm(span=span).std()
+    if isinstance(returns, pd.Series):
+        return Returns(returns)
+
+    raise TypeError(f"prices has unsupported type {type(prices)}")
 
 
 def calc_breakout_direction(
-    cumulative_returns: pd.Series, upper_barrier: float, lower_barrier: float
+    cumulative_returns: CumalativeReturns, upper_barrier: float, lower_barrier: float
 ) -> float:
     """Generates long/short labels based on behavior of `cumulative_returns`
 
@@ -58,8 +69,8 @@ def calc_breakout_direction(
     first_lower_breakout = cumulative_returns[
         cumulative_returns.le(lower_barrier)
     ].first_valid_index()
-    u = pd.Timestamp.max if first_upper_breakout is None else first_upper_breakout
-    l = pd.Timestamp.max if first_lower_breakout is None else first_lower_breakout
+    u = MAX_TIMESTAMP if first_upper_breakout is None else first_upper_breakout
+    l = MAX_TIMESTAMP if first_lower_breakout is None else first_lower_breakout
 
     label: float
     if u < l:
@@ -74,7 +85,7 @@ def calc_breakout_direction(
 
 @validate_args(**{"time,barrier_time": lambda t1, t2: t2 > t1})
 def calc_triple_barrier_label(
-    returns: pd.Series,
+    returns: Returns,
     upper_barrier: float,
     lower_barrier: float,
     time: pd.Timestamp,
@@ -97,8 +108,8 @@ def calc_triple_barrier_label(
 
 
 def calc_skewed_triple_barrier_label_and_barriers(
-    returns: pd.Series,
-    volatility: pd.Series,
+    returns: Returns,
+    volatility: Volatility,
     time: pd.Timestamp,
     barrier_time: pd.Timestamp,
     upside_std_dev: float,
@@ -119,8 +130,8 @@ def calc_skewed_triple_barrier_label_and_barriers(
 
 @validate_args(std_dev=lambda x: x > 0)
 def calc_triple_barrier_label_and_barriers(
-    returns: pd.Series,
-    volatility: pd.Series,
+    returns: Returns,
+    volatility: Volatility,
     time: pd.Timestamp,
     barrier_time: pd.Timestamp,
     std_dev: float,
@@ -135,13 +146,13 @@ def calc_triple_barrier_label_and_barriers(
 
 
 @validate_args(
-    prices=lambda x: isinstance(x.index, pd.DatetimeIndex),
+    prices=lambda x: isinstance(x.index, pd.DatetimeIndex) and x.index.is_monotonic,
     barrier_time=lambda x: x >= 1,
     std_dev=lambda x: x > 0,
     span=lambda x: x > 0,
 )
 def calc_triple_barrier_labels_and_barriers(
-    prices: pd.Series, barrier_time_steps: int, std_dev: float = 2.5, span: int = 100
+    prices: Prices, barrier_time_steps: int, std_dev: float = 2.5, span: int = 100
 ) -> pd.DataFrame:
     """Calculates triple barrier labels and barriers
 
@@ -153,10 +164,12 @@ def calc_triple_barrier_labels_and_barriers(
         columns=[Columns.LABEL, Columns.UPPER_BARRIER, Columns.LOWER_BARRIER],
     )
 
-    returns = prices.pct_change()
+    returns = calc_returns(prices)
     volatility = calc_volatility(prices, span)
 
-    for time, barrier_time in with_barrier_time(prices.index, barrier_time_steps):
+    for time, barrier_time in with_barrier_time(
+        pd.DatetimeIndex(prices.index), barrier_time_steps
+    ):
         (
             labels_and_barriers[Columns.LABEL][time],
             labels_and_barriers[Columns.UPPER_BARRIER][time],

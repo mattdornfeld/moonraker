@@ -1,7 +1,10 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
 import co.firstorderlabs.coinbaseml.common.Configs.testMode
-import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{buildStepRequest, doubleEquality}
+import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{
+  buildStepRequest,
+  doubleEquality
+}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData._
 import co.firstorderlabs.coinbaseml.fakebase.{TestUtils, _}
@@ -16,12 +19,17 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
   testMode = true
   val productVolume = new ProductVolume(Right("1.00"))
   val zerosArray =
-    OrderBookVectorizer.getArrayOfZeros(orderBooksRequest(SimulationId("test")).orderBookDepth, 4)
+    OrderBookVectorizer.getArrayOfZeros(
+      orderBooksRequest(SimulationId("test")).orderBookDepth,
+      4
+    )
 
   def placeOrders(
       maxBuyPrice: ProductPrice = new ProductPrice(Right("902.00")),
-      maxSellPrice: ProductPrice = new ProductPrice(Right("1002.00")),
-  )(implicit simulationMetadata: SimulationMetadata): (List[Order], List[Order]) = {
+      maxSellPrice: ProductPrice = new ProductPrice(Right("1002.00"))
+  )(implicit
+      simulationMetadata: SimulationMetadata
+  ): (List[Order], List[Order]) = {
     val buyOrders = TestUtils
       .generateOrdersForRangeOfPrices(
         new ProductPrice(Right("1.00")),
@@ -54,21 +62,30 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
         "of the array returned from OrderBookFeaturizer.getBestBidsAsksArrayOverTime. This is because the order book is not" +
         "changing so the features associated with the order book are not changing."
     ) {
-      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
-      val simulationState = SimulationState.getOrFail(simulationId)
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      implicit val simulationState = SimulationState.getOrFail(simulationId)
       implicit val simulationMetadata = simulationState.simulationMetadata
       implicit val matchingEngineState = simulationState.matchingEngineState
-      implicit val orderBookFeaturizerState = simulationState.environmentState.orderBookFeaturizerState
+      implicit val featurizerState =
+        OrderBookVectorizer.featurizerState
+      implicit val orderBookVectorizerState =
+        featurizerState.orderBookVectorizerState
 
       val (buyOrders, sellOrders) = placeOrders()
 
-      Exchange.step(simulationId.toStepRequest.update(_.insertOrders := buyOrders ++ sellOrders))
+      Exchange.step(
+        simulationId.toStepRequest
+          .update(_.insertOrders := buyOrders ++ sellOrders)
+      )
 
       val bestBidsAsksOverTime =
         OrderBookVectorizer.getBestBidsAsksArrayOverTime(
           orderBooksRequest(simulationId).orderBookDepth
         )
-      val bestBidsAsks = OrderBookVectorizer.getBestBidsAsksArray(orderBooksRequest(simulationId).orderBookDepth)
+      val bestBidsAsks = OrderBookVectorizer.getBestBidsAsksArray(
+        orderBooksRequest(simulationId).orderBookDepth
+      )
 
       assert(!(bestBidsAsks sameElements zerosArray))
       assert(bestBidsAsks sameElements bestBidsAsksOverTime(0))
@@ -91,18 +108,25 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
       "When orders are placed on the order book then cancelled in the next simulation step, the 0th element of the array" +
         "returned from OrderBookFeaturizer.getBestBidsAsksArrayOverTime should be a 2D array with all zeros as entries."
     ) {
-      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
-      val simulationState = SimulationState.getOrFail(simulationId)
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      implicit val simulationState = SimulationState.getOrFail(simulationId)
       implicit val accountState = simulationState.accountState
       implicit val simulationMetadata = simulationState.simulationMetadata
       implicit val matchingEngineState = simulationState.matchingEngineState
-      implicit val orderBookFeaturizerState = simulationState.environmentState.orderBookFeaturizerState
+      implicit val orderBookFeaturizerState =
+        OrderBookVectorizer.featurizerState.orderBookVectorizerState
 
       val (buyOrders, sellOrders) = placeOrders()
 
-      Exchange.step(simulationId.toStepRequest.update(_.insertOrders := buyOrders ++ sellOrders))
+      Exchange.step(
+        simulationId.toStepRequest
+          .update(_.insertOrders := buyOrders ++ sellOrders)
+      )
 
-      val bestBidsAsks = OrderBookVectorizer.getBestBidsAsksArray(orderBooksRequest(simulationId).orderBookDepth)
+      val bestBidsAsks = OrderBookVectorizer.getBestBidsAsksArray(
+        orderBooksRequest(simulationId).orderBookDepth
+      )
 
       List(OrderSide.buy, OrderSide.sell).foreach { orderSide =>
         OrderBook
@@ -128,15 +152,21 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
         "and ask prices on the buy and sell order books. The rows in the array should be ordered in descending order," +
         "where the best bids and asks are in the top rows."
     ) {
-      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
       val simulationState = SimulationState.getOrFail(simulationId)
       implicit val simulationMetadata = simulationState.simulationMetadata
       implicit val matchingEngineState = simulationState.matchingEngineState
       val (buyOrders, sellOrders) = placeOrders()
 
-      Exchange.step(simulationId.toStepRequest.update(_.insertOrders := buyOrders ++ sellOrders))
+      Exchange.step(
+        simulationId.toStepRequest
+          .update(_.insertOrders := buyOrders ++ sellOrders)
+      )
 
-      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(orderBooksRequest(simulationId).orderBookDepth)
+      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(
+        orderBooksRequest(simulationId).orderBookDepth
+      )
 
       val expectedSellFeatures = sellOrders
         .map(order =>
@@ -179,14 +209,18 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
       "When two orders are placed on the order book at the same price in separate time steps, the volume component of the" +
         "array should be the sum of the sizes of the orders."
     ) {
-      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
-      implicit val matchingEngineState = SimulationState.getMatchingEngineStateOrFail(simulationId)
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      implicit val matchingEngineState =
+        SimulationState.getMatchingEngineStateOrFail(simulationId)
       val _buyLimitOrderRequest = buyLimitOrderRequest(simulationId)
       Range(0, 2).foreach { _ =>
         Account.placeBuyLimitOrder(_buyLimitOrderRequest)
         Exchange.step(buildStepRequest(simulationId))
       }
-      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(orderBooksRequest(simulationId).orderBookDepth)
+      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(
+        orderBooksRequest(simulationId).orderBookDepth
+      )
 
       bestBidsAsksArray(0)(2) === _buyLimitOrderRequest.price.toDouble
       bestBidsAsksArray(0)(3) === 2.0 * _buyLimitOrderRequest.size.toDouble
@@ -197,20 +231,26 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
         "The first elements of the array should be equal to the elements returned by OrderBookFeaturizer.getBestBidsAsksArray." +
         "The latter elements should be all 0.0 "
     ) {
-      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
       implicit val simulationState = SimulationState.getOrFail(simulationId)
       implicit val simulationMetadata = simulationState.simulationMetadata
       implicit val matchingEngineState = simulationState.matchingEngineState
       val (buyOrders, sellOrders) = placeOrders()
 
-      Exchange.step(simulationId.toStepRequest.update(_.insertOrders := buyOrders ++ sellOrders))
+      Exchange.step(
+        simulationId.toStepRequest
+          .update(_.insertOrders := buyOrders ++ sellOrders)
+      )
 
       val orderBookFeatures =
-        OrderBookVectorizer.construct(new ObservationRequest(10))
-      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(orderBooksRequest(simulationId).orderBookDepth)
+        OrderBookVectorizer.construct(observationRequest)
+      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(
+        orderBooksRequest(simulationId).orderBookDepth
+      )
 
       assert(
-        4 * orderBooksRequest(simulationId).orderBookDepth * simulationMetadata.featureBufferSize == orderBookFeatures.size
+        4 * timeSeriesOrderBookConfigs.featureBufferSize * timeSeriesOrderBookConfigs.orderBookDepth == orderBookFeatures.size
       )
       assert(
         bestBidsAsksArray.flatten sameElements orderBookFeatures
@@ -227,18 +267,26 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
       "The first row returned by the OrderBookFeaturizer should contain the prices and volumes of the best bids and asks" +
         "on the order book."
     ) {
-      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
       implicit val simulationState = SimulationState.getOrFail(simulationId)
       implicit val simulationMetadata = simulationState.simulationMetadata
       implicit val matchingEngineState = simulationState.matchingEngineState
 
       val (buyOrders, sellOrders) = placeOrders()
 
-      Exchange.step(simulationId.toStepRequest.update(_.insertOrders := buyOrders ++ sellOrders))
+      Exchange.step(
+        simulationId.toStepRequest
+          .update(_.insertOrders := buyOrders ++ sellOrders)
+      )
 
-      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(orderBooksRequest(simulationId).orderBookDepth)
-      val bestBuyOrder = OrderBook.maxOrder(matchingEngineState.buyOrderBookState).get
-      val bestSellOrder = OrderBook.minOrder(matchingEngineState.sellOrderBookState).get
+      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(
+        orderBooksRequest(simulationId).orderBookDepth
+      )
+      val bestBuyOrder =
+        OrderBook.maxOrder(matchingEngineState.buyOrderBookState).get
+      val bestSellOrder =
+        OrderBook.minOrder(matchingEngineState.sellOrderBookState).get
 
       assert(bestBidsAsksArray(0)(0) === bestSellOrder.price.toDouble)
       assert(bestBidsAsksArray(0)(1) === bestSellOrder.size.toDouble)
@@ -246,8 +294,11 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
       assert(bestBidsAsksArray(0)(3) === bestBuyOrder.size.toDouble)
     }
 
-    it("The arrays returned by OrderBookFeaturizer are sorted in order by the best bid and ask prices") {
-      val simulationId = getResult(Exchange.start(simulationStartRequest)).simulationId.get
+    it(
+      "The arrays returned by OrderBookFeaturizer are sorted in order by the best bid and ask prices"
+    ) {
+      val simulationId =
+        getResult(Exchange.start(simulationStartRequest)).simulationId.get
       implicit val simulationState = SimulationState.getOrFail(simulationId)
       implicit val simulationMetadata = simulationState.simulationMetadata
       implicit val matchingEngineState = simulationState.matchingEngineState
@@ -257,9 +308,13 @@ class TestOrderBookFeaturizer extends AnyFunSpec {
         new ProductPrice(Right("1011.00"))
       )
 
-      Exchange.step(simulationId.toStepRequest.update(_.insertOrders := sellOrders))
+      Exchange.step(
+        simulationId.toStepRequest.update(_.insertOrders := sellOrders)
+      )
 
-      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(orderBooksRequest(simulationId).orderBookDepth)
+      val bestBidsAsksArray = OrderBookVectorizer.getBestBidsAsksArray(
+        orderBooksRequest(simulationId).orderBookDepth
+      )
 
       val buyPrices = bestBidsAsksArray.map(row => row(2))
       val sellPrices = bestBidsAsksArray.map(row => row(0))

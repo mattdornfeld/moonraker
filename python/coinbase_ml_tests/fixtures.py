@@ -23,12 +23,12 @@ def create_exchange() -> Tuple[Account, Exchange, SimulationId]:
         actionizer=tc.ACTIONIZER,
         end_dt=tc.EXCHANGE_END_DT,
         featurizer=tc.FEATURIZER,
+        featurizer_configs=tc.FEATURIZER_CONFIGS,
         initial_product_funds=tc.TEST_WALLET_PRODUCT_FUNDS,
         initial_quote_funds=tc.TEST_WALLET_QUOTE_FUNDS,
         num_warmup_time_steps=0,
         product_id=tc.PRODUCT_ID,
         reward_strategy=tc.REWARD_STRATEGY,
-        snapshot_buffer_size=3,
         start_dt=tc.EXCHANGE_START_DT,
         time_delta=tc.EXCHANGE_TIME_DELTA,
     ).simulation_id

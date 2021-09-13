@@ -1,13 +1,17 @@
 package co.firstorderlabs.coinbaseml.common.featurizers
 
 import co.firstorderlabs.coinbaseml.common.Configs.logLevel
-
-import java.util.logging.Logger
-import co.firstorderlabs.coinbaseml.common.featurizers.OrderBookVectorizer.OrderBookFeature
+import co.firstorderlabs.coinbaseml.common.featurizers.OrderBookVectorizer.{
+  OrderBookFeature,
+  getFeaturizerConfigs
+}
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.common.utils.Utils.When
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.ObservationRequest
+import co.firstorderlabs.common.types.Featurizers.OrderBookVectorizerConfigs
+
+import java.util.logging.Logger
 
 final case class OrderBookVectorizerState(
     featureBuffer: FiniteQueue[OrderBookFeature]
@@ -17,7 +21,8 @@ final case class OrderBookVectorizerState(
   override def createSnapshot(implicit
       simulationState: SimulationState
   ): OrderBookVectorizerState = {
-    val orderBookFeaturizerState = OrderBookVectorizerState.create(simulationState.simulationMetadata)
+    val orderBookFeaturizerState =
+      OrderBookVectorizerState.create(simulationState.simulationMetadata)
     orderBookFeaturizerState.featureBuffer.addAll(featureBuffer.iterator)
     orderBookFeaturizerState
   }
@@ -30,7 +35,11 @@ object OrderBookVectorizerState
       simulationMetadata: SimulationMetadata
   ): OrderBookVectorizerState =
     OrderBookVectorizerState(
-      new FiniteQueue[OrderBookFeature](simulationMetadata.featureBufferSize)
+      new FiniteQueue[OrderBookFeature](
+        getFeaturizerConfigs(
+          simulationMetadata.observationRequest
+        ).featureBufferSize
+      )
     )
 
   override def fromSnapshot(
@@ -50,6 +59,13 @@ object OrderBookVectorizer extends VectorizerBase {
   type OrderBookFeature = List[List[Double]]
   private val logger = Logger.getLogger(OrderBookVectorizer.toString)
   logger.setLevel(logLevel)
+
+  def getFeaturizerConfigs(
+      observationRequest: ObservationRequest
+  ): OrderBookVectorizerConfigs =
+    observationRequest.featurizerConfigs match {
+      case featurizerConfigs: OrderBookVectorizerConfigs => featurizerConfigs
+    }
 
   def getArrayOfZeros(height: Int, width: Int): OrderBookFeature = {
     (for (_ <- 0 until height) yield List.fill(width)(0.0)).toList
@@ -103,21 +119,31 @@ object OrderBookVectorizer extends VectorizerBase {
       .padTo(orderBookDepth, (0.0, 0.0))
   }
 
+  def featurizerState(implicit
+      simulationState: SimulationState
+  ): HasOrderBookVectorizerState =
+    simulationState.environmentState.featurizerState match {
+      case featurizerState: HasOrderBookVectorizerState => featurizerState
+    }
+
   override def construct(
       observationRequest: ObservationRequest
-  )(implicit simulationState: SimulationState): List[Double] = {
+  )(implicit simulationState: SimulationState): List[Double] =
     getBestBidsAsksArrayOverTime(
-      observationRequest.orderBookDepth
-    )(simulationState.environmentState.orderBookFeaturizerState).flatten.flatten
-  }
+      getFeaturizerConfigs(observationRequest).orderBookDepth
+    )(featurizerState.orderBookVectorizerState).flatten.flatten
 
   override def step(implicit simulationState: SimulationState): Unit = {
-    val observationRequest = simulationState.simulationMetadata.observationRequest
+    val observationRequest =
+      simulationState.simulationMetadata.observationRequest
     val startTime = System.currentTimeMillis
-    simulationState.environmentState.orderBookFeaturizerState.featureBuffer enqueue getBestBidsAsksArray(
-      observationRequest.orderBookDepth,
-      observationRequest.normalize
-    )(simulationState.matchingEngineState)
+    simulationState.environmentState.featurizerState match {
+      case featurizerState: HasOrderBookVectorizerState =>
+        featurizerState.orderBookVectorizerState.featureBuffer enqueue getBestBidsAsksArray(
+          getFeaturizerConfigs(observationRequest).orderBookDepth,
+          observationRequest.normalize
+        )(simulationState.matchingEngineState)
+    }
     val endTime = System.currentTimeMillis
 
     logger.fine(s"OrderBookFeaturizer.step took ${endTime - startTime} ms")

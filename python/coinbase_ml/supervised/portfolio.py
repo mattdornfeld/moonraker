@@ -1,3 +1,6 @@
+"""Creates and evaluates a portfolio using vectorbt and the triple barrier labeling method
+"""
+
 import pandas as pd
 import vectorbt as vbt
 

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "actionizers.proto";
 import "events.proto";
+import "featurizers.proto";
 
 import "scalapb/scalapb.proto";
 
@@ -10,11 +11,6 @@ option (scalapb.options) = {
   preserve_unknown_fields: false
   package_name: "co.firstorderlabs.common.protos"
 };
-
-enum Featurizer {
-    TimeSeriesOrderBook = 0;
-    NoOp = 1;
-}
 
 enum InfoDictKey {
     buyFeesPaid = 0;
@@ -72,11 +68,11 @@ message InfoDictProto {
 }
 
 message ObservationRequest {
-    int32 orderBookDepth = 1;
     bool normalize = 2;
     RewardRequest rewardRequest = 3;
     SimulationId simulationId = 4;
     Featurizer featurizer = 5;
+    FeaturizerConfigs featurizerConfigs = 6;
 }
 
 message Feature {

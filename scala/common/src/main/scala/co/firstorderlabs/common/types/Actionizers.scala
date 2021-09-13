@@ -2,20 +2,24 @@ package co.firstorderlabs.common.types
 
 import co.firstorderlabs.common.protos.actionizers.{ActionizerConfigsMessage, ActionizerStateMessage, BollingerOnBookVolumeConfigs, BollingerOnBookVolumeState, EmaCrossOverConfigs, EmaCrossOverState, EntrySignalConfigs, EntrySignalState, NoOpActionizerConfigs, NoOpActionizerState, PositionSizeConfigs, PositionSizeState, SignalPositionSizeConfigs, SignalPositionSizeState, ActionizerConfigs => ActionizerConfigsSealedOneof, ActionizerState => ActionizerStateSealedOneof}
 import co.firstorderlabs.common.protos.indicators._
-import co.firstorderlabs.common.types.Utils.OptionUtils
 
 object Actionizers {
   trait ActionizerConfigs {
     def toSealedOneOf: ActionizerConfigsSealedOneof = {
-      val message = ActionizerConfigsMessage()
-      this match {
-        case configs: SignalPositionSizeConfigs => message.withSignalPositionSize(configs)
-        case configs: PositionSizeConfigs => message.withPositionSize(configs)
-        case configs: EntrySignalConfigs => message.withEntrySignal(configs)
-        case configs: EmaCrossOverConfigs => message.withEmaCrossOver(configs)
-        case configs: NoOpActionizerConfigs => message.withNoOpActionizer(configs)
-        case configs: BollingerOnBookVolumeConfigs => message.withBollingerOnBookVolume(configs)
-        case _ => throw new IllegalArgumentException(s"${this} is an unrecognized actionizer")
+      val message = this match {
+        case configs: SignalPositionSizeConfigs =>
+          ActionizerConfigsMessage().withSignalPositionSize(configs)
+        case configs: PositionSizeConfigs => ActionizerConfigsMessage().withPositionSize(configs)
+        case configs: EntrySignalConfigs  => ActionizerConfigsMessage().withEntrySignal(configs)
+        case configs: EmaCrossOverConfigs => ActionizerConfigsMessage().withEmaCrossOver(configs)
+        case configs: NoOpActionizerConfigs =>
+          ActionizerConfigsMessage().withNoOpActionizer(configs)
+        case configs: BollingerOnBookVolumeConfigs =>
+          ActionizerConfigsMessage().withBollingerOnBookVolume(configs)
+        case _ =>
+          throw new IllegalArgumentException(
+            s"${this} is an unrecognized actionizer"
+          )
       }
       message.toActionizerConfigs
     }

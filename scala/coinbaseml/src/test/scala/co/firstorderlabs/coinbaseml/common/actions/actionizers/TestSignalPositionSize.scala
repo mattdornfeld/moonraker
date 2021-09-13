@@ -128,7 +128,6 @@ class TestSignalPositionSize extends AnyFunSpec {
         initialProductVolume,
         new QuoteVolume(Right("00.00")),
         actionRequest = ActionRequest(actionizer=Actionizer.SignalPositionSize).some,
-        snapshotBufferSize = 3,
         observationRequest = Some(observationRequest)
       )
       List(0.1, 0.3, 0.9).foreach { positionSizeFraction =>
@@ -191,7 +190,6 @@ class TestSignalPositionSize extends AnyFunSpec {
         new ProductVolume(Right("0.000000")),
         new QuoteVolume(Right("1000.00")),
         actionRequest = ActionRequest(actionizer=Actionizer.SignalPositionSize).some,
-        snapshotBufferSize = 3,
         observationRequest = Some(observationRequest),
         stopInProgressSimulations = true
       )
@@ -219,7 +217,6 @@ class TestSignalPositionSize extends AnyFunSpec {
       new ProductVolume(Right("0.100000")),
       new QuoteVolume(Right("00.00")),
       actionRequest = ActionRequest(actionizer=Actionizer.SignalPositionSize).some,
-      snapshotBufferSize = 3,
       observationRequest = Some(observationRequest),
       stopInProgressSimulations = true
     )

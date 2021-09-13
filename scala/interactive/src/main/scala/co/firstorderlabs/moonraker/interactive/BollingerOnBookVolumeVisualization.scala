@@ -65,7 +65,6 @@ object BollingerOnBookVolumeVisualization extends App {
     numWarmUpSteps = 3,
     observationRequest = Some(new ObservationRequest),
     simulationType = SimulationType.evaluation,
-    snapshotBufferSize = 10,
     startTime = Instant.parse("2020-11-18T00:00:00.00Z"),
     stopInProgressSimulations = true,
     timeDelta = Some(Duration.ofSeconds(30))

@@ -41,7 +41,7 @@ class TestTimeSeriesFeaturizer extends AnyFunSpec {
       val features = TimeSeriesVectorizer.construct(observationRequest)
 
       assert(
-        features.size == simulationMetadata.featureBufferSize * TimeSeriesVectorizer.numChannels
+        features.size == timeSeriesOrderBookConfigs.featureBufferSize * TimeSeriesVectorizer.numChannels
       )
       assert(features.forall(_ == 0))
     }

@@ -11,6 +11,8 @@ PYTEST_IGNORE = --ignore=actionizers_pb2.py \
 	--ignore=environment_pb2_grpc.py \
 	--ignore=environment_pb2.py \
 	--ignore=environment_pb2_grpc.py \
+        --ignore=featurizers_pb2.py \
+        --ignore=featurizers_pb2_grpc.py \
 	--ignore=scalapb \
 	--ignore=validate \
 	--ignore=scala

@@ -2,16 +2,38 @@ package co.firstorderlabs.coinbaseml.common
 
 import co.firstorderlabs.coinbaseml.common.Configs.logLevel
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actionizer
-import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, LimitOrderTransaction, NoTransaction, SellMarketOrderTransaction}
+import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{
+  BuyMarketOrderTransaction,
+  LimitOrderTransaction,
+  NoTransaction,
+  SellMarketOrderTransaction
+}
 import co.firstorderlabs.coinbaseml.common.featurizers._
-import co.firstorderlabs.coinbaseml.common.rewards.{LogReturnRewardStrategy, ReturnRewardStrategy}
+import co.firstorderlabs.coinbaseml.common.rewards.{
+  LogReturnRewardStrategy,
+  ReturnRewardStrategy
+}
 import co.firstorderlabs.coinbaseml.common.types.Exceptions.UnrecognizedRewardStrategy
 import co.firstorderlabs.coinbaseml.common.utils.ArrowUtils.ArrowFeatures
 import co.firstorderlabs.coinbaseml.common.utils.Utils.getResult
 import co.firstorderlabs.coinbaseml.fakebase.utils.OrderUtils
-import co.firstorderlabs.coinbaseml.fakebase.{SimulationMetadata, SimulationState, State, StateCompanion}
+import co.firstorderlabs.coinbaseml.fakebase.{
+  SimulationMetadata,
+  SimulationState,
+  State,
+  StateCompanion
+}
 import co.firstorderlabs.common.protos.environment.EnvironmentServiceGrpc.EnvironmentService
-import co.firstorderlabs.common.protos.environment.{ActionRequest, Info, InfoDictKey, Observation, ObservationRequest, Reward, RewardRequest, RewardStrategy}
+import co.firstorderlabs.common.protos.environment.{
+  ActionRequest,
+  Info,
+  InfoDictKey,
+  Observation,
+  ObservationRequest,
+  Reward,
+  RewardRequest,
+  RewardStrategy
+}
 import co.firstorderlabs.common.protos.events.{Order, OrderMessage}
 import co.firstorderlabs.common.types.Actionizers.ActionizerState
 import co.firstorderlabs.common.types.Types.{Features, SimulationId}
@@ -22,8 +44,7 @@ import scala.concurrent.Future
 final case class EnvironmentState(
     actionizerState: ActionizerState,
     infoAggregatorState: InfoAggregatorState,
-    orderBookFeaturizerState: OrderBookVectorizerState,
-    timeSeriesFeaturizerState: TimeSeriesVectorizerState
+    featurizerState: FeaturizerStateBase
 ) extends State[EnvironmentState] {
   override val companion = EnvironmentState
 
@@ -33,8 +54,7 @@ final case class EnvironmentState(
     EnvironmentState(
       actionizerState.createSnapshot,
       infoAggregatorState.createSnapshot,
-      orderBookFeaturizerState.createSnapshot,
-      timeSeriesFeaturizerState.createSnapshot
+      featurizerState.createSnapshot
     )
 
 }
@@ -46,16 +66,14 @@ object EnvironmentState extends StateCompanion[EnvironmentState] {
     EnvironmentState(
       simulationMetadata.actionizer.actionizerState.create,
       InfoAggregatorState.create,
-      OrderBookVectorizerState.create,
-      TimeSeriesVectorizerState.create
+      FeaturizerStateBase.create
     )
 
   override def fromSnapshot(snapshot: EnvironmentState): EnvironmentState = {
     EnvironmentState(
       snapshot.actionizerState.companion.fromSnapshot(snapshot.actionizerState),
       InfoAggregatorState.fromSnapshot(snapshot.infoAggregatorState),
-      OrderBookVectorizerState.fromSnapshot(snapshot.orderBookFeaturizerState),
-      TimeSeriesVectorizerState.fromSnapshot(snapshot.timeSeriesFeaturizerState)
+      FeaturizerStateBase.fromSnapshot(snapshot.featurizerState)
     )
   }
 }
@@ -70,7 +88,7 @@ object Environment extends EnvironmentService {
     implicit val infoAggregatorState =
       simulationState.environmentState.infoAggregatorState
     val actionizer = Actionizer.fromProto(actionRequest.actionizer)
-    val action = if(actionRequest.updateOnly) {
+    val action = if (actionRequest.updateOnly) {
       actionizer.update(actionRequest.actorOutput)(simulationState)
       new NoTransaction
     } else {

@@ -33,22 +33,23 @@ INSTALL_REQUIRES = [
     "dnspython>=1.16.0, <2.0.0",
     "flask>=1.1.2, <2.0.0",
     "funcy>=1.11.0,<2.0.0",
-    "google-cloud-storage>=1.15.0,<2.0.0",
+    "google-cloud-bigquery[bqstorage,pandas]~=2.0",
+    "google-cloud-storage~=1.0",
     "hyperopt>=0.2.5,<0.3.0",
     "incense>=0.0.10",
     "nptyping>=1.3.0<2.0.0",
-    "pyarrow==1.0.1",
     "python-dateutil>=2.6.0,<3.0.0",
     "pytimeparse>=1.1.0,<2.0.0",
     "requests>=2.20.0,<3.0.0",
     "sacred",
     "ray[rllib,tune]==1.2.0",
     "tensorflow==2.0.0",
-    "vectorbt~=0.20.0",
+    "vectorbt~=0.21.0",
     "kafka-python>=1.4.7,<2.0.0",
     "types-python-dateutil",
     "types-requests",
     "types-protobuf",
+    "pandas-stubs",
 ]
 
 SCRIPTS = [
@@ -73,6 +74,8 @@ TESTS_REQUIRE = [
     "pytest-pylint>=0.14.1,<0.15",
     "pylint < 3.0.0",
     "wrapt==1.11.2",
+    "pytest-lazy-fixture",
+    "sqlvalidator",
 ]
 
 setup(
