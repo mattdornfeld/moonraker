@@ -8,6 +8,7 @@ PROTO_FILES=(actionizers.proto \
   environment.proto \
   events.proto \
   fakebase.proto \
+  featurizers.proto \
   indicators.proto \
   scalapb/scalapb.proto \
   validate/validate.proto)

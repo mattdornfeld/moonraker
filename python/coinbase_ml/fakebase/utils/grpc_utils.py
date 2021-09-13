@@ -39,7 +39,7 @@ def start_fakebase_server(
     Will also register process with the `atexit` module so that subprocess is terminated
     when parent process exits.
     """
-    # pylint: disable=consider-using-with
+    # pylint: disable=bad-option-value,consider-using-with
     process = Popen(
         [
             c.JAVA_BIN,
@@ -56,6 +56,7 @@ def start_fakebase_server(
             str(test_mode),
         ]
     )
+    # pylint: enable=bad-option-value,consider-using-with
 
     if terminate_automatically:
         register(lambda process: process.terminate(), process)

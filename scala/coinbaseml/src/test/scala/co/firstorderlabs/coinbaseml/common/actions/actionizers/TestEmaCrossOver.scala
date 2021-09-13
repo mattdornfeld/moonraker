@@ -4,13 +4,15 @@ import co.firstorderlabs.coinbaseml.common.Configs.testMode
 import co.firstorderlabs.coinbaseml.common.actions.actionizers.Actions.{BuyMarketOrderTransaction, SellMarketOrderTransaction}
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.DoubleUtils
 import co.firstorderlabs.coinbaseml.common.utils.Utils.FutureUtils
+import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.noOpObservationRequest
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.{ProductVolume, QuoteVolume}
 import co.firstorderlabs.common.protos.actionizers.{EmaCrossOverConfigs, EmaCrossOverState, Actionizer => ActionizerProto}
-import co.firstorderlabs.common.protos.environment.{ActionRequest, Featurizer, ObservationRequest}
+import co.firstorderlabs.common.protos.environment.{ActionRequest, ObservationRequest}
 import co.firstorderlabs.common.protos.events.{BuyLimitOrder, OrderSide}
 import co.firstorderlabs.common.protos.fakebase.{BuyMarketOrderRequest, SellMarketOrderRequest, SimulationStartRequest, StepRequest}
+import co.firstorderlabs.common.protos.featurizers.Featurizer
 import co.firstorderlabs.common.protos.indicators.ExponentialMovingAverageConfigs
 import co.firstorderlabs.common.types.Types.SimulationId
 import co.firstorderlabs.common.types.Utils.OptionUtils
@@ -38,16 +40,16 @@ class TestEmaCrossOver extends AnyFunSpec {
     new QuoteVolume(Right("0.00")),
     actionRequest = Some(actionRequest),
     actionizerConfigs = EmaCrossOverConfigs(
-      emaFast=ExponentialMovingAverageConfigs(2),
-      emaSlow=ExponentialMovingAverageConfigs(4),
+      emaFast = ExponentialMovingAverageConfigs(2),
+      emaSlow = ExponentialMovingAverageConfigs(4)
     ),
-    observationRequest =
-      Some(new ObservationRequest(featurizer = Featurizer.NoOp)),
+    observationRequest = noOpObservationRequest.some,
     stopInProgressSimulations = true
   )
 
   def getActionizerState(simulationId: SimulationId): (Double, Double) = {
-    val actionizerState = SimulationState.getOrFail(simulationId).environmentState.actionizerState
+    val actionizerState =
+      SimulationState.getOrFail(simulationId).environmentState.actionizerState
     actionizerState match {
       case state: EmaCrossOverState =>
         (state.emaFast.value, state.emaSlow.value)
@@ -118,7 +120,8 @@ class TestEmaCrossOver extends AnyFunSpec {
             Exchange step stepRequest
           }
 
-          val (emaFast1, emaSlow1) = getActionizerState(simulationMetadata.simulationId)
+          val (emaFast1, emaSlow1) =
+            getActionizerState(simulationMetadata.simulationId)
           assert(emaFast1 ~= emaSlow1)
 
           // If a BuyMarketOrderTransaction is expected then add a new buy order to the

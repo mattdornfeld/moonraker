@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, Type, TypeVar
+from typing import Dict, Type, TypeVar, TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -7,7 +7,16 @@ from coinbase_ml.common.action import ActionBase
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.reward import BaseRewardStrategy
 from coinbase_ml.fakebase.base_classes import ExchangeBase
+from featurizers_pb2 import (
+    Featurizer as FeaturizerProto,
+    FeaturizerConfigs,
+    NoOpConfigs,
+    OrderBookConfigs,
+    TimeSeriesOrderBookConfigs,
+)
 
+if TYPE_CHECKING:
+    import coinbase_ml.common.protos.featurizers_pb2 as featurizers_pb2
 
 Exchange = TypeVar("Exchange", bound=ExchangeBase)
 
@@ -27,7 +36,7 @@ class Featurizer:
 
     @staticmethod
     def get_info_dict() -> dict:
-        return dict()
+        return {}
 
     @staticmethod
     def get_observation() -> Observation:
@@ -70,3 +79,26 @@ class MetricsDict(Dict[Metrics, float]):
             Dict[str, float]: [description]
         """
         return {k.value: v for k, v in self.items()}  # pylint: disable=no-member
+
+
+def build_featurizer_configs(
+    featurizer: "featurizers_pb2.FeaturizerValue", featurizer_configs: Dict[str, Any]
+) -> FeaturizerConfigs:
+    """Constructs a FeaturizerConfigs from a proto and dict
+    """
+    if featurizer == FeaturizerProto.NoOp:
+        _featurizer_configs = FeaturizerConfigs(noOpConfigs=NoOpConfigs())
+    elif featurizer == FeaturizerProto.OrderBook:
+        _featurizer_configs = FeaturizerConfigs(
+            orderBookConfigs=OrderBookConfigs(**featurizer_configs)
+        )
+    elif featurizer == FeaturizerProto.TimeSeriesOrderBook:
+        _featurizer_configs = FeaturizerConfigs(
+            timeSeriesOrderBookConfigs=TimeSeriesOrderBookConfigs(**featurizer_configs)
+        )
+    else:
+        raise ValueError(
+            f"Featurizer {FeaturizerProto.Name(featurizer)} is unsupported"
+        )
+
+    return _featurizer_configs

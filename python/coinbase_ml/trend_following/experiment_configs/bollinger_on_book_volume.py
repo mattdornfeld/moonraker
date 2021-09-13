@@ -7,8 +7,8 @@ from coinbase_ml.common.constants.tune import SearchAlgorithms, OptimizationMode
 from coinbase_ml.common.protos.environment_pb2 import (
     InfoDictKey,
     RewardStrategy,
-    Featurizer,
 )
+from coinbase_ml.common.protos.featurizers_pb2 import Featurizer
 from coinbase_ml.common.utils.time_utils import (
     generate_lookback_intervals,
     TimeInterval,
@@ -20,6 +20,7 @@ from coinbase_ml.trend_following.experiment_configs.constants import SACRED_EXPE
 def bollinger_on_book_volume_dev():
     actionizer_name = "coinbase_ml.common.actionizers.BollingerOnBookVolume"
     featurizer = Featurizer.Name(Featurizer.NoOp)
+    featurizer_configs = {}
     optimize_time_intervals = [
         time_interval.to_str_tuple()
         for time_interval in generate_lookback_intervals(

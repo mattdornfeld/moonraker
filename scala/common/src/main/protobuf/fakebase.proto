@@ -204,7 +204,6 @@ message SimulationStartRequest {
     int32 numWarmUpSteps = 4;
     string initialProductFunds = 5 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume"];
     string initialQuoteFunds = 6 [(scalapb.field).type = "co.firstorderlabs.common.currency.Configs.ProductPrice.QuoteVolume"];
-    int32 snapshotBufferSize = 7;
     ObservationRequest observationRequest = 8;
     bool enableProgressBar = 9;
     SimulationType simulationType = 10;

@@ -18,7 +18,7 @@ lazy val global = project
 
 lazy val common = project
   .settings(
-    name := "comoon",
+    name := "common",
     commonSettings,
     libraryDependencies ++= commonDependencies,
     Compile / PB.targets := Seq(

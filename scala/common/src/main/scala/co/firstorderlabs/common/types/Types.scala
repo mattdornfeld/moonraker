@@ -11,6 +11,8 @@ import co.firstorderlabs.common.protos.events.{
   SimulationId => SimulationIdProto
 }
 import co.firstorderlabs.common.protos.fakebase.{Currency, StepRequest}
+import co.firstorderlabs.common.protos.featurizers.{Featurizer, NoOpConfigs}
+import co.firstorderlabs.common.types.Utils.OptionUtils
 import scalapb.TypeMapper
 import scalapb.lenses.Updatable
 
@@ -29,10 +31,17 @@ object Types {
   final case class OrderRequestId(orderRequestId: String) extends AnyVal
   final case class SimulationId(simulationId: String) extends AnyVal {
     def toObservationRequest: ObservationRequest =
-      ObservationRequest(simulationId = Some(this))
+      ObservationRequest(
+        simulationId = Some(this),
+        featurizer = Featurizer.NoOp,
+        featurizerConfigs = new NoOpConfigs
+      )
 
     def toStepRequest: StepRequest =
-      StepRequest(simulationId = Some(this))
+      StepRequest(
+        simulationId = Some(this),
+        observationRequest = this.toObservationRequest.some
+      )
   }
 
   final case class TradeId(tradeId: Long) extends AnyVal

@@ -14,6 +14,7 @@ from ray.rllib.env.env_context import EnvContext
 
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.actionizers import Actionizer
+from coinbase_ml.common.featurizers import build_featurizer_configs
 from coinbase_ml.common.observations import (
     Observation,
     ObservationSpace,
@@ -22,17 +23,18 @@ from coinbase_ml.common.observations import (
 from coinbase_ml.common.protos.environment_pb2 import (
     InfoDictKey,
     RewardStrategy,
-    Featurizer,
 )
+from coinbase_ml.common.protos.featurizers_pb2 import Featurizer
+from coinbase_ml.common.types import SimulationId
 from coinbase_ml.common.utils.ray_utils import get_actionizer
 from coinbase_ml.common.utils.time_utils import TimeInterval
 from coinbase_ml.fakebase.exchange import Exchange, SimulationMetadata
-from coinbase_ml.common.types import SimulationId
 from coinbase_ml.fakebase.protos import fakebase_pb2  # pylint: disable=unused-import
 from coinbase_ml.fakebase.protos.fakebase_pb2 import SimulationType
 from coinbase_ml.fakebase.types import ProductVolume, QuoteVolume
 from coinbase_ml.train import constants as c
 from coinbase_ml.train.utils.exception_utils import EnvironmentFinishedException
+from featurizers_pb2 import FeaturizerConfigs
 
 LOGGER = logging.getLogger(__name__)
 
@@ -63,6 +65,16 @@ class EnvironmentConfigs:
     @property
     def actionizer(self) -> Actionizer:
         return get_actionizer(self.actionizer_name)
+
+    @property
+    def featurizer_configs(self) -> FeaturizerConfigs:
+        return build_featurizer_configs(
+            Featurizer.TimeSeriesOrderBook,
+            {
+                "featureBufferSize": self.time_series_feature_buffer_size,
+                "orderBookDepth": cc.ORDER_BOOK_DEPTH,
+            },
+        )
 
     @staticmethod
     def from_sacred_config(environment_configs: dict) -> "EnvironmentConfigs":
@@ -149,7 +161,7 @@ class Environment(Env):  # pylint: disable=W0223
                 order_book=(
                     1,
                     self.config.time_series_feature_buffer_size
-                    * 4
+                    * 43
                     * cc.ORDER_BOOK_DEPTH,
                 ),
                 time_series=(
@@ -239,6 +251,7 @@ class Environment(Env):  # pylint: disable=W0223
             self._simulation_metadata = self.exchange.start(
                 actionizer=self.actionizer.proto_value,
                 featurizer=Featurizer.TimeSeriesOrderBook,
+                featurizer_configs=self.config.featurizer_configs,
                 backup_to_cloud_storage=self._should_backup_to_cloud_storage(),
                 enable_progress_bar=self.config.enable_progress_bar,
                 end_dt=self._end_dt,
@@ -248,7 +261,6 @@ class Environment(Env):  # pylint: disable=W0223
                 product_id=cc.PRODUCT_ID,
                 reward_strategy=RewardStrategy.Value(self.config.reward_strategy),
                 simulation_type=self.config.simulation_type,
-                snapshot_buffer_size=self.config.time_series_feature_buffer_size,
                 start_dt=self._start_dt,
                 time_delta=self.config.time_delta,
             )

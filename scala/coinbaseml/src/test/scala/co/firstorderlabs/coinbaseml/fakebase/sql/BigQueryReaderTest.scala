@@ -1,10 +1,10 @@
 package co.firstorderlabs.coinbaseml.fakebase.sql
 
 import java.time.Instant
-
 import co.firstorderlabs.coinbaseml.common.utils.TestUtils.{buildStepRequest, waitUntil}
 import co.firstorderlabs.coinbaseml.common.utils.Utils.{FutureUtils, getResult}
 import co.firstorderlabs.coinbaseml.common.{Configs => CommonConfigs}
+import co.firstorderlabs.coinbaseml.fakebase.TestData.RequestsData.observationRequest
 import co.firstorderlabs.coinbaseml.fakebase.sql.TestData._
 import co.firstorderlabs.coinbaseml.fakebase.sql.{Configs => SQLConfigs}
 import co.firstorderlabs.coinbaseml.fakebase.{Configs, Exchange, SimulationMetadata, SimulationState}
@@ -12,6 +12,7 @@ import co.firstorderlabs.common.currency.Price.BtcUsdPrice.{ProductVolume, Quote
 import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.fakebase.SimulationStartRequest
 import co.firstorderlabs.common.types.Types.TimeInterval
+import co.firstorderlabs.common.types.Utils.OptionUtils
 import com.simba.googlebigquery.googlebigquery.BigQuery
 import org.scalatest.funspec.AnyFunSpec
 
@@ -111,8 +112,7 @@ class BigQueryReaderTest extends AnyFunSpec {
         3,
         new ProductVolume(Right("100.000000")),
         new QuoteVolume(Right("10000.00")),
-        snapshotBufferSize = 3,
-        observationRequest = Some(new ObservationRequest(10))
+        observationRequest = observationRequest.some
       )
       implicit val simulationMetadata =
         SimulationMetadata.fromSimulationStartRequest(simulationStartRequest)

@@ -1,11 +1,13 @@
 from datetime import timedelta
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from dateutil.parser import parse
 from google.protobuf import json_format
 
 from coinbase_ml.common import constants as cc
-from coinbase_ml.common.protos.environment_pb2 import RewardStrategy, Featurizer
+from coinbase_ml.common.featurizers import build_featurizer_configs
+from coinbase_ml.common.protos.environment_pb2 import RewardStrategy
+from coinbase_ml.common.protos.featurizers_pb2 import Featurizer
 from coinbase_ml.common.utils.ray_utils import get_actionizer
 from coinbase_ml.common.utils.time_utils import TimeInterval
 from coinbase_ml.fakebase.exchange import Exchange
@@ -21,6 +23,7 @@ def evaluate(
     actionizer_configs: dict,
     end_dt: str,
     featurizer: str,
+    featurizer_configs: Dict[str, Any],
     initial_product_funds: str,
     initial_quote_funds: str,
     num_warmup_time_steps: int,
@@ -30,6 +33,8 @@ def evaluate(
     time_delta: int,
 ) -> float:
     exchange = Exchange(port=FAKEBASE_SERVER_PORT, terminate_automatically=False)
+    _featurizer = Featurizer.Value(featurizer)
+    _featurizer_configs = build_featurizer_configs(_featurizer, featurizer_configs)
 
     simulation_id = exchange.start(
         actionizer=get_actionizer(actionizer_name).proto_value,
@@ -39,7 +44,8 @@ def evaluate(
         backup_to_cloud_storage=False,
         enable_progress_bar=False,
         end_dt=parse(end_dt),
-        featurizer=Featurizer.Value(featurizer),
+        featurizer=_featurizer,
+        featurizer_configs=_featurizer_configs,
         initial_product_funds=cc.PRODUCT_ID.product_volume_type(initial_product_funds),
         initial_quote_funds=cc.PRODUCT_ID.quote_volume_type(initial_quote_funds),
         num_warmup_time_steps=num_warmup_time_steps,
@@ -48,7 +54,6 @@ def evaluate(
         skip_checkpoint_after_warmup=True,
         skip_database_query=True,
         simulation_type=SimulationType.evaluation,
-        snapshot_buffer_size=1,
         start_dt=parse(start_dt),
         time_delta=timedelta(seconds=time_delta),
     ).simulation_id

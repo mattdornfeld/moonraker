@@ -1,15 +1,34 @@
 package co.firstorderlabs.coinbaseml.fakebase.TestData
 
 import java.time.{Duration, Instant}
-
 import co.firstorderlabs.common.currency.Configs.ProductPrice
 import co.firstorderlabs.common.currency.Configs.ProductPrice.ProductVolume
 import co.firstorderlabs.common.currency.Price.BtcUsdPrice.QuoteVolume
 import co.firstorderlabs.common.protos.environment.ObservationRequest
 import co.firstorderlabs.common.protos.fakebase._
+import co.firstorderlabs.common.protos.featurizers.{
+  Featurizer,
+  NoOpConfigs,
+  TimeSeriesOrderBookConfigs
+}
 import co.firstorderlabs.common.types.Types.SimulationId
 
 object RequestsData {
+  val timeSeriesOrderBookConfigs = TimeSeriesOrderBookConfigs(
+    orderBookDepth = 10,
+    featureBufferSize = 3
+  )
+  val featurizerConfigs = timeSeriesOrderBookConfigs.toSealedOneOf
+  val observationRequest = ObservationRequest(
+    featurizer = Featurizer.TimeSeriesOrderBook,
+    featurizerConfigs = featurizerConfigs
+  )
+  val normalizeObservationRequest = observationRequest.withNormalize(true)
+  val noOpObservationRequest = ObservationRequest(
+    featurizer = Featurizer.NoOp,
+    featurizerConfigs = (new NoOpConfigs).toSealedOneOf
+  )
+
   def buyLimitOrderRequest(simulationId: SimulationId): BuyLimitOrderRequest =
     new BuyLimitOrderRequest(
       new ProductPrice(Right("1000.00")),
@@ -125,9 +144,6 @@ object RequestsData {
       simulationId = Some(simulationId)
     )
 
-  val observationRequest = new ObservationRequest(10)
-  val normalizeObservationRequest = new ObservationRequest(10, true)
-
   val simulationStartRequest = new SimulationStartRequest(
     Instant.parse("2019-11-20T19:20:50.63Z"),
     Instant.parse("2019-11-20T19:25:50.63Z"),
@@ -135,7 +151,6 @@ object RequestsData {
     0,
     new ProductVolume(Right("100.000000")),
     new QuoteVolume(Right("10000.00")),
-    snapshotBufferSize = 3,
     observationRequest = Some(observationRequest),
     stopInProgressSimulations = true
   )
@@ -147,7 +162,6 @@ object RequestsData {
     3,
     new ProductVolume(Right("100.000000")),
     new QuoteVolume(Right("10000.00")),
-    snapshotBufferSize = 3,
     observationRequest = Some(observationRequest),
     stopInProgressSimulations = true
   )
@@ -159,7 +173,6 @@ object RequestsData {
     3,
     new ProductVolume(Right("100.000000")),
     new QuoteVolume(Right("10000.00")),
-    snapshotBufferSize = 3,
     observationRequest = Some(observationRequest),
     stopInProgressSimulations = true
   )

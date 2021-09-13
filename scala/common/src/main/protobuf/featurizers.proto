@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  preserve_unknown_fields: false
+  package_name: "co.firstorderlabs.common.protos"
+  field_transformations: [
+    {
+      when: {options: {[validate.rules] {message: {required: true}}}}
+      set: {
+        [scalapb.field] {
+          required: true
+        }
+      }
+    }
+  ]
+};
+
+enum Featurizer {
+  TimeSeriesOrderBook = 0;
+  NoOp = 1;
+  OrderBook = 2;
+}
+
+message FeaturizerConfigs {
+  oneof sealed_value {
+    TimeSeriesOrderBookConfigs timeSeriesOrderBookConfigs = 1;
+    NoOpConfigs noOpConfigs = 2;
+    OrderBookConfigs orderBookConfigs = 3;
+  }
+}
+
+message TimeSeriesOrderBookConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Featurizers.FeaturizerConfigs";
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Featurizers.OrderBookVectorizerConfigs";
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Featurizers.TimeSeriesVectorizerConfigs";
+  int32 featureBufferSize = 1;
+  int32 orderBookDepth = 2;
+}
+
+message NoOpConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Featurizers.FeaturizerConfigs";
+}
+
+message OrderBookConfigs {
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Featurizers.FeaturizerConfigs";
+  option (scalapb.message).extends = "co.firstorderlabs.common.types.Featurizers.OrderBookVectorizerConfigs";
+  int32 featureBufferSize = 1;
+  int32 orderBookDepth = 2;
+}

@@ -29,3 +29,4 @@ class StateAtTime:
 
 StateBuffer = Deque[StateAtTime]
 SimulationId = NewType("SimulationId", str)
+FeatureName = NewType("FeatureName", str)

@@ -8,18 +8,33 @@ import co.firstorderlabs.coinbaseml.common.featurizers.TimeSeriesVectorizer.Time
 import co.firstorderlabs.coinbaseml.common.utils.BufferUtils.FiniteQueue
 import co.firstorderlabs.coinbaseml.fakebase._
 import co.firstorderlabs.common.protos.environment.ObservationRequest
-import co.firstorderlabs.common.protos.events.{BuyLimitOrder, Cancellation, Match, SellLimitOrder}
-import co.firstorderlabs.common.types.Events.{Event, OrderEvent, SpecifiesPrice, SpecifiesSize}
+import co.firstorderlabs.common.protos.events.{
+  BuyLimitOrder,
+  Cancellation,
+  Match,
+  SellLimitOrder
+}
+import co.firstorderlabs.common.protos.featurizers.TimeSeriesOrderBookConfigs
+import co.firstorderlabs.common.types.Events.{
+  Event,
+  OrderEvent,
+  SpecifiesPrice,
+  SpecifiesSize
+}
+import co.firstorderlabs.common.types.Featurizers.TimeSeriesVectorizerConfigs
 
 final case class TimeSeriesVectorizerState(
     featureBuffer: FiniteQueue[TimeSeriesFeature]
-) extends co.firstorderlabs.coinbaseml.fakebase.State[TimeSeriesVectorizerState] {
+) extends co.firstorderlabs.coinbaseml.fakebase.State[
+      TimeSeriesVectorizerState
+    ] {
   override val companion = TimeSeriesVectorizerState
 
   override def createSnapshot(implicit
       simulationState: SimulationState
   ): TimeSeriesVectorizerState = {
-    val timeSeriesFeaturizerState = TimeSeriesVectorizerState.create(simulationState.simulationMetadata)
+    val timeSeriesFeaturizerState =
+      TimeSeriesVectorizerState.create(simulationState.simulationMetadata)
     timeSeriesFeaturizerState.featureBuffer.addAll(featureBuffer.iterator)
     timeSeriesFeaturizerState
   }
@@ -28,11 +43,22 @@ final case class TimeSeriesVectorizerState(
 
 object TimeSeriesVectorizerState
     extends StateCompanion[TimeSeriesVectorizerState] {
+  def getFeaturizerConfigs(
+      observationRequest: ObservationRequest
+  ): TimeSeriesVectorizerConfigs =
+    observationRequest.featurizerConfigs match {
+      case featurizerConfigs: TimeSeriesVectorizerConfigs => featurizerConfigs
+    }
+
   override def create(implicit
       simulationMetadata: SimulationMetadata
   ): TimeSeriesVectorizerState =
     TimeSeriesVectorizerState(
-      new FiniteQueue[TimeSeriesFeature](simulationMetadata.featureBufferSize)
+      new FiniteQueue[TimeSeriesFeature](
+        getFeaturizerConfigs(
+          simulationMetadata.observationRequest
+        ).featureBufferSize
+      )
     )
 
   override def fromSnapshot(
@@ -120,10 +146,18 @@ object TimeSeriesVectorizer extends VectorizerBase {
   def numChannels: Int =
     numEventCountFeatureChannels + numPriceFeatureChannels + numSizeFeatureChannels
 
+  def featurizerState(implicit
+                      simulationState: SimulationState
+  ): HasTimeSeriesVectorizerState =
+    simulationState.environmentState.featurizerState match {
+      case featurizerState: HasTimeSeriesVectorizerState => featurizerState
+    }
+
   override def construct(
       observationRequest: ObservationRequest
   )(implicit simulationState: SimulationState): List[Double] = {
-    val featureBuffer = simulationState.environmentState.timeSeriesFeaturizerState.featureBuffer
+    val featureBuffer =
+      featurizerState.timeSeriesVectorizerState.featureBuffer
     featureBuffer.toList.reverse.flatten
       .padTo(numChannels * featureBuffer.getMaxSize, 0.0)
   }
@@ -140,7 +174,8 @@ object TimeSeriesVectorizer extends VectorizerBase {
       }
     }
 
-    simulationState.environmentState.timeSeriesFeaturizerState.featureBuffer enqueue eventAggregators.map(_.value)
+    featurizerState.timeSeriesVectorizerState.featureBuffer enqueue eventAggregators
+      .map(_.value)
 
     val endTime = System.currentTimeMillis()
     logger.fine(s"TimeSeriesFeaturizer.step took ${endTime - startTime} ms")

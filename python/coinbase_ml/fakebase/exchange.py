@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from time import sleep
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, cast
 
 import numpy as np
+import pandas as pd
 from dateutil import parser
 from google.protobuf.duration_pb2 import Duration
 from grpc._channel import _InactiveRpcError as InactiveRpcError
@@ -17,10 +18,15 @@ import coinbase_ml.fakebase.account as account
 from coinbase_ml.common import constants as cc
 from coinbase_ml.common.observations import Observation
 from coinbase_ml.common.protos.actionizers_pb2 import ActionizerConfigs
-from coinbase_ml.common.protos.environment_pb2 import ActionRequest
-from coinbase_ml.common.protos.environment_pb2 import ObservationRequest, RewardRequest
+from coinbase_ml.common.protos.environment_pb2 import (
+    ActionRequest,
+    ObservationRequest,
+    RewardRequest,
+)
+from coinbase_ml.common.protos.featurizers_pb2 import FeaturizerConfigs
 from coinbase_ml.common.protos.events_pb2 import SimulationId as SimulationIdProto
-from coinbase_ml.common.types import SimulationId
+from coinbase_ml.common.types import SimulationId, FeatureName
+from coinbase_ml.common.utils.arrow_utils import read_from_arrow_socket
 from coinbase_ml.fakebase import constants as c
 from coinbase_ml.fakebase.orm import CoinbaseCancellation, CoinbaseMatch, CoinbaseOrder
 from coinbase_ml.fakebase.protos import fakebase_pb2  # pylint: disable=unused-import
@@ -54,8 +60,9 @@ from coinbase_ml.fakebase.utils.grpc_utils import (
 )
 
 if TYPE_CHECKING:
-    import coinbase_ml.common.protos.environment_pb2 as environment_pb2
     import coinbase_ml.common.protos.actionizers_pb2 as actionizers_pb2
+    import coinbase_ml.common.protos.featurizers_pb2 as featurizers_pb2
+    import coinbase_ml.common.protos.environment_pb2 as environment_pb2
 
 
 @dataclass
@@ -151,16 +158,17 @@ class Exchange:
 
     @staticmethod
     def _generate_observation_request(
-        featurizer: "environment_pb2.FeaturizerValue",
+        featurizer: "featurizers_pb2.FeaturizerValue",
+        featurizer_configs: FeaturizerConfigs,
         reward_strategy: "environment_pb2.RewardStrategyValue",
         simulation_id: Optional[SimulationId] = None,
     ) -> ObservationRequest:
         return ObservationRequest(
-            orderBookDepth=cc.ORDER_BOOK_DEPTH,
             normalize=False,
             rewardRequest=RewardRequest(rewardStrategy=reward_strategy),
             simulationId=Exchange._generate_simulation_id_proto(simulation_id),
             featurizer=featurizer,
+            featurizerConfigs=featurizer_configs,
         )
 
     @staticmethod
@@ -233,6 +241,16 @@ class Exchange:
         """
         return Observation.from_arrow_socket(simulation_id)
 
+    @staticmethod
+    def features(simulation_id: SimulationId) -> Dict[FeatureName, pd.Series]:
+        """Features from latest step
+        """
+        arrow_socket_file = cc.ARROW_SOCKETS_BASE_DIR / f"{simulation_id}.socket"
+        return cast(
+            Dict[FeatureName, pd.Series],
+            read_from_arrow_socket(arrow_socket_file)[0].to_dict("series"),
+        )
+
     def populate_storage(
         self,
         start_time: datetime,
@@ -268,17 +286,17 @@ class Exchange:
         self,
         actionizer: "actionizers_pb2.ActionizerValue",
         end_dt: datetime,
-        featurizer: "environment_pb2.FeaturizerValue",
+        featurizer: "featurizers_pb2.FeaturizerValue",
         initial_product_funds: ProductVolume,
         initial_quote_funds: QuoteVolume,
         num_warmup_time_steps: int,
         product_id: ProductId,
         reward_strategy: "environment_pb2.RewardStrategyValue",
-        snapshot_buffer_size: int,
         start_dt: datetime,
         time_delta: timedelta,
         backup_to_cloud_storage: bool = False,
         actionizer_configs: ActionizerConfigs = ActionizerConfigs(),
+        featurizer_configs: FeaturizerConfigs = FeaturizerConfigs(),
         enable_progress_bar: bool = False,
         simulation_type: "fakebase_pb2.SimulationTypeValue" = SimulationType.evaluation,
         skip_database_query: bool = False,
@@ -288,7 +306,7 @@ class Exchange:
         """
         action_request = self._generate_action_request(actionizer, None, np.array([]))
         observation_request = self._generate_observation_request(
-            featurizer, reward_strategy
+            featurizer, featurizer_configs, reward_strategy
         )
         simulation_start_request = SimulationStartRequest(
             actionRequest=action_request,
@@ -304,7 +322,6 @@ class Exchange:
             simulationType=simulation_type,
             skipCheckpointAfterWarmup=skip_checkpoint_after_warmup,
             skipDatabaseQuery=skip_database_query,
-            snapshotBufferSize=snapshot_buffer_size,
             startTime=self._date_time_to_proto_str(start_dt),
             timeDelta=self._time_delta_to_duration(time_delta),
         )
@@ -318,7 +335,7 @@ class Exchange:
             actionizer=actionizer,
             end_dt=end_dt,
             observation_request=self._generate_observation_request(
-                featurizer, reward_strategy, simulation_id
+                featurizer, featurizer_configs, reward_strategy, simulation_id
             ),
             product_id=product_id,
             simulation_id=SimulationId(simulation_info.simulationId.simulationId),
